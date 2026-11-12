@@ -148,10 +148,39 @@ def fetch_price(code, market, fqt='qfq', beg='20190101'):
 def main():
     start = START
     end = _td.bj_today()
-    fp = os.path.join(DATA, 'shares.json')
-    px_fp = os.path.join(DATA, 'prices.json')
 
-    hist = json.load(open(fp, encoding='utf-8')) if os.path.exists(fp) else {}
+    # ---- 调度：价格段 / 份额段各自可单独跑 ----
+    #
+    # ⚠⚠ 2026-11-12 晚：这两段被拆开，因为【共用同一个出口 IP 的配额】。
+    #   它们读写的文件本来就不重叠（prices.json / shares.json），
+    #   唯一的问题是：价格段打东财 push2his（该域名大约容忍十几次请求），
+    #   份额段打上交所（另一个域名，不抢东财配额）。放在同一个 job 里，
+    #   价格段永远排在后面、永远抢不到配额 —— 实测 1/10。
+    #
+    #   拆开之后各拿一份 IP，互不影响。
+    #   不带任何开关时仍然是「两段都跑」，所以本地手动回补的行为不变。
+    shares_only = '--shares-only' in sys.argv
+    prices_only = '--prices-only' in sys.argv
+    if shares_only and prices_only:
+        raise SystemExit('✗ --shares-only 和 --prices-only 不能同时用')
+
+    if not shares_only:
+        _fetch_prices(start, end)
+    else:
+        print('\n价格：跳过（--shares-only）')
+
+    if not prices_only:
+        _fetch_shares(start, end)
+    else:
+        print('\n份额：跳过（--prices-only）')
+
+
+def _fetch_prices(start, end):
+    """价格段：前复权收盘价（画曲线用）。
+
+    ⚠ 2026-11-12 晚从 main() 抽出来，为的是能单独跑。
+    """
+    px_fp = os.path.join(DATA, 'prices.json')
     prices = json.load(open(px_fp, encoding='utf-8')) if os.path.exists(px_fp) else {}
 
     # ---- 价格 ----
@@ -192,6 +221,7 @@ def main():
     # 同一天会出现两个价。所以「重叠区是否吻合」正是除权的直接指纹 ——
     # 不需要猜哪天分红，让数据自己说。
     refresh = '--refresh-prices' in sys.argv
+
     NEAR_DAYS = 40      # 增量窗口：覆盖约 26 个交易日，足够容错节假日
     print('\n价格：' + ('（强制全量刷新）' if refresh else '（增量 + 重叠校验）'))
     ok_codes, bad_codes, full_codes = [], [], []   # 本次抓到的 / 失败的 / 被迫全量的
@@ -305,20 +335,29 @@ def main():
     #   同一次运行里，日志写着 10 行「失败」，体检栏却显示「全部正常」。
     #   这跟我在 fetch_price_bfq.py 里专门写注释防的是同一个错误，还是又犯了一遍。
     #   **判据必须是「本次抓取的结果」，不是「合并后字典的长度」。**
-    _last = None
-    for code in ok_codes:
-        v = prices.get(code) or []
-        if v:
-            _last = max(_last or '', v[-1][0])
+    #
+    # ⚠⚠ 2026-11-12 晚再修一次，因为「本次抓取的结果」这个说法还是不够细：
+    #   那天日志写的是「1 只走了全量（510050）」，上报 got=1/want=10，看着对；
+    #   但 last 用的是 max() ——
+    #       _last = max(v[-1][0] for v in prices.values() if v)
+    #   510050 一只前进到 11-12，就把整项的 last 拉到 11-12 → lag=0 →
+    #   页面显示「2026-11-12 · 当日 · 1/10」，读起来像「今天更新了，只是慢半拍」。
+    #   **实际是 9 只停更，体检栏报「落后 0 天」。**
+    #   这比「全失败」更危险：全失败至少是 ❌，这个是好听的假话。
+    #
+    #   所以 last 不能用 max。改用 _fh.majority_last()：取「多数资产所在的那一天」，
+    #   并且把「比这天更晚的有几只」单独报出来（那几只是特例，不能拿来给整项贴金）。
+    _last, _ahead, _tail_n = _fh.majority_last(
+        [prices.get(w[1]) or [] for w in WATCH])
     # 全失败时，仍要从旧文件里读出「曲线停在哪一天」——
     # 报「停在 11-11」比报「没有日期」有用得多，因为前者能直接算出落后几天。
     # 这和 fetch_price_bfq.py 的处理保持一致（那边也是读旧文件的末日期）。
     if _last is None:
-        for v in prices.values():
-            if v:
-                _last = max(_last or '', v[-1][0])
+        _last, _ahead, _tail_n = _fh.majority_last(list(prices.values()))
     _want = len(WATCH)
     _got = len(ok_codes)
+    # 「多数日」之外的领先只数，必须写进 note —— 否则那一天看着像全体的成绩。
+    _lead = f'；{_ahead} 只已到更晚一天（其余停在 {_last}）' if _ahead else ''
     if not ok_codes:
         _fh.report('price_qfq', '价格（前复权，画曲线用）', 'fail',
                    last=_last, got=0, want=_want,
@@ -327,9 +366,21 @@ def main():
         _fh.report('price_qfq', '价格（前复权，画曲线用）',
                    'ok' if not bad_codes else 'partial',
                    last=_last, got=_got, want=_want,
-                   note=('全量刷新' if refresh else '') +
-                        (f'；{len(bad_codes)} 只失败 {" ".join(bad_codes[:4])}'
-                         f'{"…" if len(bad_codes) > 4 else ""}' if bad_codes else ''))
+                   note=(('全量刷新' if refresh else '') +
+                         (f'；{len(bad_codes)} 只失败 {" ".join(bad_codes[:4])}'
+                          f'{"…" if len(bad_codes) > 4 else ""}' if bad_codes else '') +
+                         _lead).strip('；'))
+
+
+def _fetch_shares(start, end):
+    """份额段：只补真正缺的交易日。
+
+    ⚠ 2026-11-12 晚从 main() 抽出来，为的是能单独跑（--shares-only）。
+    打的是上交所 / 深交所，和价格段的东财不是同一个域名，配额互不影响 ——
+    但也正因如此，它和价格段拆到两个 job 后，两边都能拿到干净 IP。
+    """
+    fp = os.path.join(DATA, 'shares.json')
+    hist = json.load(open(fp, encoding='utf-8')) if os.path.exists(fp) else {}
 
     # ---- 份额：只补真正缺的交易日 ----
     #

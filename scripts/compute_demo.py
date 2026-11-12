@@ -22,6 +22,7 @@ from datetime import date, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _td          # 交易日历 + 北京时钟（全站唯一时间口径）
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -1370,7 +1371,11 @@ def main():
     #   **这一栏从此永远显示「全部正常」，比不装它还糟：它长得像体检，实际什么也没查。**
     #   跨零点差一天的顾虑是真的，但那是 1 天的事；拿错基准是「永远为 0」的事。
     #   而且页面本来就有「最新 {days[-1]}」在顶部，两者不是同一个概念，不该混用。
-    today_real = date.today().isoformat()
+    # ⚠ 用 _td.bj_today_str() 而不是 date.today()。
+    #   GitHub Actions 的容器时区是 UTC：北京 07:00 跑 = UTC 前一天 23:00，
+    #   date.today() 会早一天，lag 全部虚高 1 天（或反过来把真落后藏起来）。
+    #   全站的时间口径只允许有一个出口，就是 _td。
+    today_real = _td.bj_today_str()
     try:
         health = _fh.summarize(today=today_real)
     except Exception as e:

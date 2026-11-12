@@ -45,6 +45,18 @@ jobs:
       - name: 检查依赖
         run: python3 -c "import json,urllib.request,zipfile,re,statistics;print('stdlib OK')"
 
+      # ⚠⚠ 2026-11-12 晚补：测试以前【从来没在 CI 里跑过】。
+      #   本地写了 72 项断言，全靠我记得手动跑 —— 而 CI 才是每天真正执行的地方。
+      #   一个不在 CI 里的测试，等于给代码写了一份没人读的说明书。
+      #   放在抓取之前：逻辑错了就不该浪费请求配额去抓。
+      - name: 跑测试
+        run: |
+          set -e
+          for t in tests/test_*.py; do
+            echo "───── $t"
+            python3 "$t" | tail -3
+          done
+
       - name: 回补（手动触发时）
         if: ${{ github.event.inputs.backfill_days != '' }}
         run: python3 scripts/fetch_etf.py --backfill ${{ github.event.inputs.backfill_days }}
@@ -63,6 +75,28 @@ jobs:
       #     after  = 跑完一整轮之后 → 和 before 对比，才知道「自我限流」到底占多大比重。
       #
       #   探针只读、不写 data/、不上报，跑坏了对生产零影响（失败也不阻断）。
+      # ⚠⚠ 2026-11-12 晚：前复权价（price_qfq）从这里【移出去】了，改由下面
+      #   独立的 qfq job 抓。原因不是代码错，是排队位置 ——
+      #
+      #   第五轮 CI 的请求账单把账算清了：
+      #     fetch_price_bfq  10 次 push2his  → 10/10 全成
+      #     fetch_index       3 次 push2his  → 3/3 全成
+      #     fetch_margin      7 次（另一个域名，不抢配额）
+      #     fetch_history    48 次 push2his  → **1/10**
+      #
+      #   同一个域名，前 13 次全通，第 14 次以后几乎全断（0.6s 就 RemoteDisconnected）。
+      #   也就是说 push2his 的容忍度大约在【十几次】这个量级，
+      #   而 fetch_history 是第 6 个步骤，轮到它时已经花掉 13 次。
+      #   当时把它的重试调到大 5 次，等于往一个已经满了的桶里继续倒水。
+      #
+      #   修法有两条，我选后一条：
+      #     ① 在同一个 job 里继续调顺序/降重试 → 天花板仍然是「十几条」，
+      #        而且会跟 bfq 抢那点可怜的配额（bfq 是核心数据，不能让它吃亏）。
+      #     ② 拆成独立 job → **GitHub Actions 的 job 跑在各自的 runner 上，
+      #        是各自独立的出口 IP**。qfq 拿到的是一份全新的配额，
+      #        和 update 那个 job 互不影响。
+      #   这不是「调参」，是把共享资源变成独占资源。
+
       - name: 探针 · 抓取前
         continue-on-error: true
         run: python3 scripts/probe_source.py
@@ -117,7 +151,16 @@ jobs:
           else
             LATEST=$(python3 -c "import json;print(json.load(open('data/demo.json'))['latest_date'])")
             git commit -m "data: 更新至 ${LATEST}"
-            git push
+            # ⚠⚠ 2026-11-12 晚：加了 rebase 重推。
+            #   以前这个分支只有 update 一个 job 在推，直接 push 够用。
+            #   现在 qfq 是独立 job、并行跑，也可能在同一分钟推 main ——
+            #   「Updates were rejected」会从偶发变常态。
+            #   重试 3 次，每次间隔几秒。失败到第 3 次才真报错。
+            for i in 1 2 3; do
+              git pull --rebase --autostash origin main && git push && break
+              echo "第 $i 次推送失败，重试…"
+              sleep $((i * 5))
+            done
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
@@ -134,11 +177,95 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "排查：本机跑 \`python3 scripts/update.py\` 是否能通。若本机能通而 runner 不通，就是这个原因。" >> $GITHUB_STEP_SUMMARY
 
-  deploy:
+  # ⚠⚠ 2026-11-12 晚新增：前复权价单独一个 job。
+  #
+  # 为什么不能放在 update 里 —— 这一条是把账算清之后才敢下的结论：
+  #   第五轮 CI 的请求账单（_net.py 打印的）显示，同一轮里打 push2his 的次数是
+  #       fetch_price_bfq  10 次  → 10/10 全成
+  #       fetch_index       3 次  → 3/3 全成
+  #       fetch_history    48 次  → 1/10（其中 40 次是重试，说明第一次就被拒）
+  #   前 13 次全通，第 14 次起 0.6 秒就断。也就是说这个域名大约容忍【十几次】。
+  #   qfq 排在 update 的第 6 位，轮到它时配额早被前面吃光了。
+  #
+  #   继续在同一个 job 里调顺序没有出路：
+  #     · 往前提？bfq 是核心数据（净流入靠它），不能让它吃亏；
+  #     · 降重试？治的是表象，第一次就被拒，重试 0 次和 5 次都是 0/10。
+  #
+  #   拆 job 是唯一能真正解决的做法 —— **GitHub Actions 的每个 job 跑在
+  #   各自的 runner 上，出口 IP 不同、配额各算各的**。这不是调参，是把
+  #   共享资源变成独占资源。
+  #
+  # ⚠⚠ 为什么是 needs: update 串行，而不是并行：
+  #   我一开始写的是并行（不写 needs），想省几分钟。测试前发现有个竞态 ——
+  #   页面体检栏的数据来自 compute_demo.py 读 fetch_status.json，
+  #   而 compute_demo 跑在 update 里。qfq 并行的话，它写的
+  #   「price_qfq 本次结果」晚于 update 的 compute_demo，
+  #   页面上就会永远显示【上一次】的 qfq 状态 —— 又是一条静默的假话。
+  #   串行 + qfq 末尾重算一次，才保证体检栏和真实数据同源。
+  #   代价只是多几分钟，换来的是「体检栏说的是今天的事」。
+  #
+  #   if: always() 是为了 update 失败时仍然试着更新价格
+  #   （两件事互不相干，份额挂了不代表价格也拿不到）。
+  qfq:
     needs: update
-    # 只有「update 成功」才发布；changed=false（数据没变）也照常发布一次，
-    # 保证 Pages 上的东西和仓库一致。
-    if: needs.update.result == 'success'
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 干净的 runner、零请求 → 这份配额是它独占的
+      - name: 抓前复权价
+        id: qfq
+        run: |
+          set +e
+          python3 scripts/fetch_history.py --prices-only
+          code=$?
+          set -e
+          echo "exit_code=$code" >> $GITHUB_OUTPUT
+          # 不因为部分失败阻断提交：重叠校验已经保证
+          # 「对得上就增量、对不上才全量」，失败的那些保留旧数据，没有副作用。
+          echo "price_qfq 退出码 $code"
+
+      # ⚠ qfq 改了 prices.json / fetch_status.json，页面必须跟着重算一次，
+      #   否则体检栏里这一项还是 update 当时的旧状态。
+      - name: 重算并重建页面
+        run: |
+          python3 scripts/compute_demo.py || echo "⚠ compute_demo 失败，页面沿用上一版"
+          python3 scripts/build_demo.py --offline
+
+      - name: 提交（与 update 抢同一个分支，先 rebase）
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data demo_site.html
+          if git diff --staged --quiet; then
+            echo "前复权价无变化，跳过提交"
+            exit 0
+          fi
+          LATEST=$(python3 -c "import json;print(json.load(open('data/demo.json'))['latest_date'])" 2>/dev/null || echo "qfq")
+          git commit -m "data: 前复权价更新至 ${LATEST}"
+          # ⚠ update job 也在推同一个 main 分支，撞车是常态不是异常。
+          #   rebase 后重推；最多试 3 次，避免无限循环。
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main && git push && break
+            echo "第 $i 次推送失败，重试…"
+            sleep $((i * 5))
+          done
+
+  deploy:
+    needs: [update, qfq]
+    # ⚠ 必须写 needs 两个都用 success 判断吗？不 —— qfq 失败不该拦住发布。
+    #   页面主体（份额 / 净流入 / 杠杆）来自 update；qfq 只影响那条价格曲线。
+    #   用 always() + 判断 update 成功，qfq 死活都发。
+    if: |
+      always() && needs.update.result == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

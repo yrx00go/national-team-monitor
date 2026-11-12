@@ -39,6 +39,7 @@
   at      这次上报的时间
 """
 import json, os
+from collections import Counter
 from datetime import datetime, timedelta
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -68,6 +69,48 @@ LAG_OK = {
 # A 股最长休市是春节（约 9 天），所以取 10 —— 超过 10 天没新数据，基本不可能是假期。
 SRC_STALE_DAYS = 10
 REPORT_STALE_SLACK = 2   # 脚本连续几天没报到这一项，才算这一项没人管
+
+
+def majority_last(series):
+    """一批序列里，**多数资产**停在哪一天。返回 (日期, 落后只数, 总数)。
+
+    ⚠⚠ 2026-11-12 晚新增，起因是一个真实的谎报：
+
+    那天 CI 的日志是
+        price_qfq  ⇒  'partial', last=2026-11-12, got=1, want=10
+    页面上却显示
+        「价格（前复权）  2026-11-12 · 当日  ·  1/10」
+
+    看着像「今天更新了，只是慢了半拍」。实际是 **510050 一只到了 11-12，
+    其余 9 只全停在 11-11** —— 也就是 9 只停更，而体检栏报「落后 0 天」。
+
+    原因在取 last 的写法：
+        _last = max(v[-1][0] for v in prices.values() if v)
+    `max()` 取的是【最快的那一只】。只要有一只前进了，整项的 lag 就归零，
+    **其余九只停更多久都看不见**。
+
+    一批数据的新鲜度由【最慢的那部分】决定，不是最快的。
+    那就不能取 max，要取「多数资产所在的那一天」：
+    至少覆盖半数以上资产的最近日期；再顺手把「比它更晚的有几只」算出来 ——
+    那几只通常是特例（个别标的提前一天），得单独说，不能拿来给整项贴金。
+
+    为什么不取 min（最旧的）：
+    个别标的可能因为停牌、上市晚而天生更旧，取 min 会让整项永远显示陈旧，
+    变成另一头的老狼来了。取中位数/多数才是「这一批数据现在到哪」的答案。
+    """
+    tails = [v[-1][0] for v in series if v]
+    if not tails:
+        return None, 0, 0
+    cnt = Counter(tails)
+    total = len(tails)
+    # 从新到旧找，第一个覆盖 >= 半数资产的日期就是「多数所在的那天」
+    for d in sorted(cnt, reverse=True):
+        if cnt[d] * 2 >= total:
+            ahead = sum(n for dd, n in cnt.items() if dd > d)
+            return d, ahead, total
+    # 理论上到不了这里（最大的那天必然满足 cnt*2 >= total 才对，
+    # 除非 total 为 0）。兜底用最大值，行为退回旧写法但不报错。
+    return max(tails), 0, total
 
 
 def _load():

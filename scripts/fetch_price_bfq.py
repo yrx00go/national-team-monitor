@@ -275,15 +275,21 @@ def main():
 
     # 上报：last 用「真正抓到的那几只」的末日期，不用合并后的 ——
     # 合并后末日期看起来是新，但那几只其实是旧价，报上去就是骗自己。
-    got_last = max((v[-1][0] for v in out.values() if v), default=None)
+    #
+    # ⚠⚠ 但「抓到的那几只」也不能取 max()。2026-11-12 晚在 fetch_history.py
+    #   抓到的同一个错：9 只停在 T-1、1 只到了 T，max() 会把整项报成 T，
+    #   lag 归零，页面显示「当日」，而实际上九只停更。
+    #   要取「多数所在的那一天」，并把领先的那几只单独写进 note。
+    got_last, got_ahead, _n = _fh.majority_last(list(out.values()))
+    _lead = f'；{got_ahead} 只已到更晚一天' if got_ahead else ''
     if bad:
         _fh.report('price_bfq', '价格（不复权，算净流入用）', 'partial',
                    last=got_last, got=len(out), want=len(CODES),
-                   note=f'{len(bad)} 只未获取，{" ".join(c for c, _ in bad[:4])}'
-                        f'{"…" if len(bad) > 4 else ""} 沿用旧价')
+                   note=(f'{len(bad)} 只未获取，{" ".join(c for c, _ in bad[:4])}'
+                         f'{"…" if len(bad) > 4 else ""} 沿用旧价' + _lead))
     else:
         _fh.report('price_bfq', '价格（不复权，算净流入用）', 'ok',
-                   last=got_last, got=len(out), want=len(CODES))
+                   last=got_last, got=len(out), want=len(CODES), note=_lead.lstrip('；'))
 
     print(f'\n写入 {fp}  ({os.path.getsize(fp)/1024:.0f} KB)  '
           f'抓到 {len(out)}/{len(CODES)}')

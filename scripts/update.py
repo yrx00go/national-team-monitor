@@ -91,8 +91,23 @@ def main():
     #   现在的做法是「增量 + 重叠校验」：日常只抓近 40 天，拿重叠区逐日比对，
     #   对得上就增量续接，对不上（= 发生过除权）才自动转全量。
     #   判据从「时间到了」换成「数据自己说要不要」，既不赌，也不漏分红。
-    if not run('fetch_history.py', optional=True):
-        fails.append('fetch_history.py（前复权价未刷新，价格曲线会停在旧日期）')
+    #
+    # ⚠⚠ 2026-11-12 晚：这里改成【只补份额，不抓价格】。
+    #
+    #   第五轮 CI 的请求账单把配额算清楚了：
+    #       fetch_price_bfq  10 次 push2his → 10/10
+    #       fetch_index       3 次 push2his → 3/3
+    #       fetch_history    48 次 push2his → 1/10   ← 排第 6 位，配额早就没了
+    #   同一个域名前 13 次全通、第 14 次起几乎全断。也就是说：
+    #   **qfq 抓不到的真正原因是它排在「已经把配额花光的那个 job 里」。**
+    #
+    #   修法不是继续调顺序，而是把它挪到【另一个 job】去 ——
+    #   GitHub Actions 的 job 跑在各自的 runner 上，出口 IP 不同、配额各算各的。
+    #
+    #   所以这里只跑 --shares-only（上交所份额，另一个域名，不抢东财配额），
+    #   价格段由 daily.yml 里那个独立的 qfq job 负责。
+    if not run('fetch_history.py', '--shares-only', optional=True):
+        fails.append('fetch_history.py --shares-only（份额回补未完成）')
 
     # 放在最后：它要读上面所有抓取步骤写下的 fetch_status.json
     if not run('compute_demo.py', optional=True):
