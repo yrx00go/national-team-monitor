@@ -78,7 +78,48 @@ def fetch(code, market, bars=900):
     return [(s.split(',')[0], float(s.split(',')[1])) for s in kl]
 
 
+def _save(fp, obj):
+    """原子写盘：先写 .tmp 再 os.replace。
+
+    直接 open(fp,'w') 写，如果中途异常（磁盘满、进程被杀、JSON 序列化炸），
+    会留下一个【半截文件】。下游 compute_demo.py 读到坏 JSON 直接崩，
+    而它是可选步骤 —— 崩了页面就沿用旧数据，表面一切正常。
+    临时文件 + replace 是原子操作，要么旧的完整、要么新的完整，没有中间态。
+    """
+    tmp = fp + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False)
+    os.replace(tmp, fp)
+
+
 def main():
+    fp = os.path.join(DATA, 'prices_bfq.json')
+
+    # ⚠⚠ 2026-11-12 第二次 CI（run 43182246241）炸出来的最严重 bug，记录在这里：
+    #   那一次东财全站掐断，10 只标的全部 RemoteDisconnected，
+    #   而这几行代码【无条件】json.dump(out, ...)，于是：
+    #       写入 data/prices_bfq.json  (0 KB)  成功 0/10
+    #   把仓库里原本 227 KB 的有效数据【覆盖成了空文件】，再由 CI 的 git commit
+    #   提交回仓库 → 线上页面「组合单日净流入 +0.00 亿 / 近5日 +0.0 亿」全部归零。
+    #
+    #   比崩溃更糟：崩溃至少能看见，写空是静默的，日志里只有一行 "0 KB"，
+    #   页面长得跟正常一样，只是数字全变成 0。
+    #   上一轮我加「判空兜底」正是为了不让 compute_demo.py 崩 —— 结果把崩溃
+    #   换成了静默写空，等于把响警报拆了却没修火。
+    #
+    #   现在的三条规矩：
+    #     ① 全失败（一只都没抓到）→ 一个字都不写，直接 return 2，旧文件原样保留
+    #     ② 部分成功 → 【合并】进旧数据，不能整体替换。否则某只标的瞬时故障，
+    #        它那一段历史就被清空了，净流入从该日起全变 0
+    #     ③ 抓到的写入 + 旧的里没抓到的保留，两边都以「日期」为准去重，取新的
+    old = {}
+    if os.path.exists(fp):
+        try:
+            old = json.load(open(fp, encoding='utf-8')) or {}
+        except Exception as e:
+            print(f'  ⚠ 旧文件读不出来（{type(e).__name__}: {e}），按空处理')
+            old = {}
+
     out, bad = {}, []
     for code, mk in CODES.items():
         try:
@@ -92,15 +133,40 @@ def main():
             bad.append((code, f'{type(e).__name__}: {e}'))
         time.sleep(0.4)
 
-    fp = os.path.join(DATA, 'prices_bfq.json')
-    json.dump(out, open(fp, 'w', encoding='utf-8'), ensure_ascii=False)
-    print(f'\n写入 {fp}  ({os.path.getsize(fp)/1024:.0f} KB)  成功 {len(out)}/{len(CODES)}')
     if bad:
-        print('失败：')
+        print(f'\n失败 {len(bad)} 只：')
         for c, r in bad:
             print(f'  {c}  {r}')
-        return 1
-    return 0
+
+    # ── ① 全失败：不写盘 ───────────────────────────────────────────────
+    if not out:
+        kept = sum(len(v) for v in old.values())
+        print(f'\n✗ 一只都没抓到，不写盘。旧文件保留 {len(old)} 只 / {kept} 根 '
+              f'({os.path.getsize(fp)/1024:.0f} KB)' if os.path.exists(fp) else
+              '\n✗ 一只都没抓到，且本地无旧文件，本次不产出 prices_bfq.json')
+        return 2
+
+    # ── ② 合并：抓到的覆盖旧的，没抓到的沿用旧数据 ─────────────────────
+    merged, filled = {}, []
+    for code in CODES:
+        if code in out:
+            merged[code] = out[code]
+        elif code in old and old[code]:
+            merged[code] = old[code]
+            filled.append(code)
+
+    _save(fp, merged)
+
+    print(f'\n写入 {fp}  ({os.path.getsize(fp)/1024:.0f} KB)  '
+          f'抓到 {len(out)}/{len(CODES)}')
+    if filled:
+        # 不是错误，但要显式说出来：这几只的末价是旧的，
+        # 净流入会按「旧价 × 新份额」算 —— 误差只在该标的当日涨跌里，比归零好得多。
+        print(f'  沿用旧数据 {len(filled)} 只：{" ".join(filled)}')
+
+    # ③ 部分成功也返回 1：让 Actions 标红，人能看到「今天没抓全」。
+    #    但数据是对的（合并后的），页面能正常用。
+    return 1 if bad else 0
 
 
 if __name__ == '__main__':

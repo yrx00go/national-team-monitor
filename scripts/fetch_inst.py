@@ -17,7 +17,7 @@ ETF 国家队持仓基准 —— 基金定期报告披露的「机构持有比�
 
 另附：基金规模变动（期间申购/赎回），可反推资金进出方向。
 """
-import json, os, re, time, urllib.request
+import json, os, re, sys, time, urllib.request
 from datetime import datetime
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -119,13 +119,48 @@ def main():
         time.sleep(0.35)
 
     fp = os.path.join(DATA, 'inst_holdings.json')
-    json.dump(data, open(fp, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+
+    # ⚠ 与 fetch_price_bfq.py 同一个坑：不能无条件写盘。
+    #   这里 rows 是「这一轮抓到的」，全失败时是 []，直接写就会把
+    #   上一次有效的 10 只机构持仓覆盖成空数组 —— 机构页整块变空白，
+    #   而且日志里只有一行「写入 ...」，看不出任何异常。
+    if not data['rows']:
+        kept = '-'
+        if os.path.exists(fp):
+            try:
+                old = json.load(open(fp, encoding='utf-8'))
+                kept = f"{len(old.get('rows') or [])} 只"
+            except Exception:
+                kept = '旧文件读不出来'
+        print(f'\n✗ 一只都没抓到，不写盘。旧文件保留 {kept}')
+        return 2
+
+    # 部分成功：沿用上一轮里这次没抓到的标的，别让瞬时故障删掉整只 ETF。
+    if os.path.exists(fp):
+        try:
+            old = json.load(open(fp, encoding='utf-8'))
+            got = {r['code'] for r in data['rows']}
+            kept_rows = [r for r in (old.get('rows') or []) if r.get('code') not in got]
+            if kept_rows:
+                data['rows'] = sorted(data['rows'] + kept_rows, key=lambda r: r.get('index', 99))
+                print(f'  沿用旧数据 {len(kept_rows)} 只：'
+                      f'{" ".join(r["code"] for r in kept_rows)}')
+        except Exception as e:
+            print(f'  ⚠ 旧文件读不出来（{type(e).__name__}），本次不合并')
+
+    tmp = fp + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, fp)          # 原子替换，不留半截文件
     print(f'\n写入 {fp}')
 
     # 汇总：最新一期机构持有份额合计
-    tot = sum(r['inst_share_yi'] for r in data['rows'] if r['inst_share_yi'])
+    tot = sum(r.get('inst_share_yi') or 0 for r in data['rows'])
     print(f'十只 ETF 机构持有份额合计：{tot:,.2f} 亿份')
+    return 0 if len(data['rows']) == len(WATCH) else 1
 
 
 if __name__ == '__main__':
-    main()
+    # ⚠ 原来这里是 main()，没有 sys.exit —— 于是无论成败退出码都是 0，
+    #   失败永远不会传到 update.py / Actions 的报警里。
+    sys.exit(main())
