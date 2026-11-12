@@ -14,11 +14,12 @@
 输出：data/prices_bfq.json  {code: [[date, close], ...]}
 """
 import json, os, sys, time, urllib.request
-from datetime import date
+from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
 import _td          # 交易日历 + 北京时钟，见 _td.py 开头的说明
+import _net         # 请求节流 + 账单，见 _net.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -56,12 +57,18 @@ def _get(url, referer='https://gu.qq.com/', tries=5):
     """
     last = None
     for i in range(tries):
+        # ⚠ 每次重试【之前】都要过闸门，不只是第一次。
+        #   已经在限流的 IP 上连打，是把自己往更深的坑里推 ——
+        #   这一点是探针测出来的，不是推测（见 _net.py 文件头）。
+        _net.throttle(url)
         try:
             req = urllib.request.Request(url, headers={
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
                 'Referer': referer,
             })
-            return urllib.request.urlopen(req, timeout=30).read()
+            r = urllib.request.urlopen(req, timeout=30).read()
+            _net.mark(url)
+            return r
         except Exception as e:                     # 网络类异常一律重试
             last = e
             if i < tries - 1:
@@ -69,7 +76,14 @@ def _get(url, referer='https://gu.qq.com/', tries=5):
     raise last
 
 
-def fetch(code, market, bars=900):
+def fetch(code, market, beg=None):
+    """拉日线。beg 为 None 时从 BEG（2019-01-01）全量拉。
+
+    ⚠ 2026-11-12 晚：原来这个函数签名是 `fetch(code, market, bars=900)`，
+       而 `bars` **从头到尾没被用过**（传进来就扔掉，实际起点由模块级 BEG 决定）。
+       一个假装能控制范围的参数，比没有参数更危险 ——
+       读代码的人会以为调用方控制了什么，其实什么都没控制。改成真的 beg。
+    """
     """⚠ 这里曾经用腾讯接口，但腾讯硬上限 640 根（实测 2500 根直接返回空），
     只能回溯到 2024-03 左右，无法支撑 2020 年起的区间。
     改用东方财富 push2his，可回溯到上市首日，且【前复权序列与腾讯逐日吻合】
@@ -91,7 +105,7 @@ def fetch(code, market, bars=900):
     secid = ('1.' if market == 'sh' else '0.') + code
     url = ('https://push2his.eastmoney.com/api/qt/stock/kline/get?'
            f'secid={secid}&fields1=f1,f2&fields2=f51,f53&klt=101&fqt=0'
-           f'&beg={BEG}&end={_td.bj_today():%Y%m%d}')
+           f'&beg={beg or BEG}&end={_td.bj_today():%Y%m%d}')
     js = json.loads(_get(url, 'https://quote.eastmoney.com/').decode('utf-8', 'ignore'))
     kl = (js.get('data') or {}).get('klines') or []
     out = []
@@ -109,6 +123,42 @@ def fetch(code, market, bars=900):
             continue
         out.append((p[0], float(p[1])))
     return out
+
+
+START_NEED = '2020-01-02'   # 全站数据起点（与 compute_demo 的 START 一致）
+NEAR_DAYS = 40              # 增量窗口的自然日数
+
+
+def need_full(have):
+    """这只要不要全量重抓？
+
+    ⚠ 抽成独立函数是为了能测。
+       原来这段判断写死在 main() 的循环里，只能靠跑真接口验，
+       而真接口一天只让我试几次 —— 等于没法验。
+    """
+    if not have:
+        return True                      # 没历史 → 只能全量
+    return have[0][0] > START_NEED       # 历史起点太晚 → 回补不全 → 全量
+
+
+def merge_incremental(have, fresh):
+    """把新抓的近端接进旧序列。返回 (合并后序列, 新增根数)。
+
+    ⚠ 不复权价的核心性质：**除权不改写历史**。
+       所以这里可以放心「只追加、不重算」——
+       前复权就不能这么干（一次分红整段重来），那边必须走重叠校验。
+
+    ⚠ 去重规则是 `d > 旧末日期`，不是 `d >= 旧末日期`。
+       写成 `>=` 的话，旧末日期那根会用新值覆盖旧值 ——
+       看着无害，但如果新抓的那根是【盘中半日价】（时钟判断被绕过、
+       或者跑在别人的机器上时区不对），就会把一根定稿的收盘价
+       悄悄换成一个半天的价。**只追加，永不覆盖**，是这里唯一安全的写法。
+    """
+    if not have:
+        return list(fresh), len(fresh)
+    last = have[-1][0]
+    added = [[x[0], x[1]] for x in fresh if x[0] > last]
+    return [list(x) for x in have] + added, len(added)
 
 
 def _save(fp, obj):
@@ -153,18 +203,45 @@ def main():
             print(f'  ⚠ 旧文件读不出来（{type(e).__name__}: {e}），按空处理')
             old = {}
 
-    out, bad = {}, []
+    # ⚠⚠ 2026-11-12 晚：从「每天全量 1906 根 × 10 只」改成「增量」。
+    #
+    #   探针测出来的事实：干净 IP 上全量 1906 根也是通的（1.67s），
+    #   但跑完一轮之后连 47 根的近端都断。**敌人是请求总量，不是体积。**
+    #   不过体积也不是完全无关 —— 1906 根 × 10 只 = 19 万条记录，
+    #   响应体加起来好几 MB，打的时候占用的带宽和时长都在给限流计时器加分。
+    #
+    #   不复权价比前复权安全得多：**分红除权不改写历史**，
+    #   所以旧数据永远不需要重算，只要把新日期接上去。
+    #   （前复权则相反，一次分红就要整段重来 —— 那边才需要重叠校验。）
+    #
+    #   判据：旧数据已经覆盖到 START（2020-01-02）→ 只补最近一段；
+    #         旧数据缺失或起点太晚 → 全量回补。
+    out, bad, inc_codes = {}, [], []
     for code, mk in CODES.items():
+        have = old.get(code) or []
+        full = need_full(have)
+        beg = None if full else (_td.bj_today() - timedelta(days=NEAR_DAYS * 2)).strftime('%Y%m%d')
         try:
-            arr = fetch(code, mk)
-            if not arr:
+            fresh = fetch(code, mk, beg=beg)
+            if not fresh:
                 bad.append((code, '空返回'))
                 continue
+            if full:
+                arr = [list(x) for x in fresh]
+                print(f'  {code}  {len(arr):>4} 根  {arr[0][0]} → {arr[-1][0]}'
+                      f'  末价 {arr[-1][1]:.3f}  [全量]')
+            else:
+                arr, n_add = merge_incremental(have, fresh)
+                inc_codes.append(code)
+                print(f'  {code}  增量 +{n_add} 根（旧 {len(have)} 根保留）'
+                      f' → 末 {arr[-1][0]}  末价 {arr[-1][1]:.3f}')
             out[code] = arr
-            print(f'  {code}  {len(arr):>4} 根  {arr[0][0]} → {arr[-1][0]}  末价 {arr[-1][1]:.3f}')
         except Exception as e:
             bad.append((code, f'{type(e).__name__}: {e}'))
         time.sleep(0.4)
+
+    if inc_codes:
+        print(f'\n  其中 {len(inc_codes)} 只走增量：{" ".join(inc_codes)}')
 
     if bad:
         print(f'\n失败 {len(bad)} 只：')

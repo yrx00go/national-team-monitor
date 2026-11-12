@@ -28,6 +28,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _net         # 请求节流 + 账单，见 _net.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -50,12 +51,30 @@ START = '2023-12-01'   # 与 ETF 模块对齐：2023 年 12 月至今
 EM_URL = 'https://datacenter-web.eastmoney.com/api/data/v1/get'
 
 
-def _get(url, referer=None):
+def _get(url, referer=None, retries=3):
+    """带退避重试的 GET。
+
+    ⚠ 2026-11-12 晚补的重试。原来这里是【一次性的】——
+       整个项目里唯一没有重试的网络调用，躲在最容易失败的那个脚本里
+       （22 次请求，全场最多）。没有重试 + 请求最多 = 最容易挂，
+       而它挂了只影响股息率面板，属于「可选步骤」，所以一直没被发现。
+    """
     h = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'}
     if referer:
         h['Referer'] = referer
-    return urllib.request.urlopen(
-        urllib.request.Request(url, headers=h), timeout=30).read()
+    last = None
+    for i in range(retries):
+        _net.throttle(url)      # 见 _net.py
+        try:
+            r = urllib.request.urlopen(
+                urllib.request.Request(url, headers=h), timeout=30).read()
+            _net.mark(url)
+            return r
+        except Exception as e:
+            last = e
+            if i < retries - 1:
+                time.sleep(min(1.0 * (2 ** i), 8.0))
+    raise last
 
 
 def fetch_bonus(codes):

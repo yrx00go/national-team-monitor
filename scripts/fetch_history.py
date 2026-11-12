@@ -21,6 +21,7 @@ from datetime import date, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
 import _td          # 交易日历 + 北京时钟，见 _td.py 开头的说明
+import _net         # 请求节流 + 账单，见 _net.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -62,10 +63,13 @@ def _get(url, referer, timeout=20, retries=5):
     """
     last = None
     for i in range(retries):
+        _net.throttle(url)      # 见 _net.py：每次重试前都过闸门，不只是第一次
         try:
-            return urllib.request.urlopen(
+            r = urllib.request.urlopen(
                 urllib.request.Request(url, headers={**UA, 'Referer': referer}),
                 timeout=timeout).read()
+            _net.mark(url)
+            return r
         except Exception as e:
             last = e
             if i < retries - 1:

@@ -46,6 +46,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _net         # 请求节流 + 账单，见 _net.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -57,9 +58,12 @@ UA = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit
 def _get(url, retries=3):
     last = None
     for i in range(retries):
+        _net.throttle(url)      # 见 _net.py：每次重试前都过闸门，不只是第一次
         try:
             req = urllib.request.Request(url, headers=UA)
-            return urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'ignore')
+            r = urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'ignore')
+            _net.mark(url)
+            return r
         except Exception as e:
             last = e
             if i < retries - 1:
