@@ -143,42 +143,60 @@ chk('全量 + 东财通 → 东财', src, '东财')
 print('\n## 回归：主干代码里不再有内联的兜底 try/except')
 
 src_txt = open(os.path.join(HERE, '..', 'scripts', 'fetch_price_bfq.py'), encoding='utf-8').read()
-chk('main() 里调用了 acquire', 'acquire(code, mk, have)' in src_txt, True)
+chk('main() 里调用了 acquire', 'acquire(code, mk, have' in src_txt, True)
+chk('★ 传了 first_ever（否则上市晚的标的会天天全量）',
+    'first_ever=first_seen.get(code)' in src_txt, True)
 chk('tx_codes 仍然被追踪', 'tx_codes.append' in src_txt, True)
 # ⚠ 这条只查「上报文案」，不查别的：用了备用源必须上屏。
 #   混源本身不丢人（口径已逐日验过一致），但读页面的人有权知道。
 chk('★ 上报文案里有「走腾讯备用源」', '只走腾讯备用源' in src_txt, True)
 
-print('\n## 规则 8：★★ 腾讯「接通」≠「给了今天的价」')
+print('\n## 规则 8：★★ 判「备用源有没有帮上」，看日期比较，不看新增根数')
 #
-#   ⚠ 这是写这个测试时自己发现的漏洞，不是想出来的：
-#     兜底成功、但腾讯返回的末日期还是旧那一天（源本身滞后），
-#     于是 merge_incremental 新增 0 根。
-#     这一只会被算成「成功」（不在 bad 里），note 里写着「走腾讯备用源」——
-#     **读起来像「有备用所以没事」，实际是「换了个源，今天这一根照样没拿到」。**
-#     比彻底失败更误导，因为它看起来是绿的。
+#   ⚠⚠ 这条是第十轮 CI 用真实日志打出来的，不是我推出来的。
 #
-#   规则：merge 新增 0 根 → 即使 src='腾讯' 也要计入 tx_stale，不能报 ok。
-have_lag = [['2020-01-02', 1.0], ['2026-11-10', 2.0], ['2026-11-11', 2.1]]
-tx_lag = [['2026-11-11', 2.1]]          # 接通了，但末日期就是 11-11
+#   第一版写的是 `if n_add > 0: tx_codes else: tx_stale`（按新增根数判断）。
+#   CI 上立刻炸出 7 只误报：
+#
+#       510050 增量 +0 根（旧 1906 根保留） → 末 2026-11-12  [东财]
+#       510300 增量 +0 根（旧 1906 根保留） → 末 2026-11-12  [腾讯]
+#       510300 东财失败 → 腾讯兜底（末日期没前进，没帮上）   ← 假警报
+#
+#   旧数据【本来就已经到 11-12】，腾讯也返回到 11-12，merge 自然新增 0 根。
+#   **这是一条每天必然亮的假警报** —— 7.25 那个死法的第四次复发
+#   （「一个天天亮的提示等于没装」）。
+#
+#   正确判据：比较两个末日期。
+#     fresh 末 > have 末 → 带来新数据
+#     fresh 末 = have 末 → 持平（旧数据本来就有这天，数据没损失）
+#     fresh 末 < have 末 → 比手里的还旧，这个源本次无效 ← 只有这种才该报
 
-fresh, src, err = m.acquire('510050', 'sh', have_lag,
-                            fetch_fn=boom, tx_fn=lambda *a, **k: tx_lag)
-chk('acquire 认为「成功」', (src, err), ('腾讯', None))
-_m, n_add = m.merge_incremental(have_lag, fresh)
-chk('★ 但实际新增 0 根（没帮上）', n_add, 0)
+have_upto = [['2020-01-02', 1.0], ['2026-11-11', 2.1], ['2026-11-12', 2.2]]
 
-# 对照：腾讯真给了 11-12 → 新增 1 根
-tx_ok = [['2026-11-11', 2.1], ['2026-11-12', 2.15]]
-fresh2, src2, _ = m.acquire('510050', 'sh', have_lag,
-                            fetch_fn=boom, tx_fn=lambda *a, **k: tx_ok)
-_m2, n_add2 = m.merge_incremental(have_lag, fresh2)
-chk('★ 腾讯真给到当日 → 新增 1 根', n_add2, 1)
+# 场景 A：腾讯也到 11-12（与旧数据持平）→ 不该报警
+tx_same = [['2026-11-11', 2.1], ['2026-11-12', 2.2]]
+f_a, s_a, _ = m.acquire('510050', 'sh', have_upto, fetch_fn=boom, tx_fn=lambda *a, **k: tx_same)
+_m, n_a = m.merge_incremental(have_upto, f_a)
+chk('持平：新增 0 根', n_a, 0)
+chk('★ 但日期比较显示「不旧于旧数据」→ 不该报警', f_a[-1][0] < have_upto[-1][0], False)
+
+# 场景 B：腾讯只到 11-11（比旧数据还旧）→ 这才是真没帮上
+tx_older = [['2026-11-10', 2.0], ['2026-11-11', 2.1]]
+f_b, s_b, _ = m.acquire('510050', 'sh', have_upto, fetch_fn=boom, tx_fn=lambda *a, **k: tx_older)
+chk('★ 比旧数据还旧 → 该报警', f_b[-1][0] < have_upto[-1][0], True)
+
+# 场景 C：腾讯带来新一天 → 帮上了
+tx_newer = [['2026-11-12', 2.2], ['2026-11-13', 2.3]]
+f_c, s_c, _ = m.acquire('510050', 'sh', have_upto, fetch_fn=boom, tx_fn=lambda *a, **k: tx_newer)
+_m3, n_c = m.merge_incremental(have_upto, f_c)
+chk('★ 带来新一天 → 新增 1 根', n_c, 1)
+chk('★ 且不旧于旧数据', f_c[-1][0] < have_upto[-1][0], False)
 
 src_txt2 = open(os.path.join(HERE, '..', 'scripts', 'fetch_price_bfq.py'), encoding='utf-8').read()
 chk('★ 代码里有 tx_stale 分类', 'tx_stale' in src_txt2, True)
-chk('★ 没前进时不计入「走备用源」', 'if n_add > 0:' in src_txt2 and 'tx_codes.append' in src_txt2, True)
-chk('★ 上报里有「末日期没前进」的说法', '末日期没前进' in src_txt2, True)
+chk('★★ 判据是日期比较，不是 n_add', "fresh[-1][0] < have[-1][0]" in src_txt2, True)
+chk('★★ 没有按 n_add 判断的残留', 'if n_add > 0:' not in src_txt2, True)
+chk('★ 上报里有「兜底无效」的说法', '兜底无效' in src_txt2, True)
 
 print('\n## 回归：全失败分支不能说「两个源都失败」而当没试过')
 #

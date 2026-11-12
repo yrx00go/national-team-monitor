@@ -8,6 +8,18 @@ on:
   schedule:
     - cron: '10 14 * * 1-5'   # 22:10 CST 工作日
     - cron: '10 0 * * 2-6'    # 08:10 CST 周二至周六（补前一天）
+  # ⚠ 2026-11-12 深夜加：改了脚本能立刻跑一遍验证。
+  #   原来只有 schedule + workflow_dispatch —— 意味着**推送代码不会触发任何运行**，
+  #   每次改完都得记得手动 dispatch，忘一次就等于「改了但从没跑过」。
+  #   而「改了但从没跑过」正是这一轮所有问题的共同来源
+  #   （兜底分支、全失败分支、5:5 平局，全都是没被真实执行过的路径）。
+  #   只在动代码/工作流时触发，改 README 不触发，免得白烧一次配额。
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**.py'
+      - 'tests/**.py'
+      - '.github/workflows/daily.yml'
   workflow_dispatch:           # 支持手动触发，方便第一次验证
     inputs:
       backfill_days:

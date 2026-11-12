@@ -128,6 +128,27 @@ def fetch(code, market, beg=None):
 START_NEED = '2020-01-02'   # 全站数据起点（与 compute_demo 的 START 一致）
 NEAR_DAYS = 40              # 增量窗口的自然日数
 
+# ⚠ 记住每只标的「最早一次能拿到哪一天」，存在独立文件里，
+#   不塞进 prices_bfq.json（那个结构下游 compute_demo 在读，别动）。
+#   作用：区分「起点晚是因为数据缺」还是「起点晚是因为它上市晚」。
+#   后者再抓一百次也是同一天，只会把配额烧光然后失败。
+
+
+def _load_listing():
+    fp = os.path.join(DATA, 'listing_first.json')
+    try:
+        return json.load(open(fp, encoding='utf-8')) or {}
+    except Exception:
+        return {}
+
+
+def _save_listing(d):
+    fp = os.path.join(DATA, 'listing_first.json')
+    tmp = fp + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(d, f, ensure_ascii=False, indent=0, sort_keys=True)
+    os.replace(tmp, fp)
+
 
 # ══════════════════════════════════════════════════════════════════════════
 # 备用源：腾讯（只在东财挂掉时兜底，不替换）
@@ -221,19 +242,41 @@ def fetch_tx(code, market, n=TX_MAX_BARS):
     raise last
 
 
-def need_full(have):
+def need_full(have, first_ever=None):
     """这只要不要全量重抓？
 
     ⚠ 抽成独立函数是为了能测。
        原来这段判断写死在 main() 的循环里，只能靠跑真接口验，
        而真接口一天只让我试几次 —— 等于没法验。
+
+    ⚠⚠⚠ 2026-11-12 深夜第十轮 CI 抓出来的一个**每天必犯**的错：
+       原来只判 `have[0][0] > START_NEED`（起点晚于 2020-01-02 就全量重抓）。
+       但 588000 是 2020-11-16 上市、159545 是 2024-04-15 上市 ——
+       **它们的起点天生就晚，不可能更早。**
+       于是这两只每天都在「需要全量」→ 每天重抓 ~1900 根 → 每天失败
+       → 体检栏天天写「2 只未获取」→ 一条永远亮的琥珀色提示。
+
+       讽刺的是：我当天上午刚在注释里写下「硬用腾讯补全量会变成
+       死循环且不自知」，晚上就发现这个死循环**本来就在跑**。
+
+       判据要区分两种情况：
+         起点晚，是因为**数据缺**（该补）→ 全量
+         起点晚，是因为**它上市晚**（补不到）→ 增量
+       区分办法：记住「这只最早一次能拿到哪天」（first_ever）。
+       既然我们每次全量都是从 BEG（2019-01-01）请求的，
+       那么拿回来的最早日期就是它的真实上市日，再请求也不会更早。
     """
     if not have:
         return True                      # 没历史 → 只能全量
-    return have[0][0] > START_NEED       # 历史起点太晚 → 回补不全 → 全量
+    if have[0][0] <= START_NEED:
+        return False                     # 已覆盖起点 → 增量
+    if first_ever and have[0][0] <= first_ever:
+        # 到达它自己能得到的最早日期了 —— 不是数据缺失，是上市晚
+        return False
+    return True                          # 起点晚且不知道是不是上市晚 → 全量确认
 
 
-def acquire(code, mk, have, fetch_fn=None, tx_fn=None):
+def acquire(code, mk, have, fetch_fn=None, tx_fn=None, first_ever=None):
     """抓一只标的：东财优先，失败则腾讯兜底（仅限增量场景）。
 
     返回 (fresh, src, err)：
@@ -253,10 +296,13 @@ def acquire(code, mk, have, fetch_fn=None, tx_fn=None):
        need_full 判据（起点 > 2020-01-02 就重抓）永远成立 →
        **每天重抓、每天得到同一段残缺数据，死循环且不自知。**
        所以宁可如实报失败、沿用旧价，也不接受一个假装完整的序列。
+
+    ⚠ first_ever：这只最早一次能拿到哪天（上市日）。传进去之后，
+       起点天生就晚的标的（588000 / 159545）就不会每天被判成全量了。
     """
     fetch_fn = fetch_fn or fetch
     tx_fn = tx_fn or fetch_tx
-    full = need_full(have)
+    full = need_full(have, first_ever)
     beg = None if full else (_td.bj_today() - timedelta(days=NEAR_DAYS * 2)).strftime('%Y%m%d')
 
     try:
@@ -352,10 +398,11 @@ def main():
     #   判据：旧数据已经覆盖到 START（2020-01-02）→ 只补最近一段；
     #         旧数据缺失或起点太晚 → 全量回补。
     out, bad, inc_codes, tx_codes, tx_stale = {}, [], [], [], []
+    first_seen = _load_listing()       # {code: 最早拿到过的日期}
     for code, mk in CODES.items():
         have = old.get(code) or []
-        full = need_full(have)
-        fresh, src, err = acquire(code, mk, have)
+        full = need_full(have, first_seen.get(code))
+        fresh, src, err = acquire(code, mk, have, first_ever=first_seen.get(code))
         if err:
             bad.append((code, err))
             if '需全量' in err:
@@ -364,6 +411,12 @@ def main():
                 print(f'  {code} 两个源都失败 → 沿用旧价')
                 time.sleep(0.4)
             continue
+        # ⚠ 记下「最早能拿到哪天」。只在 really 拿到全量时记，
+        #   因为增量请求的起点是近端，拿到的起点不能代表上市日。
+        if full and fresh:
+            prev = first_seen.get(code)
+            if prev is None or fresh[0][0] < prev:
+                first_seen[code] = fresh[0][0]
         if full:
             arr = [list(x) for x in fresh]
             if src == '腾讯':
@@ -373,21 +426,29 @@ def main():
         else:
             arr, n_add = merge_incremental(have, fresh)
             inc_codes.append(code)
+            if src == '腾讯':
+                # ⚠⚠ 判断「备用源有没有帮上」，不能看 n_add（新增根数）。
+                #
+                #   第一版写的就是 `if n_add > 0`，第十轮 CI 立刻打了脸：
+                #   旧数据【本来就已经到 11-12】，腾讯也返回到 11-12，
+                #   merge 自然新增 0 根 —— 于是 7 只全被报成「末日期没前进」。
+                #   **这是一条每天必然亮的假警报**，正是 7.25 那个死法
+                #   （「一个天天亮的提示等于没装」）的第四次复发。
+                #
+                #   真正该问的是：**腾讯给的日期，比我们手里的还旧吗？**
+                #     fresh 末 > have 末 → 带来了新数据
+                #     fresh 末 = have 末 → 持平，数据没损失（旧数据本来就有这天）
+                #     fresh 末 < have 末 → 比手里的还旧，这个源本次无效 ← 只有这种才该报
+                if fresh[-1][0] < have[-1][0]:
+                    tx_stale.append(code)
+                    print(f'  {code}  东财失败 → 腾讯兜底'
+                          f'（只到 {fresh[-1][0]}，比旧数据 {have[-1][0]} 还旧，没帮上）')
+                else:
+                    tx_codes.append(code)
+                    print(f'  {code}  东财失败 → 腾讯兜底'
+                          f'（到 {fresh[-1][0]}，与旧数据持平或更新，数据无损失）')
             print(f'  {code}  增量 +{n_add} 根（旧 {len(have)} 根保留）'
                   f' → 末 {arr[-1][0]}  末价 {arr[-1][1]:.3f}  [{src}]')
-            if src == '腾讯':
-                # ⚠⚠ 腾讯「通了」不等于「给了今天的价」。
-                #   实测过：兜底成功、但返回的末日期还是旧的那一天（源本身滞后），
-                #   于是 merge 新增 0 根 —— 这只会被算成「成功」，
-                #   而 note 里写着「走腾讯备用源」，读的人会以为它有保障。
-                #   实际它是「换了个源，照样没拿到今天的」，比彻底失败更误导。
-                #   所以必须分开计：真帮忙了 vs 也停在旧日期。
-                if n_add > 0:
-                    tx_codes.append(code)
-                else:
-                    tx_stale.append(code)
-                print(f'  {code}  东财失败 → 腾讯兜底'
-                      f'{"（+%d 根，帮上了）" % n_add if n_add else "（末日期没前进，没帮上）"}')
         out[code] = arr
         time.sleep(0.4)
 
@@ -398,10 +459,9 @@ def main():
         #   有权知道今天有一部分的数不是主力源给的。
         print(f'  ⚠ 其中 {len(tx_codes)} 只用的是腾讯备用源：{" ".join(tx_codes)}')
     if tx_stale:
-        # 这类最隐蔽：腾讯接通了、也返回了数据，但末日期没比旧数据新。
-        # 表面上「兜底成功」，实际上今天这一根照样没有。
-        print(f'  ⚠ 其中 {len(tx_stale)} 只腾讯接通但末日期没前进'
-              f'（照样没有今天）：{" ".join(tx_stale)}')
+        # 只有「腾讯给的比手里的还旧」才进这里 —— 这是真的没帮上。
+        print(f'  ⚠ 其中 {len(tx_stale)} 只腾讯数据比旧数据还旧'
+              f'（本次兜底无效）：{" ".join(tx_stale)}')
 
     if bad:
         print(f'\n失败 {len(bad)} 只：')
@@ -441,6 +501,10 @@ def main():
             filled.append(code)
 
     _save(fp, merged)
+    # ⚠ 上市日 sidecar 必须和价格一起落盘，否则下次又不知道 588000/159545
+    #   的起点天生就晚，又要每天全量重抓一遍、每天失败一次。
+    if first_seen:
+        _save_listing(first_seen)
 
     # 上报：last 用「真正抓到的那几只」的末日期，不用合并后的 ——
     # 合并后末日期看起来是新，但那几只其实是旧价，报上去就是骗自己。
@@ -459,12 +523,14 @@ def main():
     #   但「今天这份数不是主力源给的」这件事，看页面的人有权知道 ——
     #   否则以后主力源烂了半个月，页面还一片绿，就成了第 N 个静默失败。
     if tx_codes:
+        # ⚠ 用了备用源必须上屏（混源不丢人，口径已逐日验过一致），
+        #   但要说清是哪一种，否则读的人会以为「有备用所以拿到了今天的」：
         _lead += f'；{len(tx_codes)} 只走腾讯备用源（东财拒绝）'
     # ⚠⚠ 腾讯「接通」≠「给了今天的价」。这类必须单独说，
     #   而且不能说成「走了备用源」—— 那读起来像「有备用所以没事」。
     #   事实是：换了个源，今天这一根照样没拿到。比直接失败更容易误导。
     if tx_stale:
-        _lead += f'；{len(tx_stale)} 只腾讯接通但末日期没前进（仍无当日）'
+        _lead += f'；{len(tx_stale)} 只腾讯数据比旧数据还旧（本次兜底无效）'
     if bad or tx_stale:
         _fh.report('price_bfq', '价格（不复权，算净流入用）', 'partial',
                    last=got_last, got=len(out), want=len(CODES),
