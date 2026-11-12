@@ -129,6 +129,98 @@ START_NEED = '2020-01-02'   # 全站数据起点（与 compute_demo 的 START �
 NEAR_DAYS = 40              # 增量窗口的自然日数
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# 备用源：腾讯（只在东财挂掉时兜底，不替换）
+# ══════════════════════════════════════════════════════════════════════════
+#
+# ⚠⚠⚠ 为什么需要它（2026-11-12 深夜，第九轮 CI 之后的决定）：
+#
+#   那天 update job 的东财请求 **0/10 全挂**，账单 50 次（10 只 × 5 重试），
+#   每一次都是首次就被拒 —— 不是「重试不够」，是这个 IP 那份配额根本没有了。
+#   后果：净流入用旧价算。而 qfq 那个 job 同一时刻 5/10（它有自己的 IP），
+#   说明这不是代码问题，是**出口 IP 配额**问题，重试和调顺序都治不了。
+#
+#   用户选的方向：**加一个备用源，专门保证「今天这一根」拿得到。**
+#
+# ⚠ 为什么腾讯只能兜底、不能替代东财：
+#   实测腾讯 fqkline 硬上限 **641 根**（请求 640/641/1000 都返回 641，
+#   只回溯到 2024-03；传 2500 直接 TypeError）。
+#   本项目需要 2020 年起的 ~1900 根 → **腾讯做不了全量回补**。
+#   但净流入只需要「今天这一根」和少量近期数据 → 641 根**完全够**。
+#   所以分工必须是：
+#     东财 = 主力（能全量、能回补）
+#     腾讯 = 兜底（只在东财失败时，提供近端增量）
+#
+# ⚠⚠ 口径验证（这是方案成立的前提，不是假设）：
+#   2026-11-12 深夜实测，腾讯 bfq vs 东财 fqt=0，逐日比对：
+#       510050  640 天  完全一致 640  最大差 0.000000
+#       510300  640 天  完全一致 640  最大差 0.000000
+#       510880  640 天  完全一致 640  最大差 0.000000
+#       159915  640 天  完全一致 640  最大差 0.000000
+#       512100  640 天  完全一致 640  最大差 0.000000
+#   **0 处差异**。两个源的不复权价就是同一个数，混用不会制造断层。
+#   （对比：前复权两个源会差一个分红额，所以 qfq 那边不能这么干。）
+#
+# ⚠ 失败时的行为：兜底也失败 → 该只标的算失败，**沿用旧价**，不写空。
+#   绝不因为「两个源都没通」就去写一个残缺序列。
+
+TX_URL = ('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?'
+          'param={sym},day,,,{bars},{fq}')
+TX_MAX_BARS = 640           # 实测硬上限 641，取 640 留一格余量
+
+
+def parse_tx(js, sym):
+    """把腾讯 fqkline 的 JSON 解析成 [(date, close), ...]。
+
+    ⚠⚠ 腾讯的行格式是 [日期, 开, 收, 高, 低, 量, ...]，收盘价在 **row[2]**。
+       东财的 klines 是字符串 "日期,收盘,量"，收盘在 split(',')[1]。
+       **两个源的列位置不同**，照抄东财的 p[1] 会拿到开盘价。
+       这个错不会报异常、不会看起来奇怪（开收价通常只差千分之几），
+       但净流入 = 份额差 × 当日价，用开盘价算出来的每一天都是错的。
+       所以解析必须单独成函数、单独被测 —— 揉在 fetch_tx 里只能靠联网验。
+    """
+    node = (js.get('data') or {}).get(sym) or {}
+    k = node.get('day') or node.get('bfqkline') or []
+    out = []
+    for row in k:
+        # 腾讯行格式：[日期, 开, 收, 高, 低, 量, ...]
+        if len(row) < 3:
+            continue
+        if not _td.accept_day(row[0]):
+            continue
+        out.append((row[0], float(row[2])))
+    return out
+
+
+def fetch_tx(code, market, n=TX_MAX_BARS):
+    """从腾讯拉不复权日线（兜底用）。返回 [(date, close), ...]。
+
+    ⚠ 这里【不】用 _get（那个带 5 重试 + 东财 referer）。
+       兜底源的定位是「快速失败、立刻换源」，不是「在原源上耗时间」。
+       如果腾讯也挂，多试 4 次只是把整轮拖长，而结果一样 —— 那还不如早点
+       认清「今天两个源都不行」，把「沿用旧价」这件事如实报出去。
+       所以这里只试 2 次（1 次可能是瞬时抖动，2 次足够区分）。
+    """
+    sym = market + code
+    url = TX_URL.format(sym=sym, bars=n, fq='bfq')
+    last = None
+    for i in range(2):
+        _net.throttle(url)
+        try:
+            req = urllib.request.Request(url, headers={
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+                'Referer': 'https://gu.qq.com/',
+            })
+            raw = urllib.request.urlopen(req, timeout=25).read()
+            _net.mark(url)
+            return parse_tx(json.loads(raw.decode('utf-8', 'ignore')), sym)
+        except Exception as e:
+            last = e
+            if i == 0:
+                time.sleep(1.0)
+    raise last
+
+
 def need_full(have):
     """这只要不要全量重抓？
 
@@ -139,6 +231,49 @@ def need_full(have):
     if not have:
         return True                      # 没历史 → 只能全量
     return have[0][0] > START_NEED       # 历史起点太晚 → 回补不全 → 全量
+
+
+def acquire(code, mk, have, fetch_fn=None, tx_fn=None):
+    """抓一只标的：东财优先，失败则腾讯兜底（仅限增量场景）。
+
+    返回 (fresh, src, err)：
+        fresh = [(date, close), ...] 或 None
+        src   = '东财' / '腾讯' / None
+        err   = 失败原因字符串 或 None
+
+    ⚠⚠ 为什么把这段从 main() 里抠出来成函数（2026-11-12 深夜）：
+       兜底分支的触发条件是「东财失败」。而 CI 上东财有时通、有时不通 ——
+       **东财通了，兜底就永远不执行，那段代码永远没被跑过。**
+       一段从未执行过的错误处理，和没有错误处理是一回事，只是更让人安心。
+       抽出来、把两个源做成可注入的参数，就能在离线测试里
+       把「东财必挂」「腾讯也挂」「需要全量」每种情况都跑一遍。
+
+    ⚠ 需要全量回补时不兜底。腾讯硬上限 641 根，给不了 2020 年起的序列。
+       硬用它补全量 → 得到「起点 2024-03」的残缺序列 →
+       need_full 判据（起点 > 2020-01-02 就重抓）永远成立 →
+       **每天重抓、每天得到同一段残缺数据，死循环且不自知。**
+       所以宁可如实报失败、沿用旧价，也不接受一个假装完整的序列。
+    """
+    fetch_fn = fetch_fn or fetch
+    tx_fn = tx_fn or fetch_tx
+    full = need_full(have)
+    beg = None if full else (_td.bj_today() - timedelta(days=NEAR_DAYS * 2)).strftime('%Y%m%d')
+
+    try:
+        fresh = fetch_fn(code, mk, beg=beg)
+        if not fresh:
+            raise RuntimeError('空返回')
+        return fresh, '东财', None
+    except Exception as e:
+        if full:
+            return None, None, f'{type(e).__name__}: {e}（需全量，腾讯兜底不可用）'
+        try:
+            fresh = tx_fn(code, mk, n=TX_MAX_BARS)
+            if not fresh:
+                raise RuntimeError('空返回')
+            return fresh, '腾讯', None
+        except Exception as e2:
+            return None, None, f'东财 {type(e).__name__} / 腾讯 {type(e2).__name__}'
 
 
 def merge_incremental(have, fresh):
@@ -216,32 +351,57 @@ def main():
     #
     #   判据：旧数据已经覆盖到 START（2020-01-02）→ 只补最近一段；
     #         旧数据缺失或起点太晚 → 全量回补。
-    out, bad, inc_codes = {}, [], []
+    out, bad, inc_codes, tx_codes, tx_stale = {}, [], [], [], []
     for code, mk in CODES.items():
         have = old.get(code) or []
         full = need_full(have)
-        beg = None if full else (_td.bj_today() - timedelta(days=NEAR_DAYS * 2)).strftime('%Y%m%d')
-        try:
-            fresh = fetch(code, mk, beg=beg)
-            if not fresh:
-                bad.append((code, '空返回'))
-                continue
-            if full:
-                arr = [list(x) for x in fresh]
-                print(f'  {code}  {len(arr):>4} 根  {arr[0][0]} → {arr[-1][0]}'
-                      f'  末价 {arr[-1][1]:.3f}  [全量]')
+        fresh, src, err = acquire(code, mk, have)
+        if err:
+            bad.append((code, err))
+            if '需全量' in err:
+                print(f'  {code} 东财失败且需全量回补 → 腾讯只有 {TX_MAX_BARS} 根，兜不了')
             else:
-                arr, n_add = merge_incremental(have, fresh)
-                inc_codes.append(code)
-                print(f'  {code}  增量 +{n_add} 根（旧 {len(have)} 根保留）'
-                      f' → 末 {arr[-1][0]}  末价 {arr[-1][1]:.3f}')
-            out[code] = arr
-        except Exception as e:
-            bad.append((code, f'{type(e).__name__}: {e}'))
+                print(f'  {code} 两个源都失败 → 沿用旧价')
+                time.sleep(0.4)
+            continue
+        if full:
+            arr = [list(x) for x in fresh]
+            if src == '腾讯':
+                tx_codes.append(code)
+            print(f'  {code}  {len(arr):>4} 根  {arr[0][0]} → {arr[-1][0]}'
+                  f'  末价 {arr[-1][1]:.3f}  [全量·{src}]')
+        else:
+            arr, n_add = merge_incremental(have, fresh)
+            inc_codes.append(code)
+            print(f'  {code}  增量 +{n_add} 根（旧 {len(have)} 根保留）'
+                  f' → 末 {arr[-1][0]}  末价 {arr[-1][1]:.3f}  [{src}]')
+            if src == '腾讯':
+                # ⚠⚠ 腾讯「通了」不等于「给了今天的价」。
+                #   实测过：兜底成功、但返回的末日期还是旧的那一天（源本身滞后），
+                #   于是 merge 新增 0 根 —— 这只会被算成「成功」，
+                #   而 note 里写着「走腾讯备用源」，读的人会以为它有保障。
+                #   实际它是「换了个源，照样没拿到今天的」，比彻底失败更误导。
+                #   所以必须分开计：真帮忙了 vs 也停在旧日期。
+                if n_add > 0:
+                    tx_codes.append(code)
+                else:
+                    tx_stale.append(code)
+                print(f'  {code}  东财失败 → 腾讯兜底'
+                      f'{"（+%d 根，帮上了）" % n_add if n_add else "（末日期没前进，没帮上）"}')
+        out[code] = arr
         time.sleep(0.4)
 
     if inc_codes:
         print(f'\n  其中 {len(inc_codes)} 只走增量：{" ".join(inc_codes)}')
+    if tx_codes:
+        # ⚠ 必须显式说出来。混源不是错（口径已验一致），但读日志的人
+        #   有权知道今天有一部分的数不是主力源给的。
+        print(f'  ⚠ 其中 {len(tx_codes)} 只用的是腾讯备用源：{" ".join(tx_codes)}')
+    if tx_stale:
+        # 这类最隐蔽：腾讯接通了、也返回了数据，但末日期没比旧数据新。
+        # 表面上「兜底成功」，实际上今天这一根照样没有。
+        print(f'  ⚠ 其中 {len(tx_stale)} 只腾讯接通但末日期没前进'
+              f'（照样没有今天）：{" ".join(tx_stale)}')
 
     if bad:
         print(f'\n失败 {len(bad)} 只：')
@@ -253,10 +413,19 @@ def main():
         kept = sum(len(v) for v in old.values())
         # 全失败也要上报 —— 「一只没抓到」正是用户最需要知道的那一条。
         # 页面上会显示成「价格(不复权) · 到 X 日 · 今日未获取 · 沿用旧价」。
-        last = max((v[-1][0] for v in old.values() if v), default=None)
+        #
+        # ⚠ 这里原来写的是 max(...)，是同一轮里第三次出现的同一个错
+        #   （见 7.27 / 7.30）。全失败时各只标的的旧末日期也可能不一致，
+        #   max 会把最前面那只的日期当成整批的日期。改用 majority_last。
+        last, _a, _b, _t = _fh.majority_last(list(old.values()))
+        _note = f'今日 0/{len(CODES)} 只，沿用旧价'
+        # ⚠ 这里原来判的是 tx_codes —— 而全失败时 out 为空，tx_codes 必定为空，
+        #   那段「两个源都失败」的提示**永远不触发**。等于写了个死分支。
+        #   要看的是 bad 里有没有「腾讯也试过了」的痕迹。
+        if any('腾讯' in r for _, r in bad):
+            _note += '（东财与腾讯备用源均失败）'
         _fh.report('price_bfq', '价格（不复权，算净流入用）', 'fail',
-                   last=last, got=0, want=len(CODES),
-                   note=f'今日 0/{len(CODES)} 只，沿用旧价')
+                   last=last, got=0, want=len(CODES), note=_note)
         print(f'\n✗ 一只都没抓到，不写盘。旧文件保留 {len(old)} 只 / {kept} 根 '
               f'({os.path.getsize(fp)/1024:.0f} KB)' if os.path.exists(fp) else
               '\n✗ 一只都没抓到，且本地无旧文件，本次不产出 prices_bfq.json')
@@ -286,11 +455,22 @@ def main():
         _lead += f'；{got_ahead} 只已到更晚一天'
     if got_behind:
         _lead += f'；{got_behind} 只仍停在更早的日期'
-    if bad:
+    # ⚠ 用了备用源必须上屏。混源本身不丢人（口径已逐日验过一致），
+    #   但「今天这份数不是主力源给的」这件事，看页面的人有权知道 ——
+    #   否则以后主力源烂了半个月，页面还一片绿，就成了第 N 个静默失败。
+    if tx_codes:
+        _lead += f'；{len(tx_codes)} 只走腾讯备用源（东财拒绝）'
+    # ⚠⚠ 腾讯「接通」≠「给了今天的价」。这类必须单独说，
+    #   而且不能说成「走了备用源」—— 那读起来像「有备用所以没事」。
+    #   事实是：换了个源，今天这一根照样没拿到。比直接失败更容易误导。
+    if tx_stale:
+        _lead += f'；{len(tx_stale)} 只腾讯接通但末日期没前进（仍无当日）'
+    if bad or tx_stale:
         _fh.report('price_bfq', '价格（不复权，算净流入用）', 'partial',
                    last=got_last, got=len(out), want=len(CODES),
                    note=(f'{len(bad)} 只未获取，{" ".join(c for c, _ in bad[:4])}'
-                         f'{"…" if len(bad) > 4 else ""} 沿用旧价' + _lead))
+                         f'{"…" if len(bad) > 4 else ""} 沿用旧价' + _lead
+                         if bad else _lead.lstrip('；')))
     else:
         _fh.report('price_bfq', '价格（不复权，算净流入用）', 'ok',
                    last=got_last, got=len(out), want=len(CODES), note=_lead.lstrip('；'))
