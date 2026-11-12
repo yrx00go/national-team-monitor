@@ -55,6 +55,10 @@ DATA = os.path.join(BASE, 'data')
 BEG = '20190101'   # 与 fetch_price_bfq.py 保持一致，多留余量
 TODAY = _td.bj_today_str()
 
+# 腾讯当日快照（兜底用，见 fetch_tx_snapshot 的说明）
+TX_SNAPSHOT = ('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?'
+               'param={sym},day,,,2,bfq')
+
 
 def _get(url, referer='https://quote.eastmoney.com/', retries=5):
     """带退避重试的 GET。
@@ -102,6 +106,80 @@ def fetch_kline(secid, fields2='f51,f53'):
     return d.get('code') or secid.split('.')[1], out
 
 
+def fetch_tx_snapshot():
+    """腾讯当日快照兜底。返回 {'date':…, 'sh':…, 'sz':…, 'turnover':…} 或 None。
+
+    ⚠⚠ 为什么这个兜底和 bfq 那个长得不一样：
+       腾讯的指数接口能给出**历史点位序列**（day 键，640 根），
+       但**成交额只有当日快照**（qt 里那个 "价/量/额" 三合一字符串），没有历史序列。
+       本文件要的是「点位 + 两市成交额」两样一起，
+       只兜点位、不兜成交额 → 量能面板还是会缺一天，
+       而且会出现「点位到 11-12、成交额停在 11-11」这种半截状态，
+       比整体沿用旧值更难解释。
+       所以这里**统一只补当日这一根**：两样都有才用，缺一样就整体不用。
+
+    ⚠ 口径已实测对齐（2026-11-12 深夜，同一交易日相比）：
+         上证点位   东财 3655.83  =  腾讯 3655.83
+         两市成交额 东财 19,320.8 亿 = 腾讯 8,795.4 + 10,525.4 = 19,320.8 亿
+       精确到最后一位。所以兜底不会在序列上留一个断层。
+
+    ⚠ 只试 2 次：兜底源的定位是「快速失败、立刻放弃」，不是在它身上耗时间。
+    """
+    out = {}
+    for sym, tag in (('sh000001', 'sh'), ('sz399001', 'sz')):
+        url = TX_SNAPSHOT.format(sym=sym)
+        last = None
+        got = None
+        for i in range(2):
+            _net.throttle(url)
+            try:
+                req = urllib.request.Request(url, headers={
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+                    'Referer': 'https://gu.qq.com/',
+                })
+                raw = urllib.request.urlopen(req, timeout=20).read()
+                _net.mark(url)
+                js = json.loads(raw.decode('utf-8', 'ignore'))
+                node = (js.get('data') or {}).get(sym) or {}
+                arr = (node.get('qt') or {}).get(sym) or []
+                # qt 里有几个字符串是 "价/量/额" 三合一，成交额在第三段
+                amt = None
+                for v in arr:
+                    if isinstance(v, str) and v.count('/') == 2:
+                        try:
+                            amt = float(v.split('/')[2])
+                            break
+                        except ValueError:
+                            continue
+                # 日期：qt 里有个 14 位时间戳 YYYYMMDDHHMMSS
+                d = None
+                for v in arr:
+                    s = str(v)
+                    if len(s) == 14 and s.isdigit() and s[:4].startswith('20'):
+                        d = f'{s[:4]}-{s[4:6]}-{s[6:8]}'
+                        break
+                close = float(arr[3]) if len(arr) > 3 else None
+                if d and close and amt:
+                    got = (d, close, amt)
+                    break
+            except Exception as e:
+                last = e
+                if i == 0:
+                    time.sleep(1.0)
+        if not got:
+            print(f'  腾讯快照 {tag} 失败：{type(last).__name__ if last else "字段缺失"}')
+            return None
+        out[tag] = got
+    if out['sh'][0] != out['sz'][0]:
+        print(f'  腾讯快照两个市场日期不一致（{out["sh"][0]} vs {out["sz"][0]}）→ 不用')
+        return None
+    d = out['sh'][0]
+    return {'date': d,
+            'sh': out['sh'][1],
+            'sz': out['sz'][1],
+            'turnover': round((out['sh'][2] + out['sz'][2]) / 1e8, 1)}
+
+
 def _old_last(fn):
     """读旧文件里最新到哪一天。抓取失败时用它当 last —— 报「停在 11-11」
     比报「没有日期」有用得多，因为前者能直接算出落后几天。"""
@@ -139,18 +217,70 @@ def _why(e):
     return '接口异常（详见运行日志）'
 
 
+def _apply_snapshot(snap):
+    """把腾讯快照接进 index_sh.json（只追加、不覆盖）。成功返回 True。
+
+    ⚠ 三处失败分支（东财异常 / 返回空 / 只有盘中数据）都要用它，
+       所以抽成函数。三处各写一遍的结果就是改一处漏两处 —— 见 7.26。
+    """
+    old_fp = os.path.join(DATA, 'index_sh.json')
+    old = {}
+    if os.path.exists(old_fp):
+        try:
+            old = json.load(open(old_fp, encoding='utf-8'))
+        except Exception:
+            old = {}
+    for key, val in (('000001', snap['sh']),):
+        seq = old.get(key) or []
+        if not seq or snap['date'] > seq[-1][0]:
+            seq = seq + [[snap['date'], round(val, 2)]]
+        old[key] = seq
+    tseq = old.get('turnover') or []
+    if not tseq or snap['date'] > tseq[-1][0]:
+        tseq = tseq + [[snap['date'], snap['turnover']]]
+    old['turnover'] = tseq
+    json.dump(old, open(old_fp, 'w', encoding='utf-8'), ensure_ascii=False)
+    return True
+
+
 def main():
     # 上证点位
     try:
         code, arr = fetch_kline('1.000001')
     except Exception as e:
+        # ⚠⚠ 东财挂了 → 试腾讯当日快照（2026-11-12 深夜新增，见 fetch_tx_snapshot）
+        #
+        #   为什么值得兜：本文件在 CI 上的失败率是 **100%**（连续多轮 0/3），
+        #   而它产出的正是「组合页净申赎 × 大盘位置」那张叠加图的位置轴 ——
+        #   天天不更新，那张图就等于在骗人。
+        #   腾讯只管当日一根，但这一根恰好就是这里最需要的。
+        print(f'上证指数抓取失败：{type(e).__name__}: {e} → 试腾讯快照')
+        snap = fetch_tx_snapshot()
+        if snap and _td.accept_day(snap['date']):
+            _apply_snapshot(snap)
+            _fh.report('index', '上证指数', 'ok', last=snap['date'],
+                       note='东财拒绝，走腾讯当日快照')
+            _fh.report('turnover', '两市成交额', 'ok', last=snap['date'],
+                       note='东财拒绝，走腾讯当日快照')
+            print(f'  ✓ 腾讯快照兜住当日：{snap["date"]}  上证 {snap["sh"]:.2f}  '
+                  f'两市成交额 {snap["turnover"]:,.1f} 亿')
+            return 0
         _fh.report('index', '上证指数 / 两市成交额', 'fail',
-                   last=_old_last('index_sh.json'), note=_why(e))
-        print(f'上证指数抓取失败：{type(e).__name__}: {e}')
+                   last=_old_last('index_sh.json'), note=_why(e) + '；腾讯快照也不可用')
         return 1
     if not arr:
+        # 返回空 → 同样试兜底（「返回空」和「异常」对使用者是一回事：今天没有）
+        snap = fetch_tx_snapshot()
+        if snap and _td.accept_day(snap['date']):
+            _apply_snapshot(snap)
+            _fh.report('index', '上证指数', 'ok', last=snap['date'],
+                       note='东财返回空，走腾讯当日快照')
+            _fh.report('turnover', '两市成交额', 'ok', last=snap['date'],
+                       note='东财返回空，走腾讯当日快照')
+            print(f'  ✓ 东财返回空，腾讯快照兜住：{snap["date"]}')
+            return 0
         _fh.report('index', '上证指数 / 两市成交额', 'fail',
-                   last=_old_last('index_sh.json'), note='接口返回空（疑似改版）')
+                   last=_old_last('index_sh.json'), note='接口返回空（疑似改版）；腾讯快照也不可用')
         print('上证指数返回为空（接口可能改版）—— 不做任何写入，避免用空文件覆盖旧数据')
         return 1
 
@@ -161,8 +291,17 @@ def main():
     #   现在改问 _td.accept_day()：这一根定稿了吗。
     arr = [x for x in arr if _td.accept_day(x[0])]
     if not arr:
+        snap = fetch_tx_snapshot()
+        if snap and _td.accept_day(snap['date']):
+            _apply_snapshot(snap)
+            _fh.report('index', '上证指数', 'ok', last=snap['date'],
+                       note='东财只有盘中数据，走腾讯当日快照')
+            _fh.report('turnover', '两市成交额', 'ok', last=snap['date'],
+                       note='东财只有盘中数据，走腾讯当日快照')
+            print(f'  ✓ 东财只有盘中数据，腾讯快照兜住：{snap["date"]}')
+            return 0
         _fh.report('index', '上证指数 / 两市成交额', 'fail',
-                   last=_old_last('index_sh.json'), note='只有当日盘中数据，已剔除')
+                   last=_old_last('index_sh.json'), note='只有当日盘中数据，已剔除；腾讯快照也不可用')
         print('上证指数剔除当日盘中数据后为空 —— 不写入')
         return 1
 
