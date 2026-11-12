@@ -206,6 +206,7 @@ jobs:
   #
   #   if: always() 是为了 update 失败时仍然试着更新价格
   #   （两件事互不相干，份额挂了不代表价格也拿不到）。
+  # 干净的子进程正在跑，切上去]
   qfq:
     needs: update
     if: always()
@@ -233,29 +234,46 @@ jobs:
           # 「对得上就增量、对不上才全量」，失败的那些保留旧数据，没有副作用。
           echo "price_qfq 退出码 $code"
 
-      # ⚠ qfq 改了 prices.json / fetch_status.json，页面必须跟着重算一次，
-      #   否则体检栏里这一项还是 update 当时的旧状态。
-      - name: 重算并重建页面
-        run: |
-          python3 scripts/compute_demo.py || echo "⚠ compute_demo 失败，页面沿用上一版"
-          python3 scripts/build_demo.py --offline
-
-      - name: 提交（与 update 抢同一个分支，先 rebase）
+      # ⚠⚠⚠ 2026-11-12 深夜：这里【只提交原始数据】，绝不提交构建产物。
+      #
+      #   上一版我写的是「qfq 末尾重算 + 重建页面，然后 git add data demo_site.html」，
+      #   结果第一次跑就撞了：
+      #
+      #     CONFLICT (content): Merge conflict in data/demo.json
+      #     CONFLICT (content): Merge conflict in demo_site.html
+      #     error: could not apply e71d747...
+      #     第 1/2/3 次推送失败
+      #
+      #   **两个 job 各自在本地重新生成了 demo.json 和 demo_site.html，
+      #   这两样是「整个页面 + 1344KB 数据」的单一整体，不可能 merge。**
+      #   rebase 解决不了 —— 它解决的是「两边改不同行」，而我们两边改的是同一个字符流。
+      #   而且连试三次都失败，因为冲突没被解决，后面两次连 pull 都进不去。
+      #
+      #   真正的教训：**构建产物不该由多个环节各自生成再合并。**
+      #   它们是「派生数据」，只能有一个地方生成。
+      #   所以现在分工是：
+      #     update → 提交原始数据 + 构建产物（它先跑，先把页面做出来）
+      #     qfq    → **只提交 data/prices.json 和 data/fetch_status.json**
+      #     部署前  → 统一重算一次 + 重建页面（见 deploy 的第一步）
+      #   qfq 碰不到任何派生文件，就不可能有冲突。
+      - name: 提交原始数据（只提交 prices.json，不碰派生文件）
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data demo_site.html
+          # ⚠ 只 add 这两个。demo.json / demo_site.html 一律不碰。
+          git add data/prices.json data/fetch_status.json
           if git diff --staged --quiet; then
             echo "前复权价无变化，跳过提交"
             exit 0
           fi
-          LATEST=$(python3 -c "import json;print(json.load(open('data/demo.json'))['latest_date'])" 2>/dev/null || echo "qfq")
-          git commit -m "data: 前复权价更新至 ${LATEST}"
-          # ⚠ update job 也在推同一个 main 分支，撞车是常态不是异常。
-          #   rebase 后重推；最多试 3 次，避免无限循环。
+          git commit -m "data: 前复权价更新（原始数据）"
+          # 只改这两个文件的话，rebase 几乎不会冲突（update 改的是别的文件）。
           for i in 1 2 3; do
-            git pull --rebase --autostash origin main && git push && break
-            echo "第 $i 次推送失败，重试…"
+            if git pull --rebase --autostash origin main && git push; then
+              echo "✓ 推送成功"; break
+            fi
+            echo "第 $i 次推送失败，中止 rebase 后重试…"
+            git rebase --abort 2>/dev/null || true
             sleep $((i * 5))
           done
 
@@ -276,8 +294,59 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
+      # ⚠ 用 rebase 而不是 --ff-only：deploy 检出的那一刻 qfq 可能刚推完提交，
+      #   本地是旧 HEAD，--ff-only 能成功；但如果 update 和 qfq 都推过，
+      #   两次 pull 之间就分叉了。rebase 兼容两种情况。
+      #   ⚠ 不要 autostash —— 这个 job 里没有本地改动，加了反而掩盖问题。
       - name: 拉取刚提交的数据
-        run: git pull --ff-only || true
+        run: |
+          git pull --rebase origin main || {
+            echo "### ⚠ 拉取最新数据失败，将使用检出时的版本" >> $GITHUB_STEP_SUMMARY
+          }
+          echo "当前 HEAD: $(git log --oneline -1)"
+
+      # ubuntu-latest 自带 python3，但另外两个 job 都显式装了 3.11。
+      # 这里也装一次，避免「同一份数据被 3.11 和 3.12 各算一遍」这种不必要的变量。
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # ⚠⚠⚠ 2026-11-12 深夜新增：部署前统一重算一次。
+      #
+      #   为什么必须在这里再做一次 —— 因为 qfq job 只提交了原始数据
+      #   （prices.json / fetch_status.json），没有重新生成页面。
+      #   而页面里内联的 demo.json 是 update job 当时算出来的，
+      #   那时 qfq 还没跑，所以体检栏里「前复权」那一项会显示成【上一轮】的状态。
+      #
+      #   **这是把「派生数据」的生成收敛到一个地方的第 2 步**（第 1 步是
+      #   qfq 不许提交构建产物）。派生文件只能有一个生成者，
+      #   否则两个 job 各生成一份，就只能靠 merge —— 而它们根本无法 merge。
+      #
+      #   为什么放在 deploy 而不是 qfq：deploy 是【所有数据都齐了】的那一刻。
+      #   在这里算，体检栏、净流入、价格曲线读到的都是同一时刻的全量数据。
+      - name: 重算派生数据并重建页面
+        run: |
+          set +e
+          python3 scripts/compute_demo.py
+          c1=$?
+          python3 scripts/build_demo.py --offline
+          c2=$?
+          set -e
+          if [ $c2 -ne 0 ]; then
+            echo "### ✗ 页面构建失败" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          if [ $c1 -ne 0 ]; then
+            # 重算失败但构建成功：页面能用，但数据可能旧。要说出来，不要假装没事。
+            echo "### ⚠ 派生数据重算失败，页面使用上一次的结果" >> $GITHUB_STEP_SUMMARY
+          fi
+          # 断言仍然是离线版（构建脚本万一被改回 CDN 版，这里立刻拦下）
+          if grep -q 'cdnjs.cloudflare.com' demo_site.html; then
+            echo "### ✗ demo_site.html 变成了 CDN 版" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✓ 页面已用全量数据重建（离线版）"
 
       - name: 准备站点
         run: |
