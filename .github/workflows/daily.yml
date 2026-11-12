@@ -49,6 +49,24 @@ jobs:
         if: ${{ github.event.inputs.backfill_days != '' }}
         run: python3 scripts/fetch_etf.py --backfill ${{ github.event.inputs.backfill_days }}
 
+      # ⚠⚠ 探针：抓取【之前】先探一次，抓取【之后】再探一次。
+      #
+      # 为什么需要这一步（2026-11-12 晚）：
+      #   三次 CI 出现一个说不通的现象 —— 前复权（fqt=1）恒为 0/10，一次都没通过；
+      #   而不复权（fqt=0）在份额请求从 846 降到 1 之后恢复到 5/10。
+      #   两者在代码里只差两处：参数 fqt，和排队位置（第 2 位 vs 第 6 位）。
+      #   **两个变量同时变，就无法归因。**
+      #
+      #   所以先不急着改代码，先插一次测量：
+      #     before = 干净 IP + 零请求 → 如果这时 fqt=1 也不通，说明是「参数被针对」，
+      #              跟排队位置无关，再加重试纯属浪费。
+      #     after  = 跑完一整轮之后 → 和 before 对比，才知道「自我限流」到底占多大比重。
+      #
+      #   探针只读、不写 data/、不上报，跑坏了对生产零影响（失败也不阻断）。
+      - name: 探针 · 抓取前
+        continue-on-error: true
+        run: python3 scripts/probe_source.py
+
       - name: 抓取并构建
         id: build
         # update.py 的退出码含义：
@@ -69,6 +87,10 @@ jobs:
             echo "### ✗ 核心抓取失败，数据未更新" >> $GITHUB_STEP_SUMMARY
             exit $code
           fi
+
+      - name: 探针 · 抓取后
+        continue-on-error: true
+        run: python3 scripts/probe_source.py
 
       - name: 提交数据
         id: commit
