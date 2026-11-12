@@ -20,6 +20,7 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _td          # 交易日历 + 北京时钟，见 _td.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -122,17 +123,19 @@ def fetch_price(code, market, fqt='qfq', beg='20190101'):
     fq = 1 if fqt == 'qfq' else 0
     url = ('https://push2his.eastmoney.com/api/qt/stock/kline/get?'
            f'secid={secid}&fields1=f1,f2&fields2=f51,f53&klt=101&fqt={fq}'
-           f'&beg={beg}&end={date.today().strftime("%Y%m%d")}')
+           f'&beg={beg}&end={_td.bj_today():%Y%m%d}')
     js = json.loads(_get(url, 'https://quote.eastmoney.com/').decode('utf-8', 'ignore'))
     kl = (js.get('data') or {}).get('klines') or []
-    # ⚠ 剔除当日未收盘数据 —— 与 fetch_price_bfq.py / fetch_index.py 同一条纪律。
-    #   接口在交易时段会返回当天的半日 K 线；不剔除的话，价格曲线最后一天
-    #   会画成一个「半天」的低点，看着像跌了。三条抓取线都要守这一条。
-    today = date.today().isoformat()
+    # ⚠ 原来这里是 `if p[0] >= today: continue` —— 无条件丢弃当日。
+    #   本意是防盘中半日价（对），但把「今天已收盘」和「今天正在盘中」
+    #   当成同一件事，于是收盘后跑也照样扔。
+    #   实测后果：CI 在**北京 18:38** 跑，收盘价已定稿 3 小时 38 分，
+    #   末日期仍然永远停在 T-1 → 页面天天「落后 1 天」，且永远修不好。
+    #   改由 _td.accept_day() 判断「这一根定稿了没有」，而不是「是不是今天」。
     out = []
     for s in kl:
         p = s.split(',')
-        if len(p) < 2 or p[0] >= today:
+        if len(p) < 2 or not _td.accept_day(p[0]):
             continue
         out.append((p[0], float(p[1])))
     return out
@@ -140,46 +143,30 @@ def fetch_price(code, market, fqt='qfq', beg='20190101'):
 
 def main():
     start = START
-    end = date.today()
+    end = _td.bj_today()
     fp = os.path.join(DATA, 'shares.json')
     px_fp = os.path.join(DATA, 'prices.json')
 
     hist = json.load(open(fp, encoding='utf-8')) if os.path.exists(fp) else {}
     prices = json.load(open(px_fp, encoding='utf-8')) if os.path.exists(px_fp) else {}
 
-    # ---- 份额：逐日回补 ----
-    days = [(start + timedelta(days=i)).isoformat() for i in range((end - start).days + 1)]
-    todo = [d for d in days if d not in hist]
-    print(f'份额：需回补 {len(todo)} 天（已有 {len(hist)} 天）')
-    sse_codes = {w[1] for w in WATCH if w[3] == 'SSE'}
-    ok = 0
-    for i, d in enumerate(todo):
-        try:
-            sse = fetch_sse(d)
-        except Exception:
-            sse = {}
-        if not sse:
-            continue
-        rec = {c: round(v, 2) for c, v in sse.items() if c in sse_codes}
-        if rec:
-            hist.setdefault(d, {}).update(rec)
-            ok += 1
-        if i % 50 == 0:
-            print(f'  {d}  已补 {ok} 天', flush=True)
-    # 深市只有快照
-    try:
-        snap = fetch_szse_snapshot()
-        last = sorted(k for k, v in hist.items() if '510300' in v)[-1]
-        got = {c: round(v, 2) for c, v in snap.items() if c in {w[1] for w in WATCH if w[3] == 'SZSE'}}
-        hist.setdefault(last, {}).update(got)
-        print(f'  深市快照写入 {last}：{len(got)} 只')
-    except Exception as e:
-        print('  深市失败', e)
-
-    json.dump(dict(sorted(hist.items())), open(fp, 'w', encoding='utf-8'), ensure_ascii=False)
-    print(f'份额完成：{len(hist)} 天 → {fp}')
-
     # ---- 价格 ----
+    #
+    # ⚠⚠ 2026-11-12 晚：这两段（价格 / 份额）的先后顺序被【调换过】。
+    #   原来是「份额 → 价格」。当时看着合理（份额是主数据），实际是个陷阱：
+    #   份额段按日历天算缺口，要打 846 次上交所请求；
+    #   等它打完，同一个 IP 紧接着去打东财，就是 0/10。
+    #
+    #   而份额段根本没必要排在前面 —— 它和价格段读写的文件完全不重叠
+    #   （shares.json / prices.json），谁先谁后不影响结果。
+    #   既然不互相依赖，就该让【请求数少的那个先跑】：
+    #   价格段 10 次（增量模式），份额段最多几百次。
+    #   先跑 10 次的，它面对的是一个干净 IP；跑完再让份额段去消耗配额。
+    #
+    #   一句话：**互不依赖的两步，顺序不该按「谁重要」排，该按「谁会污染谁」排。**
+    #   这条同时解释了为什么 fetch_price_bfq（第 2 位跑）7/10、
+    #   而这里（第 6 位跑）0/10 —— 当时我以为是重试次数问题，其实一半是排队位置。
+    #
     # ⚠ 2026-11-12 发现的问题：这段原来是「起点够早就跳过」，
     #   于是回补一次成功后，它【永远不会再更新】—— prices.json 会永久停在回补那天。
     #   而这正是页面画价格曲线用的数据（前复权），停更了却没有任何提示。
@@ -242,7 +229,7 @@ def main():
 
         # 日常路径：先抓近端一小段
         try:
-            tail = fetch_price(code, mk, beg=(date.today()
+            tail = fetch_price(code, mk, beg=(_td.bj_today()
                                   - timedelta(days=NEAR_DAYS * 2)).strftime('%Y%m%d'))
         except Exception as e:
             bad_codes.append(code)
@@ -339,6 +326,56 @@ def main():
                    note=('全量刷新' if refresh else '') +
                         (f'；{len(bad_codes)} 只失败 {" ".join(bad_codes[:4])}'
                          f'{"…" if len(bad_codes) > 4 else ""}' if bad_codes else ''))
+
+    # ---- 份额：只补真正缺的交易日 ----
+    #
+    # ⚠⚠ 2026-11-12 晚改。原来这里写的是：
+    #       days = [start + i 天 for i in range((end-start).days + 1)]
+    #       todo = [d for d in days if d not in hist]
+    #   也就是【按日历天】算缺口。实测得到 846 天「待补」，
+    #   而其中 716 天是周末、其余是春节/国庆 —— 真正的缺口是 0 天。
+    #
+    #   代价不是「多打几次请求」那么简单，是一条完整的因果链：
+    #     多打 846 次（每次还带 5 重试）→ 上交所限流 →
+    #     同一进程后面的东财价格段 0/10 → 「落后 1 天 → 曲线不前进」
+    #   一个 bug 喂出另一个 bug，日志上看起来是两件事。
+    #
+    #   现在的判据：从本地价格文件反推真实交易日（交易所真实开市日，自带节假日），
+    #   再和已有日期做差。**已有 1661 天 = 真实交易日 1661 天，缺 0 天。**
+    todo = _td.missing_trading_days(hist.keys(), start.isoformat())
+    if todo is None:
+        # 价格文件读不到（首次部署）→ 降级成「只补最近 5 个日历天」，
+        # 绝不再退回「全区间日历天」那种打法。
+        todo = [(end - timedelta(days=i)).isoformat() for i in range(5)][::-1]
+        print('  ⚠ 无价格文件可反推交易日，降级为只补最近 5 个日历天')
+    print(f'份额：需回补 {len(todo)} 个交易日（已有 {len(hist)} 天）')
+    sse_codes = {w[1] for w in WATCH if w[3] == 'SSE'}
+    ok = 0
+    for i, d in enumerate(todo):
+        try:
+            sse = fetch_sse(d)
+        except Exception:
+            sse = {}
+        if not sse:
+            continue
+        rec = {c: round(v, 2) for c, v in sse.items() if c in sse_codes}
+        if rec:
+            hist.setdefault(d, {}).update(rec)
+            ok += 1
+        if i and i % 20 == 0:
+            print(f'  {d}  已补 {ok} 天', flush=True)
+    # 深市只有快照
+    try:
+        snap = fetch_szse_snapshot()
+        last = sorted(k for k, v in hist.items() if '510300' in v)[-1]
+        got = {c: round(v, 2) for c, v in snap.items() if c in {w[1] for w in WATCH if w[3] == 'SZSE'}}
+        hist.setdefault(last, {}).update(got)
+        print(f'  深市快照写入 {last}：{len(got)} 只')
+    except Exception as e:
+        print('  深市失败', e)
+
+    json.dump(dict(sorted(hist.items())), open(fp, 'w', encoding='utf-8'), ensure_ascii=False)
+    print(f'份额完成：{len(hist)} 天 → {fp}')
 
 
 if __name__ == '__main__':

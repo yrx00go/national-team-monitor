@@ -18,6 +18,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _td          # 交易日历 + 北京时钟，见 _td.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -90,16 +91,21 @@ def fetch(code, market, bars=900):
     secid = ('1.' if market == 'sh' else '0.') + code
     url = ('https://push2his.eastmoney.com/api/qt/stock/kline/get?'
            f'secid={secid}&fields1=f1,f2&fields2=f51,f53&klt=101&fqt=0'
-           f'&beg={BEG}&end={date.today().strftime("%Y%m%d")}')
+           f'&beg={BEG}&end={_td.bj_today():%Y%m%d}')
     js = json.loads(_get(url, 'https://quote.eastmoney.com/').decode('utf-8', 'ignore'))
     kl = (js.get('data') or {}).get('klines') or []
-    today = date.today().isoformat()
     out = []
     for s in kl:
         p = s.split(',')
         if len(p) < 2:
             continue
-        if p[0] >= today:          # 当日未收盘，丢弃
+        # ⚠ 原来是 `if p[0] >= today: continue`（无条件丢弃当日）。
+        #   上面那段注释把「盘中坑」写得很清楚，但结论下错了一格：
+        #   该防的是「盘中未定稿」，不是「今天这个日期」。
+        #   CI 在北京 18:38 跑，收盘价定稿 3 小时 38 分，照样被扔掉，
+        #   于是末日期永远停在 T-1，页面天天「落后 1 天」——
+        #   一条永远琥珀的提示 = 没人再看 = 等于没装。
+        if not _td.accept_day(p[0]):
             continue
         out.append((p[0], float(p[1])))
     return out

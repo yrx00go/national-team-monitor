@@ -46,12 +46,13 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _td          # 交易日历 + 北京时钟，见 _td.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 
 BEG = '20190101'   # 与 fetch_price_bfq.py 保持一致，多留余量
-TODAY = date.today().isoformat()
+TODAY = _td.bj_today_str()
 
 
 def _get(url, referer='https://quote.eastmoney.com/', retries=5):
@@ -82,7 +83,7 @@ def fetch_kline(secid, fields2='f51,f53'):
     """返回 (code, [(date, 字段...), ...])，字段顺序与 fields2 一一对应"""
     url = ('https://push2his.eastmoney.com/api/qt/stock/kline/get?'
            f'secid={secid}&fields1=f1,f2&fields2={fields2}&klt=101&fqt=0'
-           f'&beg={BEG}&end={date.today().strftime("%Y%m%d")}')
+           f'&beg={BEG}&end={_td.bj_today():%Y%m%d}')
     js = json.loads(_get(url).decode('utf-8', 'ignore'))
     d = js.get('data') or {}
     kl = d.get('klines') or []
@@ -150,7 +151,11 @@ def main():
         return 1
 
     # 剔除当日未收盘数据
-    arr = [x for x in arr if x[0] < TODAY]
+    # ⚠ 原来是 x[0] < TODAY（无条件丢掉当日）。理由对（防盘中半日量），
+    #   但判据错：把「今天已收盘」和「今天正在盘中」当成一件事。
+    #   CI 在北京 18:38 跑，量能早已定稿，仍然被扔掉 → 天天「落后 1 天」。
+    #   现在改问 _td.accept_day()：这一根定稿了吗。
+    arr = [x for x in arr if _td.accept_day(x[0])]
     if not arr:
         _fh.report('index', '上证指数 / 两市成交额', 'fail',
                    last=_old_last('index_sh.json'), note='只有当日盘中数据，已剔除')
@@ -172,7 +177,7 @@ def main():
         except Exception as e:
             print(f'{tag}市成交额抓取失败：{type(e).__name__}: {e}')
             continue
-        kl = [x for x in kl if x[0] < TODAY]      # 同样剔除盘中
+        kl = [x for x in kl if _td.accept_day(x[0])]   # 同上：按「定稿与否」而非「是不是今天」
         if not kl:
             print(f'{tag}市成交额为空')
             continue
