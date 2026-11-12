@@ -82,6 +82,43 @@ if os.path.exists(_fp):
 else:
     print('  （跳过真实数据检查：data/listing_first.json 不存在）')
 
+print('\n## ★★ 同一个错在 fetch_history.py 里也有一份（两条链路各写一遍）')
+#
+#   ⚠ 这个 bug 我只在 fetch_price_bfq 里修了，qfq 那条链路（fetch_history）
+#     有一模一样的判据、一模一样的后果：
+#
+#       588000 失败 Remote end closed connection without response
+#       159545 失败 Remote end closed connection without response
+#
+#     日志里看着就是「东财又掐断了」，实际是**我们在要求一件拿不到的事**
+#     （起点早于 2020-01-02，而它们分别 2020-11 / 2024-04 才上市）。
+#     掐断只是让它必然失败，根因是判据。
+#
+#   这正是 7.26「改一处漏两处」的母题。所以这条测试同时检查两个文件。
+_src_hist = open(os.path.join(HERE, '..', 'scripts', 'fetch_history.py'), encoding='utf-8').read()
+chk('★ fetch_history 读了共用上市日文件', 'listing_first.json' in _src_hist, True)
+chk('★ fetch_history 有 _is_late_listing 判断', '_is_late_listing' in _src_hist, True)
+chk('★ 判据形态正确（起点 <= 上市日 → 不算缺数据）',
+    'have[0][0] <= _first' in _src_hist, True)
+# 反向确认：原来那个裸判据不该再单独出现
+# ⚠ 必须剥掉注释再查。第一次写这条断言时没有剥，结果命中的是
+#   「# 原判据：have[0][0] > need（起点晚于 2020-01-02 → 全量重抓）」这行注释 ——
+#   也就是说，测试在奖励「不要解释你改过什么」。**这个坑今天已经踩第三次了**
+#   （前两次：`bars=900` 在 docstring 里、`def _apply_snapshot` 的定义行）。
+#   检查「代码里还剩什么」时，注释、docstring、定义行都不该算数。
+def _code_lines(t):
+    out = []
+    for l in t.split('\n'):
+        s = l.split('#')[0].rstrip()
+        if s:
+            out.append(s)
+    return out
+
+
+_bare = [l for l in _code_lines(_src_hist)
+         if 'have[0][0] > need' in l and '_is_late_listing' not in l]
+chk('★ 没有留下裸判据 have[0][0] > need（已剥注释）', _bare, [])
+
 print('\n## merge_incremental：只追加，永不覆盖')
 
 have = [['2026-11-09', 1.00], ['2026-11-10', 1.01], ['2026-11-11', 1.02]]

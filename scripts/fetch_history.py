@@ -226,6 +226,16 @@ def _fetch_prices(start, end):
     print('\n价格：' + ('（强制全量刷新）' if refresh else '（增量 + 重叠校验）'))
     ok_codes, bad_codes, full_codes = [], [], []   # 本次抓到的 / 失败的 / 被迫全量的
 
+    # ⚠ 上市日基线，和 fetch_price_bfq.py 共用同一个文件。
+    #   为什么不各自维护一份：这两条链路说的是同一个事实（这只哪天上市），
+    #   分两处存必然有一天不一致，而不一致的表现是「一条链路正常、另一条天天失败」，
+    #   极难和二为一 —— 这正是当下这个 bug 的样子。
+    try:
+        _LISTING = json.load(open(os.path.join(DATA, 'listing_first.json'),
+                                  encoding='utf-8')) or {}
+    except Exception:
+        _LISTING = {}
+
     def _tail_start(seq):
         """旧序列里，从那一天起的尾巴（用来做重叠比对）。"""
         return {d: c for d, c in seq[-NEAR_DAYS:]}
@@ -235,7 +245,23 @@ def _fetch_prices(start, end):
         have = prices.get(code) or []
 
         # 没有旧数据、或旧数据起点不够早 → 只能全量（这是回补，不是日常）
-        if not have or have[0][0] > need:
+        #
+        # ⚠⚠⚠ 2026-11-12 深夜：这个判据和对面的 fetch_price_bfq.need_full
+        #   犯了【同一个错】，而且是同一个错在两条链路上各写了一遍（7.26 的母题）。
+        #
+        #   原判据：have[0][0] > need（起点晚于 2020-01-02 → 全量重抓）。
+        #   但 588000 上市 2020-11-16、159545 上市 2024-04-15 ——
+        #   **起点天生就晚，不可能更早**。于是这两只每天被判「需全量」，
+        #   每天重抓 1900 根，每天失败。日志里它们一直显示「失败」，
+        #   而我此前一直以为是东财掐断 —— 其实掐断只是让它必然失败，
+        #   根因是我们在要求一件拿不到的事。
+        #
+        #   修法和 bfq 那边共用同一个 listing_first.json：
+        #     起点晚且已到达它自己最早可得的那天 → 是上市晚，走增量；
+        #     起点比已知上市日还晚 → 是真缺数据，才全量。
+        _first = _LISTING.get(code)
+        _is_late_listing = bool(_first) and have and have[0][0] <= _first
+        if not have or (have[0][0] > need and not _is_late_listing):
             try:
                 p = fetch_price(code, mk)
                 prices[code] = [[d, c] for d, c in p]
