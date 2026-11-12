@@ -75,7 +75,14 @@ def main():
         fails.append('fetch_dividend.py（股息率未更新）')
 
     # 6. 重建 HTML —— 这一步失败必须硬停，没有页面就没有交付物
-    run('build_demo.py')
+    #
+    # ⚠ 必须带 --offline。2026-11-12 才发现：这里原来写的是 run('build_demo.py')，
+    #   而 build_demo.py 默认走 CDN（1,762 KB），只有 --offline 才把 Chart.js 内联（1,967 KB）。
+    #   于是每天 CI 跑完 → 用 CDN 版把仓库里的离线版覆盖掉 → 再 commit 推回仓库。
+    #   本地明明构建的是离线版，线上每天变回 CDN 版，且 diff 里只有这一处 20 行的差别，
+    #   极容易被「data: 更新至 xxx」这种提交信息盖过去。
+    #   直接后果：「加到手机桌面」后在地铁 / 弱网 / CDN 被拦时，文字全在、图全空。
+    run('build_demo.py', '--offline')
 
     # 7. 报告
     demo = json.load(open(os.path.join(DATA, 'demo.json'), encoding='utf-8'))

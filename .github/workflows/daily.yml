@@ -73,6 +73,19 @@ jobs:
       - name: 提交数据
         id: commit
         run: |
+          # ⚠ 提交前先断言：demo_site.html 必须是【离线版】（Chart.js 已内联）。
+          #   2026-11-12 抓到过一次：update.py 里写的是 build_demo.py（默认走 CDN），
+          #   于是每天 CI 都用 1,762 KB 的 CDN 版把仓库里 1,967 KB 的离线版覆盖掉，
+          #   再以 "data: 更新至 xxx" 的名义提交回来 —— 提交信息看起来只是更新数据，
+          #   实际把「断网也能看」这个能力每天静默拆掉一次。
+          #   断言的写法：离线版里不应该出现 Chart.js 的 CDN 域名。
+          if grep -q 'cdnjs.cloudflare.com' demo_site.html; then
+            echo "### ✗ demo_site.html 是 CDN 版，不是离线版" >> $GITHUB_STEP_SUMMARY
+            echo "update.py 里 build_demo.py 少了 --offline 参数，见该文件第 6 步的注释。" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✓ demo_site.html 为离线版（Chart.js 已内联）"
+
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data demo_site.html

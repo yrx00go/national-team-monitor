@@ -68,6 +68,17 @@ def fetch(code, market, bars=900):
     （实测 510880 重叠 751 天，中位差 0.0000%，最大差 0.177%），换源不会改变已有结论。
 
     fqt=0 = 不复权（这里要的）；fqt=1 = 前复权。
+
+    ⚠ 盘中陷阱（2026-11-12 实测）：
+       接口在交易时段会返回【当日未收盘】的 K 线。那天 16:31 那次 CI 抓到
+       510050 末价 2.884、510300 末价 4.114，日期都是 2026-11-12 —— 而当天
+       上交所份额还没有（"2026-11-12 上交所无数据"），也就是说：
+       价格有 11-12、份额只到 11-11。
+       fetch_index.py 早就剔除当日盘中数据（它注释里写了 10:21 抓到半日量的坑），
+       这里当时没跟上。后果：净流入 = 份额差 × 当日真实价，当日价是半天的，
+       一旦份额也是半天的（上交所确实会盘中就更新），两边都残，算出的流量没意义。
+       → 统一规则：只接受日期 < 今天的记录。当日数据一律丢弃，等收盘后再取
+         （CI 在 UTC 08:30 ≈ 北京时间 16:30 跑，已收盘，但接口仍可能挂着未定稿的当日行）。
     """
     secid = ('1.' if market == 'sh' else '0.') + code
     url = ('https://push2his.eastmoney.com/api/qt/stock/kline/get?'
@@ -75,7 +86,16 @@ def fetch(code, market, bars=900):
            f'&beg={BEG}&end={date.today().strftime("%Y%m%d")}')
     js = json.loads(_get(url, 'https://quote.eastmoney.com/').decode('utf-8', 'ignore'))
     kl = (js.get('data') or {}).get('klines') or []
-    return [(s.split(',')[0], float(s.split(',')[1])) for s in kl]
+    today = date.today().isoformat()
+    out = []
+    for s in kl:
+        p = s.split(',')
+        if len(p) < 2:
+            continue
+        if p[0] >= today:          # 当日未收盘，丢弃
+            continue
+        out.append((p[0], float(p[1])))
+    return out
 
 
 def _save(fp, obj):
