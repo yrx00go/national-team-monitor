@@ -21,7 +21,7 @@
 <meta name="theme-color" content="#1C1917">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <!-- iOS 走的是自己那套，不读 manifest。这两条是给 iPhone/iPad 兜底的，
-     OO 现在用小米用不上，但页面分享给别人时别人可能用。 -->
+     主用设备是小米 Android，这两条用不上，但页面分享给别人时可能用。 -->
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -381,7 +381,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#F5F5F4;
     </p>
   </div>
 
-  <!-- ⚠ 2026-11-12 删掉两块面板，OO 原话「删掉，看不懂」：
+  <!-- ⚠ 2026-11-12 删掉两块面板，评审意见「看不懂」，点名删掉：
        ① 「规模 +287%，但净流入只有 +1460 亿 —— 剩下的不是新钱」（买卖拆分整块）
           问题不在数据对不对（对得上：净流入 1459.7 + 浮盈 2479.7 = 规模增加 3939.4），
           而在于它为了证明「不是算错」，摆了 3 张 KPI + 4 段长解释 + 2 张表 + 逐只价差表，
@@ -1398,7 +1398,7 @@ document.querySelector('#tSnap tbody').innerHTML=D.rows.map(r=>{
   </tr>`;
 }).join('');
 
-// ---------- 两块面板已删除（2026-11-12，OO：删掉，看不懂） ----------
+// ---------- 两块面板已删除（2026-11-12，评审意见：看不懂，删掉） ----------
 // ① 买卖拆分：数据是对的（净流入 1459.7 + 浮盈 2479.7 = 规模增加 3939.4），
 //    但为了证明「不是算错」摆了 3 张 KPI + 4 段长解释 + 2 张表 + 逐只价差表。
 //    **论证比结论长十倍，等于没给结论。**
