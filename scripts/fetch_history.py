@@ -18,6 +18,9 @@
 import json, os, re, sys, time, urllib.request
 from datetime import date, timedelta
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 os.makedirs(DATA, exist_ok=True)
@@ -104,7 +107,17 @@ def fetch_price(code, market, fqt='qfq'):
            f'&beg=20190101&end={date.today().strftime("%Y%m%d")}')
     js = json.loads(_get(url, 'https://quote.eastmoney.com/').decode('utf-8', 'ignore'))
     kl = (js.get('data') or {}).get('klines') or []
-    return [(s.split(',')[0], float(s.split(',')[1])) for s in kl]
+    # ⚠ 剔除当日未收盘数据 —— 与 fetch_price_bfq.py / fetch_index.py 同一条纪律。
+    #   接口在交易时段会返回当天的半日 K 线；不剔除的话，价格曲线最后一天
+    #   会画成一个「半天」的低点，看着像跌了。三条抓取线都要守这一条。
+    today = date.today().isoformat()
+    out = []
+    for s in kl:
+        p = s.split(',')
+        if len(p) < 2 or p[0] >= today:
+            continue
+        out.append((p[0], float(p[1])))
+    return out
 
 
 def main():
@@ -149,23 +162,70 @@ def main():
     print(f'份额完成：{len(hist)} 天 → {fp}')
 
     # ---- 价格 ----
-    print('\n价格：')
+    # ⚠ 2026-11-12 发现的问题：这段原来是「起点够早就跳过」，
+    #   于是回补一次成功后，它【永远不会再更新】—— prices.json 会永久停在回补那天。
+    #   而这正是页面画价格曲线用的数据（前复权），停更了却没有任何提示。
+    #   现在加 --refresh-prices：跳过「起点判断」，无条件全量重抓一遍。
+    #   为什么必须全量而不是增量：前复权序列一旦某只分红，历史值会整体重算，
+    #   增量续接会和历史对不上（同一天两个价），只能整段覆盖。
+    refresh = '--refresh-prices' in sys.argv
+    print('\n价格：' + ('（强制全量刷新）' if refresh else ''))
+    ok_codes, bad_codes = [], []      # 本次真正抓到的 / 真的失败的
     for idx, code, name, mk in WATCH:
         need = start.isoformat()
         have = prices.get(code) or []
         # 判据不是「根数够不够」，而是「起点够不够早」——根数够但起点晚，照样缺前面
-        if have and have[0][0] <= need:
+        if not refresh and have and have[0][0] <= need:
             print(f'  {code} 已有 {len(have)} 根（{have[0][0]} 起），覆盖充分，跳过')
+            ok_codes.append(code)      # 跳过不算失败：它本来就是好的
             continue
         try:
             p = fetch_price(code, mk)
             prices[code] = [[d, c] for d, c in p]
+            ok_codes.append(code)
             print(f'  {code} {name} {len(p)} 根  {p[0][0]} → {p[-1][0]}')
         except Exception as e:
+            bad_codes.append(code)
             print(f'  {code} 失败 {e}')
         time.sleep(0.3)
     json.dump(prices, open(px_fp, 'w', encoding='utf-8'), ensure_ascii=False)
     print(f'价格完成 → {px_fp}')
+
+    # 上报。这里必须报 —— 因为 prices.json 曾经完全不在这条链上，
+    # 页面上的价格曲线会一天天变旧而没人知道（这就是 ⑤ 号静默失败）。
+    #
+    # ⚠⚠ 2026-11-12 当天踩的坑，务必记住：
+    #   我第一次写的是 _got = len([k for k,v in prices.items() if v]) ——
+    #   而 prices 是【先把旧文件读进来】的字典，失败的代码保留旧值，
+    #   所以就算 10 只全失败，_got 仍然是 10，上报「ok 10/10 正常」。
+    #   同一次运行里，日志写着 10 行「失败」，体检栏却显示「全部正常」。
+    #   这跟我在 fetch_price_bfq.py 里专门写注释防的是同一个错误，还是又犯了一遍。
+    #   **判据必须是「本次抓取的结果」，不是「合并后字典的长度」。**
+    _last = None
+    for code in ok_codes:
+        v = prices.get(code) or []
+        if v:
+            _last = max(_last or '', v[-1][0])
+    # 全失败时，仍要从旧文件里读出「曲线停在哪一天」——
+    # 报「停在 11-11」比报「没有日期」有用得多，因为前者能直接算出落后几天。
+    # 这和 fetch_price_bfq.py 的处理保持一致（那边也是读旧文件的末日期）。
+    if _last is None:
+        for v in prices.values():
+            if v:
+                _last = max(_last or '', v[-1][0])
+    _want = len(WATCH)
+    _got = len(ok_codes)
+    if not ok_codes:
+        _fh.report('price_qfq', '价格（前复权，画曲线用）', 'fail',
+                   last=_last, got=0, want=_want,
+                   note=f'本次 0/{_want} 只，沿用旧价，价格曲线不会前进')
+    else:
+        _fh.report('price_qfq', '价格（前复权，画曲线用）',
+                   'ok' if not bad_codes else 'partial',
+                   last=_last, got=_got, want=_want,
+                   note=('全量刷新' if refresh else '') +
+                        (f'；{len(bad_codes)} 只失败 {" ".join(bad_codes[:4])}'
+                         f'{"…" if len(bad_codes) > 4 else ""}' if bad_codes else ''))
 
 
 if __name__ == '__main__':

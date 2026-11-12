@@ -20,6 +20,9 @@ ETF 份额抓取器 v2
 import json, os, re, sys, time, zipfile, io, urllib.request
 from datetime import date, timedelta
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 os.makedirs(DATA, exist_ok=True)
@@ -165,6 +168,23 @@ def main():
     print(f'\n写入 {fp}')
     print(f'  上交所(可回补)：{sse_cnt} 个交易日')
     print(f'  深交所(自建)  ：{szse_cnt} 个交易日')
+
+    # ── 上报 ────────────────────────────────────────────────────────────
+    # 份额是全站唯一「事实」层的数据，它停更就等于整站停更，
+    # 所以这里的 last 是最关键的一个数字。
+    # 「今天有没有新数据」和「抓取失败」必须分开记：
+    #   非交易日 / 尚未发布 → 不是错误，但 last 会落后，体检栏会自动标出来。
+    #   拉取异常 → 记 fail 并写清原因。
+    last_td = sse_days[-1] if sse_days else None
+    want = len([w for w in WATCH if w[3] == 'SSE'])
+    if sse_added == 0 and last_td != date.today().isoformat():
+        _fh.report('shares', 'ETF 份额（上交所，全站唯一事实层）', 'ok',
+                   last=last_td, got=want, want=want,
+                   note='今日无新数据（非交易日或尚未发布）')
+    else:
+        _fh.report('shares', 'ETF 份额（上交所，全站唯一事实层）', 'ok',
+                   last=last_td, got=want, want=want,
+                   note=f'本次新增 {sse_added} 天')
 
 
 if __name__ == '__main__':

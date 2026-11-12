@@ -20,6 +20,9 @@ ETF 国家队持仓基准 —— 基金定期报告披露的「机构持有比�
 import json, os, re, sys, time, urllib.request
 from datetime import datetime
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 os.makedirs(DATA, exist_ok=True)
@@ -126,12 +129,17 @@ def main():
     #   而且日志里只有一行「写入 ...」，看不出任何异常。
     if not data['rows']:
         kept = '-'
+        old_last = None
         if os.path.exists(fp):
             try:
                 old = json.load(open(fp, encoding='utf-8'))
                 kept = f"{len(old.get('rows') or [])} 只"
+                old_last = max((r.get('latest') or {}).get('date') or ''
+                               for r in (old.get('rows') or [])) or None
             except Exception:
                 kept = '旧文件读不出来'
+        _fh.report('inst', '机构持仓（半年报/年报）', 'fail',
+                   last=old_last, got=0, want=len(WATCH), note='今日一只都没抓到，沿用旧数据')
         print(f'\n✗ 一只都没抓到，不写盘。旧文件保留 {kept}')
         return 2
 
@@ -157,6 +165,14 @@ def main():
     # 汇总：最新一期机构持有份额合计
     tot = sum(r.get('inst_share_yi') or 0 for r in data['rows'])
     print(f'十只 ETF 机构持有份额合计：{tot:,.2f} 亿份')
+
+    # 上报。机构持仓一年 2 次（6-30 / 12-31），滞后约 2 个月 ——
+    # 拿日频标准要求它就会天天误报，所以 _fh.LAG_OK 里给它单独放宽到 180 天。
+    inst_last = max((r.get('latest') or {}).get('date') or ''
+                    for r in data['rows']) or None
+    _fh.report('inst', '机构持仓（半年报/年报）',
+               'ok' if len(data['rows']) == len(WATCH) else 'partial',
+               last=inst_last, got=len(data['rows']), want=len(WATCH))
     return 0 if len(data['rows']) == len(WATCH) else 1
 
 

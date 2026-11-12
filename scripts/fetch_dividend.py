@@ -26,6 +26,9 @@
 import json, os, sys, time, urllib.parse, urllib.request
 from datetime import datetime
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 
@@ -215,6 +218,18 @@ def main():
            'first_date': START, 'rows': rows}
     fp = os.path.join(DATA, 'dividend.json')
     json.dump(out, open(fp, 'w', encoding='utf-8'), ensure_ascii=False)
+
+    # 上报。「数据到哪天」取 latest.date（那天算出来的股息率），
+    # 不要取分红公告日期 —— 公告天然滞后几个月，拿它算 lag 会天天误报。
+    _last = max((r['latest']['date'] for r in rows if r.get('latest')), default=None)
+    want = len(STOCKS)
+    if not rows:
+        _fh.report('dividend', '个股股息率', 'fail', note='一只都没抓到')
+    else:
+        _fh.report('dividend', '个股股息率',
+                   'ok' if len(rows) >= want else 'partial',
+                   last=_last, got=len(rows), want=want,
+                   note='' if len(rows) >= want else f'{want - len(rows)} 只未获取')
     print(f'\n写入 {fp}  ({os.path.getsize(fp)/1024:.0f} KB)')
     print(f'\n{"名称":10}{"股息率":>8}{"买入线":>8}{"卖出线":>8}{"距买入":>9}  {"分位":>6}  状态')
     for r in rows:

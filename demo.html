@@ -153,6 +153,69 @@ nav button.on{color:var(--tx);border-bottom-color:var(--tx);font-weight:600}
   padding:10px 13px;margin-bottom:20px;font-size:12px;color:#78350F;line-height:1.7}
 .warn b{font-weight:600}
 
+/* ── 数据体检栏 ───────────────────────────────────────────────────────
+   2026-11-12 一天里炸出五处「静默失败」：数据被写空、离线版被换成 CDN、
+   价格混进半日价、退出码恒为 0、前复权价永久停更。没有一个会报错，
+   页面看起来全都正常。所以这一栏不是为了「更好看」，是为了让「没抓到」
+   这件事没法再藏起来。
+   ⚠ 三种状态必须一眼可分：全正常（一行灰字）/ 有落后（琥珀）/ 有失败（红）。
+     如果全都一个颜色，人就会习惯性忽略它 —— 那就等于又回到了静默。 */
+.fh{margin-bottom:18px;border-radius:8px;font-size:12px;line-height:1.7;
+  border:1px solid #E7E5E4;background:#FAFAF9;overflow:hidden}
+.fh-hd{display:flex;align-items:center;gap:8px;padding:8px 13px;cursor:pointer;
+  user-select:none;font-weight:600;color:#57534E}
+.fh-hd:hover{background:#F5F5F4}
+.fh-hd .fh-dot{width:7px;height:7px;border-radius:50%;background:#16A34A;flex:none}
+.fh-hd .fh-sum{font-weight:400;color:#78716C;font-size:11.5px;margin-left:auto}
+.fh-hd .fh-caret{color:#A8A29E;font-size:10px;transition:transform .15s}
+.fh.open .fh-caret{transform:rotate(90deg)}
+.fh-bd{display:none;border-top:1px solid #E7E5E4;padding:4px 0}
+.fh.open .fh-bd{display:block}
+.fh-row{display:flex;align-items:baseline;gap:9px;padding:5px 13px;font-size:11.5px}
+.fh-row:hover{background:#F5F5F4}
+.fh-ico{flex:none;width:13px;text-align:center;font-size:11px;line-height:1.5}
+.fh-nm{flex:1;min-width:0;color:#44403C;font-weight:500}
+.fh-st{flex:none;font-variant-numeric:tabular-nums;color:#78716C;white-space:nowrap}
+.fh-note{flex:none;color:#A8A29E;font-size:11px;max-width:46%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+/* 状态色：只改左边那条竖线和图标，不整行染色 —— 整行染色会让表格变成
+   圣诞树，反而看不出哪一行最要紧。 */
+.fh-row.s-fail{border-left:2px solid #DC2626;padding-left:11px}
+.fh-row.s-fail .fh-ico{color:#DC2626}
+.fh-row.s-fail .fh-st{color:#B91C1C;font-weight:600}
+.fh-row.s-stale{border-left:2px solid #D97706;padding-left:11px}
+.fh-row.s-stale .fh-ico{color:#D97706}
+.fh-row.s-stale .fh-st{color:#B45309}
+.fh-row.s-partial{border-left:2px solid #CA8A04;padding-left:11px}
+.fh-row.s-partial .fh-ico{color:#CA8A04}
+.fh-row.s-partial .fh-st{color:#A16207}
+.fh.fh-bad{background:#FEF2F2;border-color:#FECACA}
+.fh.fh-bad .fh-hd{color:#B91C1C}
+.fh.fh-bad .fh-hd .fh-dot{background:#DC2626}
+.fh.fh-warn{background:#FFFBEB;border-color:#FDE68A}
+.fh.fh-warn .fh-hd{color:#B45309}
+.fh.fh-warn .fh-hd .fh-dot{background:#D97706}
+@media(max-width:640px){
+  /* 手机上没空间放四列。收成两行：名字一行，状态+说明一行。
+     ⚠ 不这么做的话，note 会被 ellipsis 吃掉，等于「报了但看不全」。 */
+  .fh-row{flex-wrap:wrap;gap:2px 8px;padding:6px 11px}
+  /* ⚠ 图标必须和名字同一行：原来 .fh-nm 是 flex:1 1 100%（独占整行），
+     于是 flex 换行时把 .fh-ico 单独留在上一行 —— 截图里就是一个「×」
+     孤零零悬在标题上方，像是漏渲染。名字占「100% 减去图标宽和间距」即可。
+     图标 13px + gap 8px = 21px。 */
+  .fh-nm{flex:1 1 calc(100% - 21px);font-size:12px}
+  .fh-ico{align-self:center}
+  .fh-st{flex:none;font-size:11px}
+  .fh-note{max-width:none;flex:1 1 auto;white-space:normal;font-size:10.5px}
+  /* ⚠ 头部在窄屏必须单行：原来 sum 换行 → 头高 36→57px，
+     整栏从 170 涨到 190。手机上每一像素都在抢首屏。
+     sum 用省略号截断，鼠标悬停能看到全文（title 属性）。 */
+  .fh-hd{flex-wrap:nowrap;padding:9px 11px}
+  .fh-hd .fh-sum{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;font-size:11px;margin-left:8px}
+  .fh-hd #fhTitle{flex:none}
+}
+
 /* 装到桌面提示条。只在「还没装」时出现，点了关闭或装完就消失。
    ⚠ 用深色底：这条要在一堆米白卡片里抢到一眼，而且是全页唯一一个
    「操作入口」而不是「数据」。用浅色会淹没在 KPI 卡里。
@@ -270,6 +333,19 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#F5F5F4;
     <div>生成于 <span id="upd">—</span></div>
   </div>
 </header>
+
+<!-- 数据体检栏。内容由脚本按 DEMO.health 渲染。
+     ⚠ 默认显示一个「检查中」的壳而不是留空：留空会在脚本跑完后
+     猛地往下挤一块，和之前安装条踩过的是同一个坑（首屏跳动）。 -->
+<div class="fh" id="fh">
+  <div class="fh-hd" id="fhHd" role="button" tabindex="0" aria-expanded="false">
+    <span class="fh-dot"></span>
+    <span id="fhTitle">数据体检</span>
+    <span class="fh-sum" id="fhSum">—</span>
+    <span class="fh-caret">▶</span>
+  </div>
+  <div class="fh-bd" id="fhBd"></div>
+</div>
 
 <div class="warn">
   <div><b>全站的核心前提：</b>份额变化是<b>事实</b>，「谁买的」是<b>推断</b>。
@@ -622,6 +698,135 @@ function applyWin(win){
 document.getElementById('lastDate').textContent=D.latest_date;
 document.getElementById('range').textContent=D.first_date+' 起';
 document.getElementById('upd').textContent=D.updated_at;
+
+// ---------- 数据体检 ----------
+// 这一栏存在的唯一理由：让「今天没抓到」没法再藏起来。
+// 2026-11-12 一天里出现过五处静默失败（数据被写空 / 离线版被换掉 /
+// 价格混进半日价 / 退出码恒 0 / 前复权价永久停更），共同点是全都不会报错。
+(function(){
+  const box=document.getElementById('fh'), hd=document.getElementById('fhHd');
+  const bd=document.getElementById('fhBd'), sum=document.getElementById('fhSum');
+  const title=document.getElementById('fhTitle');
+  if(!box||!hd) return;
+
+  const rows=D.health||[];
+  if(!rows.length){
+    // 没有体检数据 ≠ 一切正常。这是「体检本身没跑」，必须区分出来，
+    // 否则一次 compute_demo 的异常就会伪装成「全绿」。
+    title.textContent='数据体检';
+    sum.textContent='本次未生成体检数据';
+    box.classList.add('fh-warn');
+    hd.setAttribute('aria-expanded','false');
+    return;
+  }
+
+  const ICON={ok:'✓',partial:'!',fail:'✕',stale:'⏱'};
+  const TXT ={ok:'正常',partial:'部分缺',fail:'失败',stale:'停更'};
+  const bad=rows.filter(r=>r.state!=='ok');
+
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g,c=>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ⚠ 原来 line() 和 expandAll() 里各写了一遍一模一样的行渲染，改一处忘一处
+  //   就会让「点开全部」看到的东西和默认看到的不一致。合并成一份。
+  //
+  // ⚠ 文案纪律：只有【真的有问题】时才说「落后 N 天」。
+  //   状态 ok 但 lag=1 是周末/休市，天经地义；写成「落后 1 天」会让人以为坏了，
+  //   于是下次真坏了也没人多看一眼 —— 这正是「狼来了」的标准死法。
+  function line(r){
+    let st;
+    if(r.last){
+      if(r.state==='ok'){
+        // 正常的不报天数，只报「当天」还是「最近交易日」
+        st = r.lag==null ? r.last : (r.lag<=0 ? r.last+' · 当日' : r.last+' · 最近交易日');
+      }else if(r.days_silent!=null && r.days_silent>2){
+        // 脚本根本没跑：这时候说「落后几天」是次要的，说「几天没抓了」才是要点
+        st = r.last+' · 已 '+r.days_silent+' 天未抓取';
+      }else{
+        st = r.last + (r.lag==null?'':(r.lag<=0?' · 当日':' · 落后 '+r.lag+' 天'));
+      }
+    }else{
+      st='无日期';
+    }
+    if(r.got!=null && r.want) st+=' · '+r.got+'/'+r.want;
+    const note=r.note?`<span class="fh-note" title="${esc(r.note)}">${esc(r.note)}</span>`:'';
+    return `<div class="fh-row s-${r.state}">
+      <span class="fh-ico">${ICON[r.state]||'?'}</span>
+      <span class="fh-nm">${esc(r.name)}</span>
+      <span class="fh-st">${esc(st)}</span>${note}</div>`;
+  }
+
+  // ⚠ 手机上不能把 7 行全铺开：实测 390px 时整栏 570px 高，
+  //   首屏内容被整个推下去 —— 那是「报出来了但挡着正事」，和没报一样糟。
+  //   所以窄屏默认【只展开有问题的】，正常的收成一行「其余 N 项正常」。
+  //   桌面上空间够，全铺开。
+  const narrow = window.matchMedia('(max-width:640px)').matches;
+  const show = (!narrow || !bad.length) ? rows : bad;
+  const hidden = rows.length - show.length;
+
+  // 汇总文字：正常时只说一句，异常时必须说清几项、最严重的是哪项。
+  if(!bad.length){
+    title.textContent='数据体检 · 全部正常';
+    sum.textContent=rows.length+' 项数据均按时更新';
+  }else{
+    const worst=bad[0];
+    title.textContent='数据体检 · '+bad.length+' 项需要注意';
+    // 摘要里也只按状态说事：fail/partial 说「失败/部分缺」，
+    // 只有 stale 才提天数 —— 且要区分「源站停」和「我们没抓」。
+    let why='';
+    if(worst.state==='stale'){
+      why = (worst.days_silent!=null && worst.days_silent>2)
+        ? '（'+worst.days_silent+' 天未抓取）'
+        : (worst.lag!=null ? '（源站 '+worst.lag+' 天无新数据）' : '');
+    }else if(worst.lag!=null && worst.lag>0){
+      why='（落后 '+worst.lag+' 天）';
+    }
+    const sumTxt=worst.name+' '+TXT[worst.state]+why;
+    sum.textContent=sumTxt;
+    // 窄屏会省略号截断，必须有 title 才能看到全文
+    sum.setAttribute('title', sumTxt);
+    box.classList.add(worst.state==='fail'?'fh-bad':'fh-warn');
+    // 有问题时【默认展开】。全正常才收起来 —— 让人必须点开才看得到问题，
+    // 等于又把问题藏起来了。
+    box.classList.add('open');
+    hd.setAttribute('aria-expanded','true');
+  }
+
+  bd.innerHTML=(function(){
+    // 桌面：全铺开。窄屏：只铺有问题的 + 一行「其余 N 项正常」。
+    // 窄屏点「其余 N 项正常」那一行可以展开全部 —— 收起是为了不挡首屏，
+    // 不是不让看。
+    if(hidden>0){
+      return show.map(line).join('') +
+        `<div class="fh-row fh-more" id="fhMore" role="button" tabindex="0"
+              style="cursor:pointer">
+           <span class="fh-ico">＋</span>
+           <span class="fh-nm" style="color:#78716C">其余 ${hidden} 项正常（点开看全部）</span>
+         </div>`;
+    }
+    return rows.map(line).join('');
+  })();
+
+  function toggle(){
+    const on=box.classList.toggle('open');
+    hd.setAttribute('aria-expanded',on?'true':'false');
+  }
+  hd.addEventListener('click',toggle);
+  hd.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); }
+  });
+  // 「其余 N 项正常」点开后换成全部行
+  const more=document.getElementById('fhMore');
+  if(more){
+    const expandAll=()=>{ bd.innerHTML=rows.map(line).join(''); };
+    more.addEventListener('click',e=>{ e.stopPropagation(); expandAll(); });
+    more.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); expandAll(); }
+    });
+  }
+})();
 
 // ---------- KPI ----------
 // ⚠ 原来这里有两个 KPI：「监控组合规模」和「监控标的」。已删除，原因不是"用不上"，

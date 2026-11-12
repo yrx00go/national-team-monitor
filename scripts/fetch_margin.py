@@ -44,6 +44,9 @@
 import json, os, sys, time, urllib.parse, urllib.request
 from datetime import datetime
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 
@@ -81,6 +84,18 @@ def fetch_page(page, size=500):
         raise RuntimeError(f"接口返回失败: code={js.get('code')} msg={js.get('message')}")
     res = js.get('result') or {}
     return res.get('data') or [], res.get('pages') or 0, res.get('count') or 0
+
+
+def _old_last():
+    """旧文件里最新到哪一天。抓取失败时用它当 last，好让页面上算出落后几天。"""
+    fp = os.path.join(DATA, 'margin.json')
+    if not os.path.exists(fp):
+        return None
+    try:
+        d = json.load(open(fp, encoding='utf-8')).get('days') or {}
+        return max(d) if d else None
+    except Exception:
+        return None
 
 
 def main():
@@ -147,6 +162,8 @@ def main():
 
     if len(days) < 100:
         print(f'⚠ 有效仅 {len(days)} 天，疑似接口改版 —— 不写入')
+        _fh.report('margin', '两融余额', 'fail', last=_old_last(),
+                   note=f'有效仅 {len(days)} 天，疑似接口改版')
         return 1
 
     ks = sorted(days)
@@ -154,12 +171,15 @@ def main():
     # 自检：两融余额量级应在 8,000–30,000 亿区间。超出说明单位错了（可能本来就是亿）
     if not (3000 <= days[last]['rzrqye'] <= 80000):
         print(f"⚠ 两融余额 {days[last]['rzrqye']:,.1f} 亿 量级异常 —— 疑似单位错误，不写入")
+        _fh.report('margin', '两融余额', 'fail', last=_old_last(),
+                   note=f"量级异常 {days[last]['rzrqye']:,.0f} 亿，疑似单位错误")
         return 1
 
     out = {'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
            'days': dict(sorted(days.items()))}
     fp = os.path.join(DATA, 'margin.json')
     json.dump(out, open(fp, 'w', encoding='utf-8'), ensure_ascii=False)
+    _fh.report('margin', '两融余额', 'ok', last=last, got=len(days))
     print(f'\n  有效 {len(days)} 天  {ks[0]} → {last}  跳过 {skipped} 条')
     print(f"  最新 {last}:  两融 {days[last]['rzrqye']:,.0f} 亿  "
           f"融资 {days[last]['rzye']:,.0f} 亿  净买入 {days[last]['rzjme']:+,.1f} 亿  "

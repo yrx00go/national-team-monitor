@@ -16,6 +16,9 @@
 import json, os, sys, time, urllib.request
 from datetime import date
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 
@@ -161,6 +164,12 @@ def main():
     # ── ① 全失败：不写盘 ───────────────────────────────────────────────
     if not out:
         kept = sum(len(v) for v in old.values())
+        # 全失败也要上报 —— 「一只没抓到」正是用户最需要知道的那一条。
+        # 页面上会显示成「价格(不复权) · 到 X 日 · 今日未获取 · 沿用旧价」。
+        last = max((v[-1][0] for v in old.values() if v), default=None)
+        _fh.report('price_bfq', '价格（不复权，算净流入用）', 'fail',
+                   last=last, got=0, want=len(CODES),
+                   note=f'今日 0/{len(CODES)} 只，沿用旧价')
         print(f'\n✗ 一只都没抓到，不写盘。旧文件保留 {len(old)} 只 / {kept} 根 '
               f'({os.path.getsize(fp)/1024:.0f} KB)' if os.path.exists(fp) else
               '\n✗ 一只都没抓到，且本地无旧文件，本次不产出 prices_bfq.json')
@@ -176,6 +185,18 @@ def main():
             filled.append(code)
 
     _save(fp, merged)
+
+    # 上报：last 用「真正抓到的那几只」的末日期，不用合并后的 ——
+    # 合并后末日期看起来是新，但那几只其实是旧价，报上去就是骗自己。
+    got_last = max((v[-1][0] for v in out.values() if v), default=None)
+    if bad:
+        _fh.report('price_bfq', '价格（不复权，算净流入用）', 'partial',
+                   last=got_last, got=len(out), want=len(CODES),
+                   note=f'{len(bad)} 只未获取，{" ".join(c for c, _ in bad[:4])}'
+                        f'{"…" if len(bad) > 4 else ""} 沿用旧价')
+    else:
+        _fh.report('price_bfq', '价格（不复权，算净流入用）', 'ok',
+                   last=got_last, got=len(out), want=len(CODES))
 
     print(f'\n写入 {fp}  ({os.path.getsize(fp)/1024:.0f} KB)  '
           f'抓到 {len(out)}/{len(CODES)}')

@@ -69,10 +69,29 @@ def main():
     # 但如果连续多天拿不到，面板就会停在旧日期，所以这里仍然记一笔。
     if not run('fetch_margin.py', optional=True):
         fails.append('fetch_margin.py（两融未更新，杠杆面板会用旧值）')
-    if not run('compute_demo.py', optional=True):
-        fails.append('compute_demo.py（数据未重算，页面会用上一次的结果）')
+
+    # ⚠ 顺序很关键：compute_demo.py 必须排在【所有抓取脚本之后】。
+    #   2026-11-12 实测踩到：它原来排在这里（第 5），而 fetch_dividend / fetch_history
+    #   排在第 6、7。于是那两项的体检结果永远进不了当天页面 ——
+    #   data/fetch_status.json 里有 6 项，demo.json 的 health 只有 4 项，
+    #   页面上少了两项，而且不会报错。**顺序错了，等于给体检栏开了个后门。**
+    #   依赖关系本来是「先抓完 → 再算 → 再出体检」，写成线性的就该按这个顺序排。
     if not run('fetch_dividend.py', optional=True):
         fails.append('fetch_dividend.py（股息率未更新）')
+
+    # 前复权收盘价 —— 页面画价格曲线用的就是它。
+    # ⚠ 2026-11-12 才发现它【完全不在这条链上】：只有一次性回补脚本
+    #   fetch_history.py 会写它，而那个脚本的判据是「起点够早就跳过」，
+    #   于是回补一次成功后永久不再更新。价格曲线会一天天变旧，页面上没有任何提示。
+    #   修法：每天全量刷新一遍（9 只、每只约 1900 根，实测十几秒，代价可接受）。
+    #   为什么必须全量：前复权序列一旦某只分红，历史值会整体重算，
+    #   增量续接会和历史对不上，只能整段覆盖。
+    if not run('fetch_history.py', '--refresh-prices', optional=True):
+        fails.append('fetch_history.py（前复权价未刷新，价格曲线会停在旧日期）')
+
+    # 放在最后：它要读上面所有抓取步骤写下的 fetch_status.json
+    if not run('compute_demo.py', optional=True):
+        fails.append('compute_demo.py（数据未重算，页面会用上一次的结果）')
 
     # 6. 重建 HTML —— 这一步失败必须硬停，没有页面就没有交付物
     #

@@ -17,8 +17,11 @@ Demo 计算层 v3 —— 面向曲线图的数据结构。
      这是一个【数学证明】而不是推断：如果今天的总份额已经少于上期末机构的持仓，
      那么机构必然净卖出了 —— 不需要知道是谁、不需要猜。
 """
-import json, os, statistics
-from datetime import datetime
+import json, os, statistics, sys
+from datetime import date, datetime
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _fh          # 数据源健康上报，见 _fh.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -1036,6 +1039,85 @@ def calc_cum_path(days, combo_cum, bounds):
     }
 
 
+def _derive_health(shares, prices_qfq, prices_bfq, sh_idx, turn_raw,
+                   mg_raw, inst, today):
+    """没有上报记录时，直接从数据文件反推一份体检。
+
+    为什么要有这条兜底：fetch_status.json 只有在「抓取脚本跑过」之后才存在。
+    第一次部署、或者某次只手动跑了 compute_demo 时，它不存在 ——
+    这时体检栏会显示「未生成」，而数据其实完全正常。
+    **把「我没记录」说成「数据有问题」，和把「数据有问题」说成「一切正常」，
+    是同一种病：拿不确定的东西冒充确定。**
+
+    反推出的状态一律标 ok / stale（按日期判断），不编造 fail ——
+    因为「文件在且日期新」确实说明数据可用，至于这次有没有抓、抓了几只，
+    没记录就是不知道，不能猜。
+    """
+    def last_of(seq):
+        """从 [[date, value], ...] 里取最后一天。"""
+        return max((x[0] for x in seq), default=None) if seq else None
+
+    def last_key(dct):
+        """从 {date: ...} 里取最后一天。⚠ 不能复用 last_of ——
+        字典迭代出来的是字符串，x[0] 会取到第一个字符（踩过：'2026-11-11' → '2'）。"""
+        return max(dct, default=None) if dct else None
+
+    out = []
+
+    def add(key, name, last, got=None, want=None):
+        lag = None
+        if last:
+            try:
+                lag = (datetime.strptime(today[:10], '%Y-%m-%d')
+                       - datetime.strptime(last[:10], '%Y-%m-%d')).days
+            except Exception:
+                lag = None
+        state = 'ok'
+        # 「日期新」不等于「数据齐」。抓 6 只和抓 10 只都可能是今天的日期，
+        # 但前者净流入只覆盖 60% 的标的 —— 不报出来，读的人会以为组合是全部 10 只。
+        if got is not None and want and got < want:
+            state = 'partial'
+        # ⚠ 这里用 SRC_STALE_DAYS（10 天），不用 LAG_OK。
+        #   反推场景下 today 是【真实今天】，而 LAG_OK 只管「源站天生滞后几天」
+        #   （两融 T+1、上交所 T+1）。拿它判会把每个周末都报成「停更」：
+        #   周六看周五的数据 lag=1，两融 LAG_OK=1 就卡在边界上，
+        #   再隔一天变 lag=2 > 1 → 红着。**一份周末必红的仪表盘会被当成噪音关掉。**
+        #   反推时我们本来就不知道「今天有没有抓」，只能问「数据本身多久没动」，
+        #   那就该用休市容忍度（A 股最长休市是春节约 9 天）。
+        if lag is not None and lag > _fh.SRC_STALE_DAYS:
+            state = 'stale'
+        out.append({'key': key, 'name': name, 'state': state, 'last': last,
+                    'lag': lag, 'got': got, 'want': want, 'days_bad': 0,
+                    'days_silent': None,
+                    'note': '无上报记录，按文件日期反推'})
+
+    # 份额的「到哪天」只认含 510300 的交易日 —— 深市只有 3 天自建历史，
+    # 直接 max(shares) 会取到深市快照的日期，让人以为上交所也到那天了。
+    _sse_days = [d for d, v in shares.items() if '510300' in v]
+    add('shares', 'ETF 份额（上交所，全站唯一事实层）',
+        max(_sse_days) if _sse_days else None, len(WATCH), len(WATCH))
+    add('price_bfq', '价格（不复权，算净流入用）',
+        last_of([v[-1] for v in prices_bfq.values() if v]),
+        len([k for k, v in prices_bfq.items() if v]), len(WATCH))
+    add('price_qfq', '价格（前复权，画曲线用）',
+        last_of([v[-1] for v in prices_qfq.values() if v]),
+        len([k for k, v in prices_qfq.items() if v]), len(WATCH))
+    add('index', '上证指数', last_key(sh_idx))
+    add('turnover', '两市成交额', last_of(turn_raw))
+    add('margin', '两融余额', max(mg_raw) if mg_raw else None)
+    _inst_last = None
+    for r in (inst.get('rows') or []):
+        d = (r.get('latest') or {}).get('date')
+        if d and (not _inst_last or d > _inst_last):
+            _inst_last = d
+    add('inst', '机构持仓（半年报/年报）', _inst_last,
+        len(inst.get('rows') or []), len(WATCH))
+
+    order = {'fail': 0, 'stale': 1, 'partial': 2, 'ok': 3}
+    out.sort(key=lambda r: (order.get(r['state'], 9), -(r['lag'] or 0)))
+    return out
+
+
 def main():
     shares = json.load(open(os.path.join(DATA, 'shares.json'), encoding='utf-8'))
     prices_qfq = json.load(open(os.path.join(DATA, 'prices.json'), encoding='utf-8'))
@@ -1275,6 +1357,43 @@ def main():
                                           {r['code']: r for r in rows + thin},
                                           days[0], days[-1]),
     }
+
+    # ── 数据体检（内联进页面，让「哪块没抓到」直接上屏）─────────────────
+    # 2026-11-12 一天里炸出五处静默失败，共同点是「坏了但不吭声」。
+    # 这个字段是那件事的统一出口：每个数据源一行，写清「到哪天 / 落后几天 / 抓到几只」。
+    #
+    # ⚠⚠ 基准日必须用【真实今天】，不能用 days[-1]。
+    #   第一版我写的是 summarize(today=days[-1])，注释还写着「数据和页面同源」——
+    #   想得很周到，但把尺子和被测对象搞成了同一个东西：
+    #   今天 11-12、数据停在 11-11 → lag = 0，显示「当日，正常」；
+    #   就算数据停在 11-05，基准也跟着变成 11-05 → lag 还是 0。
+    #   **这一栏从此永远显示「全部正常」，比不装它还糟：它长得像体检，实际什么也没查。**
+    #   跨零点差一天的顾虑是真的，但那是 1 天的事；拿错基准是「永远为 0」的事。
+    #   而且页面本来就有「最新 {days[-1]}」在顶部，两者不是同一个概念，不该混用。
+    today_real = date.today().isoformat()
+    try:
+        health = _fh.summarize(today=today_real)
+    except Exception as e:
+        health = []
+        print(f'  ⚠ 数据体检生成失败：{type(e).__name__}: {e}')
+
+    # 上报记录为空（第一次部署 / 某次只跑了 compute）时，从数据文件本身反推。
+    # ⚠ 这一步不能省：否则体检栏会显示「未生成体检数据」，
+    #   而实际上数据好得很 —— 把「我没记录」当成「数据有问题」也是一种误报。
+    if not health:
+        health = _derive_health(shares, prices_qfq, prices_bfq, sh_idx,
+                                turn_raw, mg_raw, inst, today_real)
+        print('  （无上报记录，体检状态由数据文件反推）')
+
+    out['health'] = health
+    _bad = [h for h in health if h['state'] != 'ok']
+    if _bad:
+        print(f'\n  数据体检：{len(health)} 项，{len(_bad)} 项有问题')
+        for h in _bad:
+            lag = f"落后 {h['lag']} 天" if h['lag'] is not None else '无日期'
+            print(f"    · {h['name']}：{lag}  {h['note']}")
+    else:
+        print(f"\n  数据体检：{len(health)} 项全部正常")
     fp = os.path.join(DATA, 'demo.json')
     json.dump(out, open(fp, 'w', encoding='utf-8'), ensure_ascii=False)
     print(f'写入 {fp}  ({os.path.getsize(fp)/1024:.0f} KB)')

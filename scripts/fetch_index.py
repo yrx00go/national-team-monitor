@@ -44,6 +44,9 @@
 import json, os, sys, time, urllib.request
 from datetime import date
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 
@@ -86,20 +89,63 @@ def fetch_kline(secid, fields2='f51,f53'):
     return d.get('code') or secid.split('.')[1], out
 
 
+def _old_last(fn):
+    """读旧文件里最新到哪一天。抓取失败时用它当 last —— 报「停在 11-11」
+    比报「没有日期」有用得多，因为前者能直接算出落后几天。"""
+    fp = os.path.join(DATA, fn)
+    if not os.path.exists(fp):
+        return None
+    try:
+        js = json.load(open(fp, encoding='utf-8'))
+        for k, v in js.items():
+            if k.startswith('000') and v:
+                return v[-1][0]
+        t = js.get('turnover') or []
+        return t[-1][0] if t else None
+    except Exception:
+        return None
+
+
+def _why(e):
+    """把异常翻译成一句人话。
+
+    ⚠ 这一条是纪律，不是审美：`_fh.py` 的文件头写着「note 直接上屏，要写人话」。
+    我原来直接把 `RemoteDisconnected: Remote end closed connection without response`
+    丢进 note，结果手机上它折成 3 行、单行 109px，整栏被这一条撑到 373px，
+    首屏 844px 里它吃掉 44% —— **报了，但把正事挡掉了**。
+    技术细节仍然要留，写进 print 的日志里，那里才是排查时看的地方。
+    """
+    n = type(e).__name__
+    s = str(e)
+    if 'RemoteDisconnected' in n or 'RemoteDisconnected' in s:
+        return '接口主动断连（境外 IP 常见）'
+    if 'timeout' in n.lower() or 'timed out' in s.lower():
+        return '接口超时'
+    if 'Connection' in n or 'Connection' in s:
+        return '连不上接口'
+    return '接口异常（详见运行日志）'
+
+
 def main():
-    # ① 上证点位
+    # 上证点位
     try:
         code, arr = fetch_kline('1.000001')
     except Exception as e:
+        _fh.report('index', '上证指数 / 两市成交额', 'fail',
+                   last=_old_last('index_sh.json'), note=_why(e))
         print(f'上证指数抓取失败：{type(e).__name__}: {e}')
         return 1
     if not arr:
+        _fh.report('index', '上证指数 / 两市成交额', 'fail',
+                   last=_old_last('index_sh.json'), note='接口返回空（疑似改版）')
         print('上证指数返回为空（接口可能改版）—— 不做任何写入，避免用空文件覆盖旧数据')
         return 1
 
     # 剔除当日未收盘数据
     arr = [x for x in arr if x[0] < TODAY]
     if not arr:
+        _fh.report('index', '上证指数 / 两市成交额', 'fail',
+                   last=_old_last('index_sh.json'), note='只有当日盘中数据，已剔除')
         print('上证指数剔除当日盘中数据后为空 —— 不写入')
         return 1
 
@@ -156,6 +202,16 @@ def main():
     fp = os.path.join(DATA, 'index_sh.json')
     json.dump(out, open(fp, 'w', encoding='utf-8'), ensure_ascii=False)
     print(f'\n写入 {fp}  ({os.path.getsize(fp)/1024:.0f} KB)')
+
+    # 上报。成交额单独一个 key：它和点位来自同一个接口，但失败模式不同
+    # （点位能拿到、成交额只拿到单市），分开记才看得出是哪一半缺了。
+    _fh.report('index', '上证指数', 'ok', last=pos[-1][0])
+    if turn_arr:
+        _fh.report('turnover', '两市成交额', 'ok', last=turn_arr[-1][0])
+    else:
+        _fh.report('turnover', '两市成交额', 'partial',
+                   last=(turn_arr[-1][0] if turn_arr else _old_last('index_sh.json')),
+                   note=f'只拿到 {ok}/2 市合计，保留旧值')
     return 0
 
 
