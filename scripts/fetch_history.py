@@ -347,17 +347,23 @@ def _fetch_prices(start, end):
     #
     #   所以 last 不能用 max。改用 _fh.majority_last()：取「多数资产所在的那一天」，
     #   并且把「比这天更晚的有几只」单独报出来（那几只是特例，不能拿来给整项贴金）。
-    _last, _ahead, _tail_n = _fh.majority_last(
+    _last, _ahead, _behind, _tail_n = _fh.majority_last(
         [prices.get(w[1]) or [] for w in WATCH])
     # 全失败时，仍要从旧文件里读出「曲线停在哪一天」——
     # 报「停在 11-11」比报「没有日期」有用得多，因为前者能直接算出落后几天。
     # 这和 fetch_price_bfq.py 的处理保持一致（那边也是读旧文件的末日期）。
     if _last is None:
-        _last, _ahead, _tail_n = _fh.majority_last(list(prices.values()))
+        _last, _ahead, _behind, _tail_n = _fh.majority_last(list(prices.values()))
     _want = len(WATCH)
     _got = len(ok_codes)
-    # 「多数日」之外的领先只数，必须写进 note —— 否则那一天看着像全体的成绩。
-    _lead = f'；{_ahead} 只已到更晚一天（其余停在 {_last}）' if _ahead else ''
+    # ⚠ 两个方向都要写进 note：
+    #   更晚的（个别标的提前一天）说明「这个日期不是全体的成绩」；
+    #   更早的（真停更）说明「还有几只没跟上」。只写前者会美化，只写后者会漏特例。
+    _lead = ''
+    if _ahead:
+        _lead += f'；{_ahead} 只已到更晚一天'
+    if _behind:
+        _lead += f'；{_behind} 只仍停在更早的日期'
     if not ok_codes:
         _fh.report('price_qfq', '价格（前复权，画曲线用）', 'fail',
                    last=_last, got=0, want=_want,

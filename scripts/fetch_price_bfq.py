@@ -280,8 +280,12 @@ def main():
     #   抓到的同一个错：9 只停在 T-1、1 只到了 T，max() 会把整项报成 T，
     #   lag 归零，页面显示「当日」，而实际上九只停更。
     #   要取「多数所在的那一天」，并把领先的那几只单独写进 note。
-    got_last, got_ahead, _n = _fh.majority_last(list(out.values()))
-    _lead = f'；{got_ahead} 只已到更晚一天' if got_ahead else ''
+    got_last, got_ahead, got_behind, _n = _fh.majority_last(list(out.values()))
+    _lead = ''
+    if got_ahead:
+        _lead += f'；{got_ahead} 只已到更晚一天'
+    if got_behind:
+        _lead += f'；{got_behind} 只仍停在更早的日期'
     if bad:
         _fh.report('price_bfq', '价格（不复权，算净流入用）', 'partial',
                    last=got_last, got=len(out), want=len(CODES),
