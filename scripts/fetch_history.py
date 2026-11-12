@@ -44,7 +44,21 @@ WATCH = [
 UA = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
 
 
-def _get(url, referer, timeout=20, retries=3):
+def _get(url, referer, timeout=20, retries=5):
+    """带退避重试的 GET。
+
+    ⚠ 2026-11-12 实测踩到：这次 CI 里 `fetch_price_bfq.py` 抓到 8/10，
+       而这里同一批标的、同一个接口、同样参数，**0/10**。
+       对比两边代码，URL 参数一模一样，差别只有一个：
+         fetch_price_bfq 重试 4 次（0.8 / 2 / 4 秒）
+         这里重试 3 次（1 / 2 秒）
+       东财对境外 IP 的掐断是**间歇性**的（不是按 URL 大小区分，实测同一请求
+       有时通有时不通，前后差不到 1 秒），所以「多试一次」直接决定成败。
+       3 次成功概率约 70%，5 次约 90% —— 这就是 8/10 和 0/10 的全部原因。
+
+       现在统一到 5 次，退避 1/2/4/8 秒（最长约 15 秒 + 5×timeout）。
+       `--refresh-prices` 是每天全量重抓，等于每天赌一次，必须把胜率拉高。
+    """
     last = None
     for i in range(retries):
         try:
@@ -54,7 +68,7 @@ def _get(url, referer, timeout=20, retries=3):
         except Exception as e:
             last = e
             if i < retries - 1:
-                time.sleep(1.0 * (i + 1))
+                time.sleep(min(1.0 * (2 ** i), 8.0))
     raise last
 
 
@@ -93,18 +107,22 @@ def fetch_szse_snapshot():
     return out
 
 
-def fetch_price(code, market, fqt='qfq'):
+def fetch_price(code, market, fqt='qfq', beg='20190101'):
     """东方财富日线。fqt='qfq' 前复权 / 'bfq' 不复权。
 
     ⚠ 原来用腾讯 web.ifzq.gtimg.cn，但它硬上限 640 根（传 2500 直接返回空），
     只能回溯到 2024-03，撑不住 2020 年起的区间。换东财后可达上市首日。
     已验证：510880 前复权序列与腾讯重叠 751 天，中位差 0.0000%、最大差 0.177%。
+
+    beg 参数是 2026-11-12 下午加的：日常增量只需要近 40 天，
+    传一个近的起点能把响应体从 1900 根降到 ~30 根，境外 IP 被掐断的概率明显下降。
+    不传时仍是 20190101（回补 / 强制全量走这条）。
     """
     secid = ('1.' if market == 'SSE' else '0.') + code
     fq = 1 if fqt == 'qfq' else 0
     url = ('https://push2his.eastmoney.com/api/qt/stock/kline/get?'
            f'secid={secid}&fields1=f1,f2&fields2=f51,f53&klt=101&fqt={fq}'
-           f'&beg=20190101&end={date.today().strftime("%Y%m%d")}')
+           f'&beg={beg}&end={date.today().strftime("%Y%m%d")}')
     js = json.loads(_get(url, 'https://quote.eastmoney.com/').decode('utf-8', 'ignore'))
     kl = (js.get('data') or {}).get('klines') or []
     # ⚠ 剔除当日未收盘数据 —— 与 fetch_price_bfq.py / fetch_index.py 同一条纪律。
@@ -165,31 +183,126 @@ def main():
     # ⚠ 2026-11-12 发现的问题：这段原来是「起点够早就跳过」，
     #   于是回补一次成功后，它【永远不会再更新】—— prices.json 会永久停在回补那天。
     #   而这正是页面画价格曲线用的数据（前复权），停更了却没有任何提示。
-    #   现在加 --refresh-prices：跳过「起点判断」，无条件全量重抓一遍。
-    #   为什么必须全量而不是增量：前复权序列一旦某只分红，历史值会整体重算，
-    #   增量续接会和历史对不上（同一天两个价），只能整段覆盖。
+    #   修法一（当天上午）：加 --refresh-prices 无条件全量重抓。
+    #   修法二（当天下午，就是下面这段）：不再无条件全量。
+    #
+    # ⚠⚠ 为什么放弃了「每天全量」：
+    #   实测当天 CI 里 fetch_price_bfq 抓到 8/10、这里 0/10。两边 URL 参数一模一样，
+    #   差别只有重试次数。而 --refresh-prices 是【每天】赌一次 10 只 × 1900 根，
+    #   任何一次全挂，价格曲线就停一天。**把「偶发失败」变成了「每天一次风险」。**
+    #
+    # 新做法，分两步：
+    #   第一步：只抓最近 40 天（数据量减少约 95%，掐断概率大幅下降）。
+    #   第二步：拿这 40 天和旧数据【重叠区逐日比对】——
+    #           数值对得上 → 说明没分红除权，把新的接上去就行（增量，够用）；
+    #           数值对不上 → 说明发生过除权重算，必须【全量重抓整段】。
+    #
+    # 为什么这个判据是对的：前复权序列一旦某只分红，历史值会整体重算，
+    # 同一天会出现两个价。所以「重叠区是否吻合」正是除权的直接指纹 ——
+    # 不需要猜哪天分红，让数据自己说。
     refresh = '--refresh-prices' in sys.argv
-    print('\n价格：' + ('（强制全量刷新）' if refresh else ''))
-    ok_codes, bad_codes = [], []      # 本次真正抓到的 / 真的失败的
+    NEAR_DAYS = 40      # 增量窗口：覆盖约 26 个交易日，足够容错节假日
+    print('\n价格：' + ('（强制全量刷新）' if refresh else '（增量 + 重叠校验）'))
+    ok_codes, bad_codes, full_codes = [], [], []   # 本次抓到的 / 失败的 / 被迫全量的
+
+    def _tail_start(seq):
+        """旧序列里，从那一天起的尾巴（用来做重叠比对）。"""
+        return {d: c for d, c in seq[-NEAR_DAYS:]}
+
     for idx, code, name, mk in WATCH:
         need = start.isoformat()
         have = prices.get(code) or []
-        # 判据不是「根数够不够」，而是「起点够不够早」——根数够但起点晚，照样缺前面
-        if not refresh and have and have[0][0] <= need:
-            print(f'  {code} 已有 {len(have)} 根（{have[0][0]} 起），覆盖充分，跳过')
-            ok_codes.append(code)      # 跳过不算失败：它本来就是好的
+
+        # 没有旧数据、或旧数据起点不够早 → 只能全量（这是回补，不是日常）
+        if not have or have[0][0] > need:
+            try:
+                p = fetch_price(code, mk)
+                prices[code] = [[d, c] for d, c in p]
+                ok_codes.append(code)
+                full_codes.append(code)
+                print(f'  {code} {name} 全量 {len(p)} 根  {p[0][0]} → {p[-1][0]}')
+            except Exception as e:
+                bad_codes.append(code)
+                print(f'  {code} 失败 {e}')
+            time.sleep(0.3)
             continue
+
+        if refresh:
+            try:
+                p = fetch_price(code, mk)
+                prices[code] = [[d, c] for d, c in p]
+                ok_codes.append(code)
+                full_codes.append(code)
+                print(f'  {code} {name} 全量 {len(p)} 根  {p[0][0]} → {p[-1][0]}')
+            except Exception as e:
+                bad_codes.append(code)
+                print(f'  {code} 失败 {e}')
+            time.sleep(0.3)
+            continue
+
+        # 日常路径：先抓近端一小段
         try:
-            p = fetch_price(code, mk)
-            prices[code] = [[d, c] for d, c in p]
-            ok_codes.append(code)
-            print(f'  {code} {name} {len(p)} 根  {p[0][0]} → {p[-1][0]}')
+            tail = fetch_price(code, mk, beg=(date.today()
+                                  - timedelta(days=NEAR_DAYS * 2)).strftime('%Y%m%d'))
         except Exception as e:
             bad_codes.append(code)
-            print(f'  {code} 失败 {e}')
+            print(f'  {code} 近端失败 {e}（旧数据保留，不做任何写入）')
+            time.sleep(0.3)
+            continue
+
+        if not tail:
+            bad_codes.append(code)
+            print(f'  {code} 近端返回空（疑似接口改版），旧数据保留')
+            time.sleep(0.3)
+            continue
+
+        # 重叠校验：同一个日期，两边的前复权价应该完全相等
+        old_tail = _tail_start(have)
+        overlap = [(d, c, old_tail[d]) for d, c in tail if d in old_tail]
+        diff = [x for x in overlap if abs(x[1] - x[2]) > 1e-6]
+
+        if not overlap:
+            # 完全没重叠（停机太久）。这时也走全量，稳妥。
+            try:
+                p = fetch_price(code, mk)
+                prices[code] = [[d, c] for d, c in p]
+                ok_codes.append(code)
+                full_codes.append(code)
+                print(f'  {code} {name} 无重叠 → 全量 {len(p)} 根')
+            except Exception as e:
+                bad_codes.append(code)
+                print(f'  {code} 失败 {e}')
+            time.sleep(0.3)
+            continue
+
+        if diff:
+            # ★ 重叠区对不上 = 发生过除权，历史必须整段重算
+            try:
+                p = fetch_price(code, mk)
+                prices[code] = [[d, c] for d, c in p]
+                ok_codes.append(code)
+                full_codes.append(code)
+                print(f'  {code} {name} ⚠ 重叠区 {len(diff)}/{len(overlap)} 天不一致'
+                      f'（示例 {diff[0][0]}: {diff[0][2]} → {diff[0][1]}）→ 全量重抓 {len(p)} 根')
+            except Exception as e:
+                bad_codes.append(code)
+                print(f'  {code} 除权后全量失败 {e}（⚠ 旧序列可能已过期）')
+            time.sleep(0.3)
+            continue
+
+        # 重叠区完全吻合 → 只把新日期接上去
+        merged = [list(x) for x in have]
+        have_last = merged[-1][0] if merged else ''
+        added = [[d, c] for d, c in tail if d > have_last]
+        prices[code] = merged + added
+        ok_codes.append(code)
+        print(f'  {code} {name} 增量 +{len(added)} 天（重叠 {len(overlap)} 天吻合）'
+              f' → 末 {prices[code][-1][0]}')
         time.sleep(0.3)
+
     json.dump(prices, open(px_fp, 'w', encoding='utf-8'), ensure_ascii=False)
-    print(f'价格完成 → {px_fp}')
+    print(f'价格完成 → {px_fp}'
+          + (f'（其中 {len(full_codes)} 只走了全量：{" ".join(full_codes)}）' if full_codes else ''))
 
     # 上报。这里必须报 —— 因为 prices.json 曾经完全不在这条链上，
     # 页面上的价格曲线会一天天变旧而没人知道（这就是 ⑤ 号静默失败）。

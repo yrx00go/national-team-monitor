@@ -54,7 +54,15 @@ BEG = '20190101'   # 与 fetch_price_bfq.py 保持一致，多留余量
 TODAY = date.today().isoformat()
 
 
-def _get(url, referer='https://quote.eastmoney.com/', retries=3):
+def _get(url, referer='https://quote.eastmoney.com/', retries=5):
+    """带退避重试的 GET。
+
+    ⚠ 2026-11-12：这里原来是 3 次。同一天 CI 里，走同一个 push2his 接口的
+       fetch_price_bfq（4 次重试）抓到 8/10，而 fetch_history（3 次）0/10。
+       东财对境外 IP 是间歇性掐断，实测同一请求前后差不到 1 秒就一通一断 ——
+       「多试一次」直接决定成败。三个打东财的脚本现在统一 5 次、退避 1/2/4/8 秒。
+       不统一的后果就是：报错看起来像「接口挂了」，实际只是重试少了两次。
+    """
     last = None
     for i in range(retries):
         try:
@@ -66,7 +74,7 @@ def _get(url, referer='https://quote.eastmoney.com/', retries=3):
         except Exception as e:
             last = e
             if i < retries - 1:
-                time.sleep(1.5 * (i + 1))
+                time.sleep(min(1.0 * (2 ** i), 8.0))
     raise last
 
 

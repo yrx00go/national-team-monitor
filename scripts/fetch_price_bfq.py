@@ -33,7 +33,7 @@ CODES = {
 }
 
 
-def _get(url, referer='https://gu.qq.com/', tries=4):
+def _get(url, referer='https://gu.qq.com/', tries=5):
     """带退避重试的 GET。
 
     ⚠ 2026-11-12 在 GitHub Actions 上实测出来的问题：
@@ -46,7 +46,11 @@ def _get(url, referer='https://gu.qq.com/', tries=4):
        原来只请求一次，撞上就整只标的作废，于是 compute_demo 因为
        缺 510880 直接 IndexError（两个 bug 串成一条链）。
 
-       重试间隔 0.8s / 2.0s / 4.0s，四次都失败才算真拿不到。
+       ⚠ 下午补充：同一天，走同一接口的 fetch_history 只重试 3 次，结果 0/10，
+         而这里 4 次抓到 8/10。所以现在把打东财的三个脚本统一到 5 次、
+         退避 1/2/4/8 秒 —— **重试次数不统一，会让故障看起来像「接口挂了」，
+         实际只是少试了两次。**
+
        对交易所正常情况没有副作用：成功时只请求一次，一秒都不多等。
     """
     last = None
@@ -60,7 +64,7 @@ def _get(url, referer='https://gu.qq.com/', tries=4):
         except Exception as e:                     # 网络类异常一律重试
             last = e
             if i < tries - 1:
-                time.sleep((0.8, 2.0, 4.0)[min(i, 2)])
+                time.sleep(min(1.0 * (2 ** i), 8.0))
     raise last
 
 
