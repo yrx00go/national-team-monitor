@@ -30,12 +30,35 @@ CODES = {
 }
 
 
-def _get(url, referer='https://gu.qq.com/'):
-    req = urllib.request.Request(url, headers={
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-        'Referer': referer,
-    })
-    return urllib.request.urlopen(req, timeout=30).read()
+def _get(url, referer='https://gu.qq.com/', tries=4):
+    """带退避重试的 GET。
+
+    ⚠ 2026-11-12 在 GitHub Actions 上实测出来的问题：
+       10 只标的里 4 只（588000 / 510880 / 515080 / 159919）报
+       `RemoteDisconnected: Remote end closed connection without response`，
+       而上交所份额、两融余额同一台 runner 上全都成功。
+       说明不是「美国 IP 被整体封」，而是东财 push2his 对【境外 IP + 高频连打】
+       做了间歇性掐断 —— 典型瞬时错误，等一下再问就通了。
+
+       原来只请求一次，撞上就整只标的作废，于是 compute_demo 因为
+       缺 510880 直接 IndexError（两个 bug 串成一条链）。
+
+       重试间隔 0.8s / 2.0s / 4.0s，四次都失败才算真拿不到。
+       对交易所正常情况没有副作用：成功时只请求一次，一秒都不多等。
+    """
+    last = None
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers={
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+                'Referer': referer,
+            })
+            return urllib.request.urlopen(req, timeout=30).read()
+        except Exception as e:                     # 网络类异常一律重试
+            last = e
+            if i < tries - 1:
+                time.sleep((0.8, 2.0, 4.0)[min(i, 2)])
+    raise last
 
 
 def fetch(code, market, bars=900):

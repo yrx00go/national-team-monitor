@@ -485,6 +485,15 @@ def calc_divi_compare(qfq_all, bfq_all, rows_by_code, d0, d1):
         dv = calc_dividend_events(q, b, c)
         if dv is None:
             continue
+        # ⚠ dv['days'] 可能是空的。
+        #   只要 qfq 或 bfq 有一个抓取失败（CI 上实测 510880 / 515080 会
+        #   RemoteDisconnected），ks 就是 []，下一行 dv['days'][0] 直接 IndexError，
+        #   整个 compute_demo.py 崩掉 —— 而它是「可选步骤」，崩了页面就沿用旧数据，
+        #   表面功夫一切正常，只有日志里一行 ⚠。
+        #   这里必须先判空再取首日，宁可少一只对照，也不能让整页数据不更新。
+        if not dv.get('days'):
+            print(f'  ⚠ {c} 价格数据缺失（qfq={len(q)} bfq={len(b)}），跳过对照')
+            continue
         # 起点随上市日走：159545 2024-04-15 才上市，硬拉齐到 2020 会得到 None
         start = max(d0, dv['days'][0])
         tr = calc_total_return(q, b, dv['events'], start, d1)
