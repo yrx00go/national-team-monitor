@@ -1,0 +1,1547 @@
+{
+ "updated_at": "2026-11-11 10:24",
+ "rows": [
+  {
+   "index": "上证50",
+   "code": "510050",
+   "name": "50ETF",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 31.79,
+     "indiv_pct": 60.99,
+     "inner_pct": 7.23,
+     "total_yi": 63.92
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 91.46,
+     "indiv_pct": 7.6,
+     "inner_pct": 0.94,
+     "total_yi": 566.65
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 88.69,
+     "indiv_pct": 10.22,
+     "inner_pct": 1.09,
+     "total_yi": 589.52
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 84.31,
+     "indiv_pct": 14.34,
+     "inner_pct": 1.35,
+     "total_yi": 553.33
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 80.26,
+     "indiv_pct": 18.22,
+     "inner_pct": 1.51,
+     "total_yi": 462.76
+    },
+    {
+     "date": "2023-12-31",
+     "inst_pct": 68.22,
+     "indiv_pct": 29.53,
+     "inner_pct": 2.24,
+     "total_yi": 339.68
+    },
+    {
+     "date": "2023-06-30",
+     "inst_pct": 65.84,
+     "indiv_pct": 31.27,
+     "inner_pct": 2.89,
+     "total_yi": 226.86
+    },
+    {
+     "date": "2022-12-31",
+     "inst_pct": 66.54,
+     "indiv_pct": 29.15,
+     "inner_pct": 4.31,
+     "total_yi": 220.24
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 193.0,
+     "sell_yi": 187.53,
+     "total_yi": 69.39,
+     "nav_yi": 203.8
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 129.79,
+     "sell_yi": 296.09,
+     "total_yi": 63.92,
+     "nav_yi": 196.98
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 97.82,
+     "sell_yi": 434.24,
+     "total_yi": 230.23,
+     "nav_yi": 667.31
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 118.13,
+     "sell_yi": 128.72,
+     "total_yi": 566.65,
+     "nav_yi": 1759.22
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 136.17,
+     "sell_yi": 148.46,
+     "total_yi": 577.24,
+     "nav_yi": 1804.54
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 183.87,
+     "sell_yi": 129.25,
+     "total_yi": 589.52,
+     "nav_yi": 1654.44
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 111.31,
+     "sell_yi": 129.74,
+     "total_yi": 534.9,
+     "nav_yi": 1457.4
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 132.85,
+     "sell_yi": 155.24,
+     "total_yi": 553.33,
+     "nav_yi": 1515.13
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 246.32,
+     "sell_yi": 133.36,
+     "total_yi": 575.72,
+     "nav_yi": 1650.33
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 118.67,
+     "sell_yi": 115.06,
+     "total_yi": 462.76,
+     "nav_yi": 1130.05
+    },
+    {
+     "date": "2024-03-31",
+     "buy_yi": 315.52,
+     "sell_yi": 196.05,
+     "total_yi": 459.15,
+     "nav_yi": 1124.66
+    },
+    {
+     "date": "2023-12-31",
+     "buy_yi": 167.08,
+     "sell_yi": 76.28,
+     "total_yi": 339.68,
+     "nav_yi": 802.95
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 31.79,
+    "indiv_pct": 60.99,
+    "inner_pct": 7.23,
+    "total_yi": 63.92
+   },
+   "inst_share_yi": 20.32
+  },
+  {
+   "index": "沪深300",
+   "code": "510300",
+   "name": "300ETF华泰柏瑞",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 61.65,
+     "indiv_pct": 32.95,
+     "inner_pct": 5.4,
+     "total_yi": 189.15
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 90.27,
+     "indiv_pct": 8.98,
+     "inner_pct": 0.75,
+     "total_yi": 888.3
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 87.1,
+     "indiv_pct": 12.2,
+     "inner_pct": 0.69,
+     "total_yi": 940.42
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 83.06,
+     "indiv_pct": 16.32,
+     "inner_pct": 0.62,
+     "total_yi": 893.87
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 79.4,
+     "indiv_pct": 19.54,
+     "inner_pct": 1.06,
+     "total_yi": 607.4
+    },
+    {
+     "date": "2023-12-31",
+     "inst_pct": 64.74,
+     "indiv_pct": 33.3,
+     "inner_pct": 1.96,
+     "total_yi": 374.44
+    },
+    {
+     "date": "2023-06-30",
+     "inst_pct": 62.11,
+     "indiv_pct": 34.64,
+     "inner_pct": 3.25,
+     "total_yi": 185.22
+    },
+    {
+     "date": "2022-12-31",
+     "inst_pct": 65.13,
+     "indiv_pct": 29.05,
+     "inner_pct": 5.82,
+     "total_yi": 196.92
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 201.07,
+     "sell_yi": 149.02,
+     "total_yi": 241.2,
+     "nav_yi": 1068.79
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 61.27,
+     "sell_yi": 320.41,
+     "total_yi": 189.15,
+     "nav_yi": 948.72
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 59.87,
+     "sell_yi": 499.88,
+     "total_yi": 448.29,
+     "nav_yi": 1999.14
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 91.18,
+     "sell_yi": 100.04,
+     "total_yi": 888.3,
+     "nav_yi": 4222.58
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 67.08,
+     "sell_yi": 110.34,
+     "total_yi": 897.16,
+     "nav_yi": 4255.81
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 181.58,
+     "sell_yi": 91.76,
+     "total_yi": 940.42,
+     "nav_yi": 3747.04
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 69.03,
+     "sell_yi": 112.29,
+     "total_yi": 850.6,
+     "nav_yi": 3387.22
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 128.48,
+     "sell_yi": 203.84,
+     "total_yi": 893.87,
+     "nav_yi": 3596.27
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 376.46,
+     "sell_yi": 14.63,
+     "total_yi": 969.22,
+     "nav_yi": 3975.46
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 101.3,
+     "sell_yi": 47.19,
+     "total_yi": 607.4,
+     "nav_yi": 2118.19
+    },
+    {
+     "date": "2024-03-31",
+     "buy_yi": 257.85,
+     "sell_yi": 79.0,
+     "total_yi": 553.29,
+     "nav_yi": 1952.36
+    },
+    {
+     "date": "2023-12-31",
+     "buy_yi": 102.77,
+     "sell_yi": 47.49,
+     "total_yi": 374.44,
+     "nav_yi": 1310.87
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 61.65,
+    "indiv_pct": 32.95,
+    "inner_pct": 5.4,
+    "total_yi": 189.15
+   },
+   "inst_share_yi": 116.61
+  },
+  {
+   "index": "中证500",
+   "code": "510500",
+   "name": "500ETF南方",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 43.97,
+     "indiv_pct": 34.01,
+     "inner_pct": 22.02,
+     "total_yi": 41.49
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 86.95,
+     "indiv_pct": 7.76,
+     "inner_pct": 5.29,
+     "total_yi": 190.65
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 83.21,
+     "indiv_pct": 9.68,
+     "inner_pct": 7.11,
+     "total_yi": 190.12
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 77.51,
+     "indiv_pct": 14.28,
+     "inner_pct": 8.21,
+     "total_yi": 174.93
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 75.79,
+     "indiv_pct": 14.25,
+     "inner_pct": 9.96,
+     "total_yi": 147.74
+    },
+    {
+     "date": "2023-12-31",
+     "inst_pct": 60.5,
+     "indiv_pct": 22.02,
+     "inner_pct": 17.48,
+     "total_yi": 84.63
+    },
+    {
+     "date": "2023-06-30",
+     "inst_pct": 63.95,
+     "indiv_pct": 18.81,
+     "inner_pct": 17.24,
+     "total_yi": 79.49
+    },
+    {
+     "date": "2022-12-31",
+     "inst_pct": 70.94,
+     "indiv_pct": 15.21,
+     "inner_pct": 13.85,
+     "total_yi": 102.51
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 100.37,
+     "sell_yi": 85.74,
+     "total_yi": 56.11,
+     "nav_yi": 419.08
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 64.77,
+     "sell_yi": 117.65,
+     "total_yi": 41.49,
+     "nav_yi": 380.87
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 69.5,
+     "sell_yi": 165.78,
+     "total_yi": 94.37,
+     "nav_yi": 724.77
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 45.21,
+     "sell_yi": 41.01,
+     "total_yi": 190.65,
+     "nav_yi": 1446.9
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 38.79,
+     "sell_yi": 42.46,
+     "total_yi": 186.45,
+     "nav_yi": 1400.98
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 61.71,
+     "sell_yi": 33.65,
+     "total_yi": 190.12,
+     "nav_yi": 1134.38
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 38.85,
+     "sell_yi": 51.71,
+     "total_yi": 162.06,
+     "nav_yi": 948.72
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 49.93,
+     "sell_yi": 87.16,
+     "total_yi": 174.93,
+     "nav_yi": 1017.5
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 83.57,
+     "sell_yi": 19.16,
+     "total_yi": 212.15,
+     "nav_yi": 1239.13
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 45.46,
+     "sell_yi": 43.4,
+     "total_yi": 147.74,
+     "nav_yi": 738.92
+    },
+    {
+     "date": "2024-03-31",
+     "buy_yi": 105.26,
+     "sell_yi": 44.21,
+     "total_yi": 145.68,
+     "nav_yi": 782.24
+    },
+    {
+     "date": "2023-12-31",
+     "buy_yi": 24.13,
+     "sell_yi": 39.04,
+     "total_yi": 84.63,
+     "nav_yi": 467.48
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 43.97,
+    "indiv_pct": 34.01,
+    "inner_pct": 22.02,
+    "total_yi": 41.49
+   },
+   "inst_share_yi": 18.24
+  },
+  {
+   "index": "中证1000",
+   "code": "512100",
+   "name": "1000ETF南方",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 57.29,
+     "indiv_pct": 34.85,
+     "inner_pct": 7.86,
+     "total_yi": 30.77
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 95.02,
+     "indiv_pct": 4.01,
+     "inner_pct": 0.97,
+     "total_yi": 256.51
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 93.15,
+     "indiv_pct": 5.51,
+     "inner_pct": 1.33,
+     "total_yi": 253.43
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 90.35,
+     "indiv_pct": 7.74,
+     "inner_pct": 1.91,
+     "total_yi": 222.53
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 87.06,
+     "indiv_pct": 10.33,
+     "inner_pct": 2.61,
+     "total_yi": 121.57
+    },
+    {
+     "date": "2023-12-31",
+     "inst_pct": 72.69,
+     "indiv_pct": 18.66,
+     "inner_pct": 8.65,
+     "total_yi": 38.67
+    },
+    {
+     "date": "2023-06-30",
+     "inst_pct": 79.91,
+     "indiv_pct": 12.3,
+     "inner_pct": 7.79,
+     "total_yi": 36.99
+    },
+    {
+     "date": "2022-12-31",
+     "inst_pct": 79.67,
+     "indiv_pct": 12.36,
+     "inner_pct": 7.97,
+     "total_yi": 42.26
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 249.92,
+     "sell_yi": 211.18,
+     "total_yi": 69.51,
+     "nav_yi": 206.28
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 120.46,
+     "sell_yi": 165.34,
+     "total_yi": 30.77,
+     "nav_yi": 109.61
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 109.12,
+     "sell_yi": 289.98,
+     "total_yi": 75.65,
+     "nav_yi": 230.82
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 72.08,
+     "sell_yi": 65.66,
+     "total_yi": 256.51,
+     "nav_yi": 789.96
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 102.48,
+     "sell_yi": 105.82,
+     "total_yi": 250.09,
+     "nav_yi": 766.3
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 135.08,
+     "sell_yi": 88.1,
+     "total_yi": 253.43,
+     "nav_yi": 649.53
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 126.1,
+     "sell_yi": 142.18,
+     "total_yi": 206.45,
+     "nav_yi": 514.38
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 192.94,
+     "sell_yi": 272.5,
+     "total_yi": 222.53,
+     "nav_yi": 538.73
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 232.64,
+     "sell_yi": 52.12,
+     "total_yi": 302.09,
+     "nav_yi": 701.59
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 73.38,
+     "sell_yi": 69.56,
+     "total_yi": 121.57,
+     "nav_yi": 241.3
+    },
+    {
+     "date": "2024-03-31",
+     "buy_yi": 154.14,
+     "sell_yi": 75.06,
+     "total_yi": 117.75,
+     "nav_yi": 257.49
+    },
+    {
+     "date": "2023-12-31",
+     "buy_yi": 20.31,
+     "sell_yi": 31.14,
+     "total_yi": 38.67,
+     "nav_yi": 91.7
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 57.29,
+    "indiv_pct": 34.85,
+    "inner_pct": 7.86,
+    "total_yi": 30.77
+   },
+   "inst_share_yi": 17.63
+  },
+  {
+   "index": "科创50",
+   "code": "588000",
+   "name": "科创50ETF华夏",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 28.67,
+     "indiv_pct": 56.8,
+     "inner_pct": 14.53,
+     "total_yi": 298.32
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 21.79,
+     "indiv_pct": 66.2,
+     "inner_pct": 12.01,
+     "total_yi": 537.1
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 19.39,
+     "indiv_pct": 69.49,
+     "inner_pct": 11.12,
+     "total_yi": 789.64
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 15.5,
+     "indiv_pct": 73.29,
+     "inner_pct": 11.21,
+     "total_yi": 891.12
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 15.23,
+     "indiv_pct": 74.85,
+     "inner_pct": 9.93,
+     "total_yi": 960.28
+    },
+    {
+     "date": "2023-12-31",
+     "inst_pct": 19.21,
+     "indiv_pct": 71.26,
+     "inner_pct": 9.53,
+     "total_yi": 1040.83
+    },
+    {
+     "date": "2023-06-30",
+     "inst_pct": 25.0,
+     "indiv_pct": 63.99,
+     "inner_pct": 11.01,
+     "total_yi": 639.52
+    },
+    {
+     "date": "2022-12-31",
+     "inst_pct": 21.16,
+     "indiv_pct": 67.37,
+     "inner_pct": 11.47,
+     "total_yi": 507.85
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 1380.03,
+     "sell_yi": 1095.96,
+     "total_yi": 582.39,
+     "nav_yi": 941.29
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 906.96,
+     "sell_yi": 1126.53,
+     "total_yi": 298.32,
+     "nav_yi": 694.23
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 592.68,
+     "sell_yi": 611.9,
+     "total_yi": 517.89,
+     "nav_yi": 685.48
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 586.17,
+     "sell_yi": 530.82,
+     "total_yi": 537.1,
+     "nav_yi": 760.22
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 594.95,
+     "sell_yi": 902.84,
+     "total_yi": 481.75,
+     "nav_yi": 756.2
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 329.04,
+     "sell_yi": 307.31,
+     "total_yi": 789.64,
+     "nav_yi": 833.43
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 491.54,
+     "sell_yi": 614.75,
+     "total_yi": 767.91,
+     "nav_yi": 824.37
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 774.95,
+     "sell_yi": 893.66,
+     "total_yi": 891.12,
+     "nav_yi": 929.31
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 223.97,
+     "sell_yi": 174.42,
+     "total_yi": 1009.83,
+     "nav_yi": 923.62
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 197.06,
+     "sell_yi": 148.55,
+     "total_yi": 960.28,
+     "nav_yi": 716.13
+    },
+    {
+     "date": "2024-03-31",
+     "buy_yi": 192.69,
+     "sell_yi": 321.75,
+     "total_yi": 911.77,
+     "nav_yi": 729.32
+    },
+    {
+     "date": "2023-12-31",
+     "buy_yi": 204.71,
+     "sell_yi": 180.27,
+     "total_yi": 1040.83,
+     "nav_yi": 933.78
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 28.67,
+    "indiv_pct": 56.8,
+    "inner_pct": 14.53,
+    "total_yi": 298.32
+   },
+   "inst_share_yi": 85.53
+  },
+  {
+   "index": "红利",
+   "code": "510880",
+   "name": "红利ETF华泰柏瑞",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 26.33,
+     "indiv_pct": 70.79,
+     "inner_pct": 2.89,
+     "total_yi": 76.54
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 23.5,
+     "indiv_pct": 74.04,
+     "inner_pct": 2.46,
+     "total_yi": 60.56
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 35.35,
+     "indiv_pct": 62.52,
+     "inner_pct": 2.13,
+     "total_yi": 60.6
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 50.02,
+     "indiv_pct": 48.01,
+     "inner_pct": 1.97,
+     "total_yi": 69.95
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 37.95,
+     "indiv_pct": 58.46,
+     "inner_pct": 3.59,
+     "total_yi": 58.1
+    },
+    {
+     "date": "2023-12-31",
+     "inst_pct": 28.08,
+     "indiv_pct": 70.8,
+     "inner_pct": 1.12,
+     "total_yi": 56.81
+    },
+    {
+     "date": "2023-06-30",
+     "inst_pct": 28.48,
+     "indiv_pct": 70.29,
+     "inner_pct": 1.23,
+     "total_yi": 54.24
+    },
+    {
+     "date": "2022-12-31",
+     "inst_pct": 14.42,
+     "indiv_pct": 84.77,
+     "inner_pct": 0.81,
+     "total_yi": 49.7
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 19.72,
+     "sell_yi": 40.26,
+     "total_yi": 56.01,
+     "nav_yi": 188.56
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 38.89,
+     "sell_yi": 15.14,
+     "total_yi": 76.54,
+     "nav_yi": 222.76
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 21.82,
+     "sell_yi": 29.59,
+     "total_yi": 52.79,
+     "nav_yi": 171.39
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 18.17,
+     "sell_yi": 21.46,
+     "total_yi": 60.56,
+     "nav_yi": 192.65
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 22.78,
+     "sell_yi": 19.54,
+     "total_yi": 63.84,
+     "nav_yi": 196.76
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 10.77,
+     "sell_yi": 23.3,
+     "total_yi": 60.6,
+     "nav_yi": 190.87
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 21.3,
+     "sell_yi": 18.13,
+     "total_yi": 73.12,
+     "nav_yi": 224.68
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 32.95,
+     "sell_yi": 15.94,
+     "total_yi": 69.95,
+     "nav_yi": 233.99
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 11.35,
+     "sell_yi": 16.5,
+     "total_yi": 52.94,
+     "nav_yi": 179.9
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 12.14,
+     "sell_yi": 11.7,
+     "total_yi": 58.1,
+     "nav_yi": 185.67
+    },
+    {
+     "date": "2024-03-31",
+     "buy_yi": 20.4,
+     "sell_yi": 19.56,
+     "total_yi": 57.65,
+     "nav_yi": 177.36
+    },
+    {
+     "date": "2023-12-31",
+     "buy_yi": 9.6,
+     "sell_yi": 5.31,
+     "total_yi": 56.81,
+     "nav_yi": 166.44
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 26.33,
+    "indiv_pct": 70.79,
+    "inner_pct": 2.89,
+    "total_yi": 76.54
+   },
+   "inst_share_yi": 20.15
+  },
+  {
+   "index": "红利",
+   "code": "515080",
+   "name": "中证红利ETF易方达",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 31.45,
+     "indiv_pct": 68.55,
+     "inner_pct": 7.46,
+     "total_yi": 81.98
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 42.03,
+     "indiv_pct": 57.97,
+     "inner_pct": 6.23,
+     "total_yi": 56.1
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 46.86,
+     "indiv_pct": 53.14,
+     "inner_pct": 5.2,
+     "total_yi": 44.94
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 57.11,
+     "indiv_pct": 42.89,
+     "inner_pct": 4.43,
+     "total_yi": 42.27
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 69.52,
+     "indiv_pct": 30.48,
+     "inner_pct": 8.44,
+     "total_yi": 36.54
+    },
+    {
+     "date": "2023-12-31",
+     "inst_pct": 62.8,
+     "indiv_pct": 37.2,
+     "inner_pct": 6.89,
+     "total_yi": 31.38
+    },
+    {
+     "date": "2023-06-30",
+     "inst_pct": 52.05,
+     "indiv_pct": 47.95,
+     "inner_pct": 1.76,
+     "total_yi": 16.8
+    },
+    {
+     "date": "2022-12-31",
+     "inst_pct": 37.3,
+     "indiv_pct": 62.7,
+     "inner_pct": 0.89,
+     "total_yi": 7.34
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 17.06,
+     "sell_yi": 26.24,
+     "total_yi": 72.8,
+     "nav_yi": 112.68
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 34.87,
+     "sell_yi": 8.35,
+     "total_yi": 81.98,
+     "nav_yi": 115.45
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 14.88,
+     "sell_yi": 15.52,
+     "total_yi": 55.46,
+     "nav_yi": 88.68
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 15.84,
+     "sell_yi": 8.77,
+     "total_yi": 56.1,
+     "nav_yi": 86.81
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 15.43,
+     "sell_yi": 11.34,
+     "total_yi": 49.03,
+     "nav_yi": 75.93
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 10.74,
+     "sell_yi": 16.22,
+     "total_yi": 44.94,
+     "nav_yi": 68.57
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 18.71,
+     "sell_yi": 10.56,
+     "total_yi": 50.42,
+     "nav_yi": 75.79
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 17.29,
+     "sell_yi": 9.62,
+     "total_yi": 42.27,
+     "nav_yi": 65.95
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 6.38,
+     "sell_yi": 8.32,
+     "total_yi": 34.6,
+     "nav_yi": 55.91
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 8.47,
+     "sell_yi": 2.59,
+     "total_yi": 36.54,
+     "nav_yi": 55.64
+    },
+    {
+     "date": "2024-03-31",
+     "buy_yi": 13.68,
+     "sell_yi": 14.4,
+     "total_yi": 30.66,
+     "nav_yi": 45.68
+    },
+    {
+     "date": "2023-12-31",
+     "buy_yi": 12.64,
+     "sell_yi": 5.94,
+     "total_yi": 31.38,
+     "nav_yi": 43.65
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 31.45,
+    "indiv_pct": 68.55,
+    "inner_pct": 7.46,
+    "total_yi": 81.98
+   },
+   "inst_share_yi": 25.78
+  },
+  {
+   "index": "创业板",
+   "code": "159915",
+   "name": "创业板ETF易方达",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 63.17,
+     "indiv_pct": 36.83,
+     "inner_pct": 21.33,
+     "total_yi": 107.5
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 78.83,
+     "indiv_pct": 21.17,
+     "inner_pct": 9.81,
+     "total_yi": 315.07
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 65.95,
+     "indiv_pct": 34.05,
+     "inner_pct": 11.31,
+     "total_yi": 401.26
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 57.28,
+     "indiv_pct": 42.72,
+     "inner_pct": 10.91,
+     "total_yi": 435.72
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 65.18,
+     "indiv_pct": 34.82,
+     "inner_pct": 13.4,
+     "total_yi": 312.48
+    },
+    {
+     "date": "2023-12-31",
+     "inst_pct": 50.78,
+     "indiv_pct": 49.22,
+     "inner_pct": 18.02,
+     "total_yi": 221.48
+    },
+    {
+     "date": "2023-06-30",
+     "inst_pct": 62.84,
+     "indiv_pct": 37.16,
+     "inner_pct": 18.49,
+     "total_yi": 180.56
+    },
+    {
+     "date": "2022-12-31",
+     "inst_pct": 64.04,
+     "indiv_pct": 35.96,
+     "inner_pct": 27.76,
+     "total_yi": 90.42
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 679.26,
+     "sell_yi": 580.61,
+     "total_yi": 206.15,
+     "nav_yi": 650.43
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 410.42,
+     "sell_yi": 463.55,
+     "total_yi": 107.5,
+     "nav_yi": 468.68
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 304.29,
+     "sell_yi": 458.73,
+     "total_yi": 160.63,
+     "nav_yi": 510.3
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 315.89,
+     "sell_yi": 343.83,
+     "total_yi": 315.07,
+     "nav_yi": 1004.46
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 371.89,
+     "sell_yi": 430.14,
+     "total_yi": 343.01,
+     "nav_yi": 1102.0
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 213.54,
+     "sell_yi": 215.84,
+     "total_yi": 401.26,
+     "nav_yi": 855.37
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 198.86,
+     "sell_yi": 231.02,
+     "total_yi": 403.56,
+     "nav_yi": 832.79
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 599.7,
+     "sell_yi": 589.71,
+     "total_yi": 435.72,
+     "nav_yi": 915.0
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 270.72,
+     "sell_yi": 157.47,
+     "total_yi": 425.73,
+     "nav_yi": 909.02
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 89.85,
+     "sell_yi": 88.68,
+     "total_yi": 312.48,
+     "nav_yi": 515.99
+    },
+    {
+     "date": "2024-03-31",
+     "buy_yi": 318.44,
+     "sell_yi": 228.61,
+     "total_yi": 311.31,
+     "nav_yi": 550.53
+    },
+    {
+     "date": "2023-12-31",
+     "buy_yi": 86.93,
+     "sell_yi": 69.17,
+     "total_yi": 221.48,
+     "nav_yi": 408.06
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 63.17,
+    "indiv_pct": 36.83,
+    "inner_pct": 21.33,
+    "total_yi": 107.5
+   },
+   "inst_share_yi": 67.91
+  },
+  {
+   "index": "港股红利",
+   "code": "159545",
+   "name": "港股通红利低波ETF",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 74.03,
+     "indiv_pct": 25.97,
+     "inner_pct": 47.93,
+     "total_yi": 49.1
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 80.54,
+     "indiv_pct": 19.46,
+     "inner_pct": 44.01,
+     "total_yi": 52.98
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 71.73,
+     "indiv_pct": 28.27,
+     "inner_pct": 50.15,
+     "total_yi": 16.14
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 69.85,
+     "indiv_pct": 30.15,
+     "inner_pct": 38.63,
+     "total_yi": 3.83
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 49.13,
+     "indiv_pct": 50.87,
+     "inner_pct": 0.0,
+     "total_yi": 2.01
+    },
+    {
+     "date": "2024-04-08",
+     "inst_pct": 2.14,
+     "indiv_pct": 97.86,
+     "inner_pct": 0.0,
+     "total_yi": 4.13
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 13.19,
+     "sell_yi": 11.71,
+     "total_yi": 50.58,
+     "nav_yi": 65.62
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 3.32,
+     "sell_yi": 5.32,
+     "total_yi": 49.1,
+     "nav_yi": 59.16
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 6.63,
+     "sell_yi": 8.51,
+     "total_yi": 51.1,
+     "nav_yi": 71.88
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 26.17,
+     "sell_yi": 1.12,
+     "total_yi": 52.98,
+     "nav_yi": 75.73
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 14.36,
+     "sell_yi": 2.56,
+     "total_yi": 27.93,
+     "nav_yi": 38.89
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 6.95,
+     "sell_yi": 0.89,
+     "total_yi": 16.14,
+     "nav_yi": 22.09
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 6.35,
+     "sell_yi": 0.1,
+     "total_yi": 10.08,
+     "nav_yi": 12.54
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 1.07,
+     "sell_yi": 0.26,
+     "total_yi": 3.83,
+     "nav_yi": 4.64
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 2.0,
+     "sell_yi": 1.0,
+     "total_yi": 3.02,
+     "nav_yi": 3.53
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 0.5,
+     "sell_yi": 2.63,
+     "total_yi": 2.01,
+     "nav_yi": 2.15
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 74.03,
+    "indiv_pct": 25.97,
+    "inner_pct": 47.93,
+    "total_yi": 49.1
+   },
+   "inst_share_yi": 36.35
+  },
+  {
+   "index": "沪深300",
+   "code": "159919",
+   "name": "300ETF嘉实",
+   "holders": [
+    {
+     "date": "2026-06-30",
+     "inst_pct": 88.68,
+     "indiv_pct": 11.32,
+     "inner_pct": 20.33,
+     "total_yi": 69.39
+    },
+    {
+     "date": "2025-12-31",
+     "inst_pct": 97.44,
+     "indiv_pct": 2.56,
+     "inner_pct": 3.76,
+     "total_yi": 408.19
+    },
+    {
+     "date": "2025-06-30",
+     "inst_pct": 96.53,
+     "indiv_pct": 3.47,
+     "inner_pct": 4.26,
+     "total_yi": 412.41
+    },
+    {
+     "date": "2024-12-31",
+     "inst_pct": 94.62,
+     "indiv_pct": 5.38,
+     "inner_pct": 4.74,
+     "total_yi": 379.04
+    },
+    {
+     "date": "2024-06-30",
+     "inst_pct": 94.47,
+     "indiv_pct": 5.53,
+     "inner_pct": 8.39,
+     "total_yi": 286.67
+    },
+    {
+     "date": "2023-12-31",
+     "inst_pct": 86.4,
+     "indiv_pct": 13.6,
+     "inner_pct": 21.43,
+     "total_yi": 115.95
+    },
+    {
+     "date": "2023-06-30",
+     "inst_pct": 85.02,
+     "indiv_pct": 14.98,
+     "inner_pct": 44.48,
+     "total_yi": 53.47
+    },
+    {
+     "date": "2022-12-31",
+     "inst_pct": 85.69,
+     "indiv_pct": 14.31,
+     "inner_pct": 41.67,
+     "total_yi": 53.28
+    }
+   ],
+   "scale": [
+    {
+     "date": "2026-09-30",
+     "buy_yi": 36.51,
+     "sell_yi": 37.24,
+     "total_yi": 68.66,
+     "nav_yi": 317.63
+    },
+    {
+     "date": "2026-06-30",
+     "buy_yi": 14.94,
+     "sell_yi": 145.2,
+     "total_yi": 69.39,
+     "nav_yi": 363.14
+    },
+    {
+     "date": "2026-03-31",
+     "buy_yi": 13.19,
+     "sell_yi": 221.73,
+     "total_yi": 199.65,
+     "nav_yi": 928.03
+    },
+    {
+     "date": "2025-12-31",
+     "buy_yi": 20.54,
+     "sell_yi": 20.42,
+     "total_yi": 408.19,
+     "nav_yi": 1971.24
+    },
+    {
+     "date": "2025-09-30",
+     "buy_yi": 12.42,
+     "sell_yi": 16.76,
+     "total_yi": 408.07,
+     "nav_yi": 1996.95
+    },
+    {
+     "date": "2025-06-30",
+     "buy_yi": 64.14,
+     "sell_yi": 20.49,
+     "total_yi": 412.41,
+     "nav_yi": 1695.71
+    },
+    {
+     "date": "2025-03-31",
+     "buy_yi": 12.87,
+     "sell_yi": 23.15,
+     "total_yi": 368.76,
+     "nav_yi": 1481.83
+    },
+    {
+     "date": "2024-12-31",
+     "buy_yi": 20.96,
+     "sell_yi": 31.14,
+     "total_yi": 379.04,
+     "nav_yi": 1563.89
+    },
+    {
+     "date": "2024-09-30",
+     "buy_yi": 108.6,
+     "sell_yi": 6.06,
+     "total_yi": 389.22,
+     "nav_yi": 1637.29
+    },
+    {
+     "date": "2024-06-30",
+     "buy_yi": 23.12,
+     "sell_yi": 23.59,
+     "total_yi": 286.67,
+     "nav_yi": 1038.67
+    },
+    {
+     "date": "2024-03-31",
+     "buy_yi": 188.88,
+     "sell_yi": 17.69,
+     "total_yi": 287.14,
+     "nav_yi": 1053.74
+    },
+    {
+     "date": "2023-12-31",
+     "buy_yi": 41.81,
+     "sell_yi": 7.38,
+     "total_yi": 115.95,
+     "nav_yi": 413.41
+    }
+   ],
+   "latest": {
+    "date": "2026-06-30",
+    "inst_pct": 88.68,
+    "indiv_pct": 11.32,
+    "inner_pct": 20.33,
+    "total_yi": 69.39
+   },
+   "inst_share_yi": 61.54
+  }
+ ]
+}

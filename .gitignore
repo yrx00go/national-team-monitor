@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 编辑器
+.vscode/
+.idea/
+
+# 运行时产物
+*.log
+update_status.env
+
+# ⚠ 这里刻意【不】忽略 manifest.json / icons/ ——
+#   它们是 PWA 的一部分，必须进仓库，否则 Pages 上装不了应用。

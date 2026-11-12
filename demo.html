@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>国家队监测站 · Demo</title>
+<!-- ── 装到手机桌面（PWA）────────────────────────────────────────
+     2026-11-12 新增。之前这里一条都没有：没有 manifest、没有图标、没有 theme-color，
+     所以 Chrome 永远不会弹「安装应用」—— 不是它不支持，是页面自己没声明。
+
+     ⚠ manifest 必须是【独立文件】且和本页【同源可达】。
+       放在需要登录的路径后面、或被 CORS 挡住，Chrome 会【静默失败】：
+       不报错、不提示，就是没有安装按钮。这是「为什么装不上」九成的原因。
+       也不能用 file:// 打开页面测 —— manifest 和图标都取不到，必须走 http/https。
+
+     ⚠ 图标必须是真实存在的 PNG 文件（192 和 512 各一张），不能用 SVG、
+       不能用 data URI：Chrome for Android 生成 WebAPK 时要真的去取这两张图。
+       icons/icon-maskable-512.png 是「安全区」版本（内容缩到中心 80%），
+       Android 剪成圆形/水滴形时才不会切掉柱子。标准版和 maskable 版【都要有】。 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1C1917">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<!-- iOS 走的是自己那套，不读 manifest。这两条是给 iPhone/iPad 兜底的，
+     OO 现在用小米用不上，但页面分享给别人时别人可能用。 -->
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="国家队">
+<style>
+:root{
+  --bg:#FAFAF9;--card:#fff;--line:#E7E5E4;--line2:#D6D3D1;
+  --tx:#1C1917;--tx2:#57534E;--tx3:#A8A29E;
+  --up:#DC2626;--down:#16A34A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
+  background:var(--bg);color:var(--tx);font-size:13px;line-height:1.6;-webkit-font-smoothing:antialiased}
+/* ── 容器宽度：按窗口给，不锁死 ────────────────────────────────
+   原来硬锁 max-width:1240px，在 1440 屏幕上左右各浪费 100px，
+   图表被压窄后 1660 根日线更挤。改成「随窗口长，但设上限」：
+     窗口 <1440  → 满宽（减 padding）
+     窗口 ≥1440  → 1450px（再宽就换行困难，单行文字过长）
+     窗口 ≥1800  → 1680px（大屏才真正吃满）
+   为什么要上限：一行文字超过 ~1100px 后，眼睛回扫成本陡增；
+   表格列也会拉得太散，反而不如留白。 */
+.wrap{max-width:min(100% - 32px, 1450px);margin:0 auto;padding:26px 0 70px}
+@media(min-width:1800px){.wrap{max-width:1680px}}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+h1{font-size:19px;font-weight:600;letter-spacing:-.01em}
+.sub{font-size:12px;color:var(--tx3);margin-top:3px}
+.stamp{font-size:11.5px;color:var(--tx3);text-align:right;line-height:1.7}
+
+nav{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:18px 0 22px;flex-wrap:wrap}
+nav button{background:none;border:none;padding:10px 15px;font-size:13px;color:var(--tx2);
+  cursor:pointer;border-bottom:2px solid transparent;font-family:inherit;margin-bottom:-1px}
+nav button:hover{color:var(--tx)}
+nav button.on{color:var(--tx);border-bottom-color:var(--tx);font-weight:600}
+.pane{display:none}.pane.on{display:block}
+
+/* KPI 网格：分两组，各自占满一行。
+   ⚠ 原来是一个 6 列网格装 7 张卡，结果排成 6+1 —— 最后一张孤零零扔在第二行左边，
+   既不好看也读不出「这 7 个数是一组」。改按语义拆成两组：
+     第一行 4 张 = 资金流（今天 / 5日 / 20日 / 场子多热）
+     第二行 3 张 = 杠杆三问（多重 / 多热 / 在加还是在退）
+   两组各自 repeat(n,1fr) 铺满，不靠 nth-child 硬掰 —— 卡片数是动态的，
+   哪天某张因为缺数据被过滤掉，nth-child 方案会整体错位。 */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:11px}
+.kpis.k3{grid-template-columns:repeat(3,1fr);margin-bottom:20px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:13px 15px}
+.kpi .k{font-size:11px;color:var(--tx3);margin-bottom:5px}
+.kpi .v{font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi .v small{font-size:12px;font-weight:400;color:var(--tx3);margin-left:2px}
+.kpi .d{font-size:11px;color:var(--tx3);margin-top:3px}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px 12px;margin-bottom:18px}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.pt{font-size:14px;font-weight:600}
+.ps{font-size:11.5px;color:var(--tx3)}
+.chartbox{position:relative;width:100%}
+
+/* ── 时间滑动条 ─────────────────────────────────────────────
+   为什么不用 Chart.js 官方 zoom 插件：它要额外引一整个 hammer.js + plugin，
+   而这张页是「双击就能开的单文件」，多一个外链就多一个打不开的理由。
+   所以用原生 dual-range 自己实现：两个 <input type=range> 叠在一起，
+   pointer-events 只给滑块拇指，其余穿透，这样两个滑块都能拖。
+   ──────────────────────────────────────────────────────────── */
+.ts{margin:10px 0 2px;user-select:none}
+.ts-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+.ts-btn{background:var(--card);border:1px solid var(--line2);border-radius:14px;
+  padding:3px 10px;font-size:11.5px;color:var(--tx2);cursor:pointer;font-family:inherit;
+  white-space:nowrap;line-height:1.5}
+.ts-btn:hover{border-color:var(--tx3);color:var(--tx)}
+.ts-btn.on{background:var(--tx);border-color:var(--tx);color:#fff;font-weight:600}
+.ts-span{font-size:11px;color:var(--tx3);margin-left:auto;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.ts-span b{color:var(--tx2);font-weight:600}
+.ts-track{position:relative;height:22px;margin:0 0 1px}
+.ts-track input[type=range]{position:absolute;left:0;top:0;width:100%;height:22px;
+  margin:0;background:none;-webkit-appearance:none;appearance:none;pointer-events:none}
+.ts-track input[type=range]::-webkit-slider-runnable-track{height:4px;
+  background:transparent;border-radius:2px}
+.ts-track input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;
+  width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--tx);
+  cursor:grab;pointer-events:auto;margin-top:-5px;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.ts-track input[type=range]::-webkit-slider-thumb:active{cursor:grabbing}
+.ts-track input[type=range]::-moz-range-track{height:4px;background:transparent}
+.ts-track input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;
+  background:#fff;border:2px solid var(--tx);cursor:grab;pointer-events:auto}
+.ts-rail{position:absolute;left:0;right:0;top:9px;height:4px;background:#F0EFED;
+  border-radius:2px;pointer-events:none}
+.ts-fill{position:absolute;top:9px;height:4px;background:var(--tx);border-radius:2px;
+  pointer-events:none;opacity:.55}
+.ts-ends{display:flex;justify-content:space-between;font-size:10.5px;color:var(--tx3);
+  font-variant-numeric:tabular-nums}
+
+/* ── 响应式断点 ────────────────────────────────────────────────
+   ⚠ 断点必须放在所有基础规则【之后】。media query 不提升优先级，
+   同优先级下靠代码顺序决胜负 —— 这里一度把 @media 写在 .legend/.grid2
+   前面，结果 640px 下 .legend 的 11px 被后面 11.5px 覆盖回去，白写了。
+   实测 1200→420px 都不会横向溢出，但底部留给 X 轴的 26px 恰好等于
+   X 轴本身高度 26px，富余 0px —— 字体渲染多 1px 就把年份切掉半截。
+   所以真正要治的不是「宽度」，是「余量」。 */
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--tx2);margin-bottom:9px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.legend .ln{width:14px;height:2px;border-radius:1px}
+
+/* 三把尺子并排：窄屏自动堆成一列。
+   ⚠ 每个格子内部再套一个固定高度的 .chartbox —— Chart.js 的
+   maintainAspectRatio:false 要求父容器有确定高度，直接给 canvas 铺满格子会算出 0 高。 */
+.lev3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+.levcell{min-width:0}
+.levcell .lbox{position:relative;height:170px}
+.levhead{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-bottom:2px}
+.levhead .nm{font-size:12px;font-weight:600;color:var(--tx)}
+.levhead .badge{font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;line-height:1.5}
+.levhead .val{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;margin-left:auto}
+.levsub{font-size:10.5px;color:var(--tx3);line-height:1.75;margin-top:4px;
+  font-variant-numeric:tabular-nums}
+@media(max-width:1000px){.lev3{grid-template-columns:1fr}}
+
+/* ① 全历史长图：单独一块，和下面三张小图之间留一道分隔线，
+   让「这是另一套时间尺度」在视觉上就成立。 */
+.levfull{margin-top:16px;padding-top:15px;border-top:1px solid var(--line2)}
+.lfhead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.lfhead .nm{font-size:12.5px;font-weight:600;color:var(--tx)}
+.lfhead .badge{font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;line-height:1.5}
+.lfnow{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;margin-left:auto}
+.lfsub{font-size:10.5px;color:var(--tx3);line-height:1.8;margin-top:5px;
+  font-variant-numeric:tabular-nums}
+.lfsub b{color:var(--tx2)}
+
+.warn{display:flex;gap:10px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;
+  padding:10px 13px;margin-bottom:20px;font-size:12px;color:#78350F;line-height:1.7}
+.warn b{font-weight:600}
+
+/* 装到桌面提示条。只在「还没装」时出现，点了关闭或装完就消失。
+   ⚠ 用深色底：这条要在一堆米白卡片里抢到一眼，而且是全页唯一一个
+   「操作入口」而不是「数据」。用浅色会淹没在 KPI 卡里。
+   ⚠ 手机上不能占太高：它是提示，不是内容。单行 + 可换行，最多两行。 */
+.instbar{display:flex;align-items:center;gap:10px;background:#1C1917;color:#FAFAF9;
+  border-radius:9px;padding:8px 11px;margin-bottom:14px;font-size:12.5px;line-height:1.6}
+.ib-ico img{width:28px;height:28px;border-radius:7px;display:block}
+.ib-tx{flex:1;min-width:0}
+.ib-tx b{font-weight:600;display:block;font-size:12.5px}
+.ib-tx span{color:#A8A29E;display:block;font-size:11.5px}
+.ib-tx span b{display:inline;font-size:11.5px;color:#FAFAF9;font-weight:600}
+.ib-btn{background:#FAFAF9;color:#1C1917;border:none;border-radius:6px;padding:6px 14px;
+  font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap}
+.ib-btn:hover{background:#fff}
+.ib-x{background:none;border:none;color:#57534E;font-size:13px;padding:2px 2px;
+  cursor:pointer;font-family:inherit;line-height:1}
+.ib-x:hover{color:#A8A29E}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:600;font-size:11px;color:var(--tx3);padding:8px 9px;
+  border-bottom:1px solid var(--line2);white-space:nowrap;letter-spacing:.02em}
+td{padding:8px 9px;border-bottom:1px solid var(--line)}
+tr:hover td{background:#FCFCFB}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.up{color:var(--up)}.down{color:var(--down)}.mut{color:var(--tx3)}
+.cd{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--tx3)}
+
+.tblwrap{border:1px solid var(--line);border-radius:9px;overflow:auto;max-height:560px}
+.bar{height:5px;background:#F5F5F4;border-radius:3px;overflow:hidden;min-width:44px}
+.bar i{display:block;height:100%}
+
+.etf-picker{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.etf-picker button{background:var(--card);border:1px solid var(--line2);border-radius:16px;
+  padding:5px 12px;font-size:12px;color:var(--tx2);cursor:pointer;font-family:inherit}
+.etf-picker button:hover{border-color:var(--tx3)}
+.etf-picker button.on{background:var(--tx);color:#fff;border-color:var(--tx);font-weight:600}
+
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+
+.src{margin-top:30px;padding-top:15px;border-top:1px solid var(--line);font-size:11px;color:var(--tx3);line-height:1.85}
+.src b{color:var(--tx2);font-weight:600}
+details{margin-top:9px}summary{cursor:pointer;font-size:11.5px;color:#1D4ED8;outline:none}
+details p{margin-top:7px;font-size:11.5px;color:var(--tx2);line-height:1.8}
+code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#F5F5F4;padding:1px 4px;border-radius:3px}
+
+.tag{font-size:10px;padding:1.5px 5px;border-radius:3px;font-weight:600;white-space:nowrap}
+.t-hi{background:#FEE2E2;color:#991B1B}
+.t-lo{background:#DCFCE7;color:#166534}
+.t-mid{background:#F5F5F4;color:#78716C}
+/* 四象限形态：四种中性色，不暗示好坏 */
+.q1{background:#E0E7FF;color:#3730A3}   /* 逆势承接 */
+.q2{background:#FEF3C7;color:#92400E}   /* 资金追高 */
+.q3{background:#F5F5F4;color:#57534E}   /* 获利了结 */
+.q4{background:#FAE8FF;color:#86198F}   /* 双杀 */
+
+/* ══════════════════════════════════════════════════════════════
+   断点区（必须放在最后，见上方说明）
+   ══════════════════════════════════════════════════════════════ */
+@media(max-width:1100px){
+  /* 中等宽度：不让表格把页面撑出横向滚动条 */
+  .grid2{grid-template-columns:1fr}
+  /* 4 张卡在 1100 以下挤不下，降成 2 列；杠杆那组 3 张也降成 2 列 */
+  .kpis,.kpis.k3{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:900px){
+  .wrap{padding:20px 14px 60px}
+  .panel{padding:14px 13px 10px}
+  .grid2{grid-template-columns:1fr}
+  .kpis,.kpis.k3{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:640px){
+  .wrap{padding:16px 10px 50px}
+  .ph{flex-direction:column;align-items:stretch;gap:6px}
+  /* ⚠ 这里不能用 auto-fit(minmax(118px,1fr)) 一视同仁。
+     390px 宽 + 左右各 10px padding = 370px 可用，118px × 3 = 354 刚好塞得下 3 列 ——
+     于是 4 张卡的组就排成【3+1】，第 4 张孤零零扔在第二行左边。
+     前任也踩过这个坑（当时是 6 列装 7 张），结论一样：一组卡必须整行。
+     → 4 张的组（资金流）排 2×2；3 张的组（杠杆）正好一行 3 列。
+     实测 390px：卡宽 139→212px，卡高 122→105px，整块反而更矮。
+     （2×2 = 105×2+8 = 218px；原来的 3+1 = 122×2+8 = 252px） */
+  .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
+  .kpis.k3{grid-template-columns:repeat(3,1fr);gap:8px}
+  .legend{gap:9px;font-size:11px}
+  .ts-span{margin-left:0;width:100%}
+  .ts-row{gap:6px}
+  .ts-btn{padding:3px 9px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- 装到桌面提示条。默认 display:none，由脚本判断环境后决定显不显示、
+   显示「按钮」还是「文字说明」—— 见文件末尾的 installBar 那段注释。
+   ⚠ 默认必须藏起来：如果先显示再判断，小米浏览器用户会先看到一个点不动的
+   「安装」按钮闪一下，比没有更迷惑。 -->
+<div class="instbar" id="installBar" style="display:none">
+  <div class="ib-ico"><img src="icons/icon-192.png" alt=""></div>
+  <div class="ib-tx">
+    <b>国家队监测站</b>
+    <span id="installTip">加到手机桌面</span>
+  </div>
+  <button class="ib-btn" id="installBtn" style="display:none">安装</button>
+  <button class="ib-x" id="installClose" aria-label="关闭">✕</button>
+</div>
+
+<header>
+  <div>
+    <h1>国家队监测站 <span style="font-size:12px;color:#A8A29E;font-weight:400">Demo</span></h1>
+    <div class="sub">ETF 份额与净申赎 · 价格叠加 · 机构持仓基准 · 个股季报</div>
+  </div>
+  <div class="stamp">
+    <div>最新交易日 <b id="lastDate">—</b>　区间 <span id="range">—</span></div>
+    <div>生成于 <span id="upd">—</span></div>
+  </div>
+</header>
+
+<div class="warn">
+  <div><b>全站的核心前提：</b>份额变化是<b>事实</b>，「谁买的」是<b>推断</b>。
+  「净流入」= 份额差 × 收盘价，是<b>估算值</b>（申赎按 T 日净值成交，份额变化还含未上市份额调整，误差通常 5% 内）。
+  「机构持有」来自基金半年报/年报的持有人结构，一年 2 次、滞后约 2 个月，且<b>机构 ≠ 国家队</b>（还含保险、年金、券商、理财子）。
+  这里回答的是「资金在进还是在出、现在处在什么位置」，不是「汇金昨天买了多少」。</div>
+</div>
+
+<nav>
+  <button class="on" data-pane="combo">监控组合</button>
+  <button data-pane="single">单只 ETF</button>
+  <button data-pane="inst">国家队持仓基准</button>
+  <button data-pane="stock">个股季报</button>
+  <button data-pane="divi">股息率监控</button>
+</nav>
+
+<!-- ========== 组合 ========== -->
+<div class="pane on" id="pane-combo">
+  <div class="kpis" id="kpis"></div>
+  <!-- 杠杆三问单独一行：它回答的不是「钱进来多少」，而是「进来的钱里有多少是借的」。 -->
+  <div class="kpis k3" id="kpisLev"></div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">大盘点位与资金进出（监控组合合计）</div>
+      <div class="ps">左轴：上证指数（点）　右轴：区间累计净流入（亿元）——
+        同一件事的两个面：蓝线是「钱」，橙线是「钱买在什么位置」</div>
+      <div class="legend">
+        <span><i class="ln" style="background:#B45309"></i>上证指数（左轴，点）— 日线</span>
+        <span><i class="ln" style="background:#1D4ED8"></i>区间累计净流入（右轴，亿元）</span>
+        <span class="mut">悬停看当日单日净流入与组合规模</span>
+      </div>
+    </div>
+    <div class="chartbox" style="height:400px"><canvas id="cCombo"></canvas></div>
+    <div id="tsCombo"></div>
+    <div class="ps" style="margin-top:7px">
+      读法：两条线各读自己那一侧的刻度。中间那条深色横线是右轴的 <b>0</b> ——
+      线上是「区间起点以来净买入」，线下是「净卖出」。它不在最底部，因为累计最低下探到
+      −1950 亿，轴必须往下留出这段水下高度，否则那条线会贴着边框走。
+      左轴是点位，点位没有「零」这层含义，所以它没有零线。
+      单日净流入的柱子放在这张图的尺度上每根不到 1 像素，看不出来，只留在悬停里
+      —— <b>把时间窗缩到近 3 月就能看见柱子了</b>。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">最新快照</div>
+      <div class="ps">点击表头排序 · 净流入为估算值</div>
+    </div>
+    <div class="tblwrap">
+      <table id="tSnap">
+        <thead><tr>
+          <th>代码</th><th>名称</th><th>指数</th>
+          <th class="num">份额（亿份）</th><th class="num">当日变动</th>
+          <th class="num">当日净流入（亿）</th><th class="num">近5日</th><th class="num">近20日</th>
+          <th class="num">最新价</th><th class="num">机构占比</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" id="mlPanel">
+    <div class="ph">
+      <div class="pt">量能与杠杆：同样是 120 亿，在不同水位里含义完全不同</div>
+      <div class="ps" id="mlDate">—</div>
+    </div>
+    <div id="mlBox"></div>
+    <!-- ① 杠杆水位的全历史长图：单独占一行、单独一根轴。
+         ⚠ 为什么不和下面三张小图并排：这张跨 12 年（2014–2026），那两张跨 7 年（2019–）。
+         同样的宽度代表的时间跨度不同，并排就会诱导读者横向比形状。
+         位置本身就在说「别横着比」。 -->
+    <div class="levfull">
+      <div class="lfhead">
+        <span class="nm">杠杆水位 · 全历史</span>
+        <span class="badge" id="lfBadge">—</span>
+        <span class="lfnow" id="lfNow">—</span>
+      </div>
+      <div class="lbox" style="height:250px"><canvas id="cLevFull"></canvas></div>
+      <div class="lfsub" id="lfSub">—</div>
+    </div>
+    <!-- 三把尺子：每把一张小图，各自带自己的分档色带和纵轴。
+         为什么不画在一张图里：三者量纲不同（2.49% / 9.03% / −10.09%），
+         塞进同一根轴只会让三条线互相压扁，谁也看不出自己在什么位置。
+         为什么不画余额绝对值：余额只涨不跌是通胀 + 市值增长的结果，
+         看着一路新高其实杠杆率只从 2.19% 走到 2.49%（2018→2026）。 -->
+    <div class="lev3" id="lev3"></div>
+    <p class="ps" style="margin-top:10px;line-height:1.75">
+      读法：三张图各读各自的纵轴，<b>背景四段色带是「很低 / 偏低 / 偏高 / 很高」</b>，
+      边界不是拍的，是这段历史里实际分位的 10% / 50% / 90% 切出来的（边界值标在每张图下面）。
+      曲线向上＝在加杠杆，向下＝在还钱。<b>右端那个色块就是「现在」。</b><br>
+      三张图要一起看，因为它们会互相矛盾 —— 而现在正是矛盾的：
+      <b>水位偏高、热度偏高、方向却在退</b>。这是最该警惕的组合：
+      不是没人借钱了，是借了还没还完。
+    </p>
+    <p class="ps" style="margin-top:12px;line-height:1.85">
+      <b>为什么要看这两个分母：</b>ETF 净流入只是分子。同样一笔 120 亿，
+      在 8,000 亿的地量里是「有人在硬扛」，在 2.6 万亿的天量里只是正常换手；
+      而在两融持续回落的时候出现净流入，那是<b>换仓降杠杆</b>，不是新钱进场。<br>
+      <b>⚠ 不要用「余额的一年分位」判断杠杆高低：</b>
+      同一笔 23,023 亿，全历史（2014 起）分位 <b>80%</b>、近一年分位 <b>2%</b>，
+      两个数都对但结论相反。近一年窗口里只有一个泡沫峰，拿它当基准会把「从峰值退下来」
+      误读成「杠杆很低」—— <b>退坡不等于低。</b><br>
+      <b>⚠ 三个日期本来就不同，不要对齐：</b>
+      份额是 T+1 披露、成交额 T 日当晚可得、两融 T+1 晚间公布。
+      强行对齐会让量能永久滞后一天，所以各标各的日期 ——
+      面板上写「今日成交额」时，那个「今日」指的是成交额的今日，不是份额的今日。
+    </p>
+  </div>
+
+  <!-- ⚠ 2026-11-12 删掉两块面板，OO 原话「删掉，看不懂」：
+       ① 「规模 +287%，但净流入只有 +1460 亿 —— 剩下的不是新钱」（买卖拆分整块）
+          问题不在数据对不对（对得上：净流入 1459.7 + 浮盈 2479.7 = 规模增加 3939.4），
+          而在于它为了证明「不是算错」，摆了 3 张 KPI + 4 段长解释 + 2 张表 + 逐只价差表，
+          读者要读完一整套论证才知道结论是什么。**论证比结论长十倍，等于没给结论。**
+       ② 「一轮完整的平准周期：11 段」—— 11 个阶段 × 7 只标的，是 77 格数据，
+          读者看完记不住任何一格；而且切分点是人选的，换个人会切出另一套 11 段。
+          它的信息在「份额涨+价格跌=逆势承接」这个判读规则上，不在 77 格里。
+       两块都删掉，页面只留「看一眼就知道今天怎么样」的东西。 -->
+</div>
+
+<!-- ========== 单只 ========== -->
+<div class="pane" id="pane-single">
+  <div class="etf-picker" id="picker"></div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt" id="sTitle">—</div>
+      <div class="ps">左轴：价格（元）　右轴：份额（亿份）—— 两根轴的 0 都对齐在底部，各读各的</div>
+    </div>
+    <div class="legend">
+      <span><i class="ln" style="background:#B45309"></i>价格（元）— 左轴</span>
+      <span><i class="ln" style="background:#1D4ED8"></i>份额（亿份）— 右轴</span>
+      <span class="mut">悬停看当日原始值与净流入</span>
+    </div>
+    <div class="chartbox" style="height:400px"><canvas id="cOverlay"></canvas></div>
+    <div id="tsSingle"></div>
+  </div>
+
+  <div class="panel">
+    <div class="ph"><div class="pt">水位与机构持仓</div>
+      <div class="ps">柱：机构持有份额（半年报口径）　线：总份额 — 同单位，一根轴可读</div>
+    </div>
+    <div class="chartbox" style="height:260px"><canvas id="cLevel"></canvas></div>
+    <div class="ps" style="margin-top:10px;line-height:1.75" id="levelNote"></div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">20 日四象限：这只 ETF 大部分时间在做什么</div>
+      <div class="ps">每个交易日看「前 20 日份额变化」×「前 20 日价格变化」，归到四格里</div>
+    </div>
+    <div id="quadBox"></div>
+  </div>
+</div>
+
+<!-- ========== 机构基准 ========== -->
+<div class="pane" id="pane-inst">
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">机构存活率 · 一个不需要猜的证明</div>
+      <div class="ps">当前总份额 ÷ 历史峰值期机构持有份额。&lt;100% 时，「机构卖过」是数学结论，不是推断</div>
+    </div>
+    <div class="tblwrap">
+      <table id="tSurv">
+        <thead><tr>
+          <th>代码</th><th>名称</th>
+          <th class="num">峰值期机构持有</th><th class="num">当前总份额</th>
+          <th class="num">存活率</th><th class="num">至少卖出</th><th>结论</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="ps" style="margin-top:11px;line-height:1.8">
+      读法：当前总份额里还装着所有人（机构+散户+做市商）。如果这个总数<b>已经少于</b>峰值期机构<b>单独</b>持有的量，
+      那机构无论如何都净卖出了，且卖出比例不会低于「1 − 存活率」。<b>不需要知道是谁在卖、也不用猜动机。</b><br>
+      <b>这个证明的边界（必须说清）：</b>它只能<b>证明卖出</b>，不能<b>证明没卖</b>。存活率 &gt; 100% 只说明份额总量还在扩张，
+      机构可能一边卖一边被新增申购填上——真要判断科创50 / 红利这类扩张型标的，得看下一期半年报的机构占比有没有掉。<br>
+      <b>还有一个更隐蔽的退化情形：</b>如果「峰值期」恰好就是<b>最新一期</b>（中证红利即如此），那这个比值等于拿最新一期除以它自己，
+      275.9% 只反映「份额一路涨」，<b>没有任何证明力</b>，表里已单独标注。
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">国家队持仓基准 · 基金定期报告「机构持有比例」</div>
+      <div class="ps">半年一期（6-30 / 12-31），这是唯一能称为「国家队份额」的官方数字</div>
+    </div>
+    <div class="tblwrap">
+      <table id="tInst">
+        <thead><tr>
+          <th>代码</th><th>名称</th><th>报告期</th>
+          <th class="num">总份额（亿）</th><th class="num">机构占比</th>
+          <th class="num">机构持有（亿份）</th><th class="num">较上期占比</th>
+          <th class="num">当期申购（亿）</th><th class="num">当期赎回（亿）</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid2" id="instCharts"></div>
+</div>
+
+<!-- ========== 个股 ========== -->
+<div class="pane" id="pane-stock">
+  <div id="stockBody"></div>
+</div>
+
+<!-- ========== 股息率 ========== -->
+<div class="pane" id="pane-divi">
+  <div id="diviBody"></div>
+</div>
+
+<div class="src">
+  <b>数据来源</b>　上海证券交易所 ETF 份额公示（逐日，可回溯）· 深圳证券交易所 ETF 列表（仅当前快照）·
+  腾讯行情前复权日线 · 东方财富基金档案（持有人结构、规模变动）· 东方财富 datacenter（十大流通股东）。
+  本页仅做数据整理与呈现，不含买卖建议，不预测点位。
+  <details>
+    <summary>净流入的算法与误差来源</summary>
+    <p>
+      <code>净流入(t) = (份额(t) − 份额(t−1)) × 收盘价(t)</code>，份额单位为万份，结果除以 1e4 得亿元。<br>
+      误差来源：① 申赎按 T 日<b>净值</b>成交，而这里用<b>收盘价</b>（ETF 二级市场价与净值有折溢价）；<br>
+      ② 份额变化含「未上市份额」调整与跨市场转托管，不全是真实申赎；<br>
+      ③ 深市 ETF 在 2026-11-10 前无逐日份额，只有快照，故历史净流入曲线只含沪市标的。
+    </p>
+  </details>
+</div>
+
+</div>
+
+<script id="DEMO" type="application/json">__DEMO__</script>
+<script id="STOCK" type="application/json">__STOCK__</script>
+<script id="DIVI" type="application/json">__DIVI__</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const D = JSON.parse(document.getElementById('DEMO').textContent);
+const S = JSON.parse(document.getElementById('STOCK').textContent);
+const V = JSON.parse(document.getElementById('DIVI').textContent);
+const C_UP='#DC2626', C_DOWN='#16A34A', C_LINE='#1D4ED8', C_GRAY='#A8A29E', C_AMBER='#B45309';
+const fmt=(v,d=1)=>v==null?'—':Number(v).toFixed(d);
+const sgn=(v,d=1)=>v==null?'—':(v>0?'+':'')+Number(v).toFixed(d);
+// charts 必须在这里声明：组合图在文件前部就创建，声明放到后面会踩 let 的暂时性死区
+const charts={};
+// 暴露到 window，供无头浏览器校验（const 声明在全局词法作用域里，跨文档读不到）
+window.charts=charts;
+// 日期轴刻度：只在跨年第一天留一个刻度。1660 个交易日等距抽 12 个，
+// 平均 150 天才一个参照点，人眼根本没法在图上定位「这是哪一年」。
+// 按年切反而每个刻度都有意义，且和上下分图逐像素对齐。
+// ⚠ 这里踩过坑：只写 afterBuildTicks 里设 label 是不够的 —— category 轴在后续
+//    buildTicks 阶段会把 label 重置成原本的日期字符串，实测刻度显示成 "2020-01-02"
+//    而不是 "2020"。必须同时在 ticks.callback 里再截一次，双保险。
+function yearAxis(labels,extra){
+  const idx=labels.map((d,i)=>i).filter(i=>i===0||labels[i].slice(0,4)!==labels[i-1].slice(0,4));
+  return Object.assign({
+    grid:{display:false},
+    afterBuildTicks:axis=>{axis.ticks=idx.map(i=>({value:i,label:labels[i].slice(0,4)}));},
+    ticks:{autoSkip:false,maxRotation:0,font:{size:10},color:C_GRAY,
+      // value 是刻度位置（索引），直接取该位置的日期截前 4 位
+      callback:function(v){const s=this.getLabelForValue(v);return s?String(s).slice(0,4):'';},
+      // 只保留跨年的那些位置，其余隐藏 —— 否则 12 个等距刻度又冒出来
+      display:true,
+      stepSize:undefined}
+  },extra||{});
+}
+// 上下两张图的 y 轴宽度必须锁死一致，否则绘图区左边界不同，日期刻度会错开几像素
+const fixYw=s=>{s.width=58;};
+// 零线加深：一条 y 轴上也必须一眼看出「水在哪里」
+const zeroGrid={color:ctx=>ctx.tick.value===0?'#A8A29E':'#F5F5F4',
+  lineWidth:ctx=>ctx.tick.value===0?1.2:1};
+
+// ══════════════════════════════════════════════════════════════
+//  时间滑动条（可复用）—— 所有图表共用同一个时间窗
+// ══════════════════════════════════════════════════════════════
+// 设计要点：
+//  ① 不是「每张图各拖各的」，而是**全站一个全局时间窗**。
+//     理由：这个站的核心用法是交叉验证 —— 看组合净流入的某个尖峰，
+//     然后切到单只页去问「那天是哪只 ETF 在动」。如果各图各的时间窗，
+//     一切换就得重调，等于没有。
+//  ② 用索引而不是日期做滑动单位：交易日不连续（周末、长假），
+//     按日期拖会滑到空值上。索引永远是有效交易日。
+//  ③ 只改 scales.x.min/max（索引区间），不动 data —— 1660 个点全保留，
+//     这样 tooltip 的 dataIndex 不变，回调里所有查表逻辑都不用改。
+//  ④ 缩放后 yearly 刻度会变稀，所以滑条一拖就重算刻度（见 axisRelabel）。
+const VIEW={a:0,b:0,n:0};          // 组合页的全局时间窗
+const SVIEW={a:0,b:0,n:0};         // 单只页的时间窗（各 ETF 日期长度不同，必须分开）
+const DVIEW={a:0,b:0,n:0};         // 股息率页的时间窗
+const VIEW_SUBS=[];                 // 所有订阅者 {fn, win}
+
+// 时间窗变化后重建 X 轴刻度。这是滑条的配套件，不做的话缩到 3 个月时轴会空白。
+// 三档粒度：
+//   ① 窗口内有 ≥2 个跨年点 → 标年份 "2020"
+//   ② 窗口内有 ≥2 个月初     → 标月份 "08月"（此时年份是常量，标出来是废字）
+//   ③ 更窄（<2 个月）        → 标具体日期 "11-03"
+function reYearAxis(chart,labels,a,b){
+  const lo=Math.max(0,a), hi=Math.min(labels.length-1,b);
+  const span=hi-lo;
+  const pick=(fn)=>{
+    const out=[];
+    for(let i=lo;i<=hi;i++){
+      if(i===lo||fn(labels[i])!==fn(labels[i-1])) out.push(i);
+    }
+    return out;
+  };
+  const yIdx=pick(d=>d.slice(0,4));
+  const mIdx=pick(d=>d.slice(0,7));
+
+  let idx,fmt;
+  if(yIdx.length>=2){ idx=yIdx; fmt=d=>d.slice(0,4); }
+  else if(mIdx.length>=2){ idx=mIdx; fmt=d=>d.slice(5,7)+'月'; }
+  else {
+    // 太窄：每 5 个交易日一个刻度，标月-日
+    idx=[]; for(let i=lo;i<=hi;i+=Math.max(1,Math.round(span/6))) idx.push(i);
+    fmt=d=>d.slice(5);
+  }
+  chart.options.scales.x.afterBuildTicks=axis=>{
+    axis.ticks=idx.map(i=>({value:i,label:fmt(labels[i])}));
+  };
+  chart.options.scales.x.ticks.callback=function(v){
+    const s=this.getLabelForValue(v);
+    return s?fmt(String(s)):'';
+  };
+}
+
+// 把一张图接到某个时间窗上。win 决定它听哪条滑条：VIEW（组合）或 SVIEW（单只）。
+function bindZoom(chart,labels,win){
+  const W=win||VIEW;
+  let cur=null;
+  const apply=()=>{
+    chart.options.scales.x.min=W.a;
+    chart.options.scales.x.max=W.b;
+    reYearAxis(chart,labels,W.a,W.b);
+    chart.update('none');       // 'none' = 不做动画，拖动才跟手
+  };
+  cur={fn:apply,win:W};
+  VIEW_SUBS.push(cur);
+  return cur;
+}
+// 解绑（单只页切票时要把上一只的订阅摘掉，否则会同时更新已销毁的图）
+function unbind(sub){
+  const k=VIEW_SUBS.indexOf(sub);
+  if(k>=0) VIEW_SUBS.splice(k,1);
+}
+// 只重绘「听同一个窗」的图 —— 组合页滑条不该动单只页
+function applyWin(win){
+  VIEW_SUBS.forEach(s=>{ if(s.win===(win||VIEW)) s.fn(); });
+}
+
+document.getElementById('lastDate').textContent=D.latest_date;
+document.getElementById('range').textContent=D.first_date+' 起';
+document.getElementById('upd').textContent=D.updated_at;
+
+// ---------- KPI ----------
+// ⚠ 原来这里有两个 KPI：「监控组合规模」和「监控标的」。已删除，原因不是"用不上"，
+//    而是【会误导】：5,311 亿这个数会被直接读成「国家队规模」，
+//    实际它只是 7 只自选 ETF 的市值合计，且其中 2 只红利根本不在汇金名单上。
+//    一个需要三行小字才能解释清楚、且解释了还是容易被读错的数，不如不放。
+const lastFlow=D.combo.flow[D.combo.flow.length-1];
+const sumN=(a,n)=>a.slice(-n).reduce((x,y)=>x+y,0);
+
+// 当日异动度：
+//   倍数 = |当日净流入| ÷ 近 60 日「|净流入| 的中位数」
+//   分档：<1 安静 / 1–2 常态 / 2–4 偏高 / 4–8 异动 / >8 极端
+//   阈值不是拍的：4× 在历史上年均触发约 16 次（每月 1.3 次），8× 年均约 3 次。
+//   2× 每年会触发 50–60 次 —— 每周都报警，等于没有报警，所以不作为「异动」线。
+const AB=D.combo.abn_latest||{};
+const AB_META={
+  extreme:{t:'极端',c:'#DC2626',bg:'#FEF2F2'},
+  abnormal:{t:'异动',c:'#EA580C',bg:'#FFF7ED'},
+  high:{t:'偏高',c:'#CA8A04',bg:'#FEFCE8'},
+  normal:{t:'常态',c:'#57534E',bg:'#F5F5F4'},
+  quiet:{t:'安静',c:'#78716C',bg:'#FAFAF9'},
+};
+const abMeta=AB_META[AB.grade]||null;
+
+// 量能 / 两融：取「自己序列的最新一天」，不用 ETF 份额的最后一天。
+// 份额是 T+1 披露（最新 11-10），成交额 T 日当晚就有（11-11），两融 T+1 晚间（11-11）。
+// 三个日期本来就不同 —— 硬对齐会让量能永远滞后一天，所以各显示各的日期。
+// ⚠ 变量名不能用 V：全局 V 是股息率页的数据对象（const V = JSON.parse(#DIVI)），
+//    这里再声明一次会整个脚本 SyntaxError，页面白屏 —— 实测踩过一次。
+const VOL=D.volume||null, MG=D.margin||null;
+const vLast=VOL?{d:VOL.dates[VOL.dates.length-1],v:VOL.val[VOL.val.length-1],
+  m5:VOL.ma5[VOL.ma5.length-1],m20:VOL.ma20[VOL.ma20.length-1],
+  p:VOL.pctile[VOL.pctile.length-1]}:null;
+const mLast=MG?MG.latest:null;
+// ══════════════════════════════════════════════════════════════════
+//  杠杆：三把尺子，不是一个数
+// ══════════════════════════════════════════════════════════════════
+// 原来只有一个「余额分位」，而且用的是近 250 日窗口 —— 结论会说反：
+// 同一笔 23,023 亿，近一年分位 2%（读作「杠杆极低」），全历史分位 84%（读作「很高」）。
+// 根因：杠杆本身就有三个互相独立的问题，不能挤进一个数。
+//   ① 存量杠杆 = 融资余额 ÷ 流通市值   → 借钱买股的仓位有多重（水位）
+//   ② 交易杠杆 = 融资买入额 ÷ 成交额   → 每 100 元成交里多少是借的钱（热度）
+//   ③ 变动强度 = 20日净买入 ÷ 两融余额 → 这一个月在加还是在退（方向）
+// 三者秩相关 ①vs② +0.19、①vs③ −0.41、②vs③ −0.28 —— 真的不是一回事。
+// 分位全部由 compute_demo.py 算好（基准期 2014-01-01 写死在数据里），前端只读不重算。
+const LV=(MG&&MG.levers)?MG.levers:null;
+// 分位 → 颜色。低=蓝（不拥挤），高=红（拥挤）。
+const pcol2=p=>p==null?'#78716C':p>=80?'#DC2626':p>=60?'#EA580C':p>=40?'#CA8A04':p>=20?'#2563EB':'#1D4ED8';
+// 三个尺子的档名 → 颜色（跨档统一，避免同一个"偏高"在两张卡上颜色不同）
+const LVC={'很低':'#1D4ED8','偏低':'#2563EB','正常':'#57534E','偏高':'#EA580C','很高':'#DC2626',
+           '在加':'#DC2626','在退':'#16A34A'};
+
+// ── 第一组：资金流（今天 / 5日 / 20日 / 场子多热）──
+const kpisFlow=[
+  {k:'当日估算净流入',v:sgn(lastFlow),u:'亿',
+   // 百分比 = 当日 ÷ 60 日常态水位。这是「和自己比」，不是「和别的标的比」。
+   d:abMeta?`<span style="color:${abMeta.c};font-weight:600">${AB.ratio.toFixed(2)}× 常态 · ${abMeta.t}</span>`:D.latest_date,
+   tag:abMeta?abMeta:null},
+  {k:'近 5 日累计',v:sgn(sumN(D.combo.flow,5)),u:'亿'},
+  {k:'近 20 日累计',v:sgn(sumN(D.combo.flow,20)),u:'亿'},
+  vLast?{k:'两市成交额',v:Math.round(vLast.v).toLocaleString(),u:'亿',
+   d:`5日均 ${Math.round(vLast.m5).toLocaleString()} · 一年分位 ${vLast.p.toFixed(0)}%`}:null,
+].filter(Boolean);
+
+// ── 第二组：杠杆三问（多重 / 多热 / 在加还是在退）──
+// 这一组单独一行，因为它回答的问题和上面四个不同：
+//   上面回答「钱进来了多少」，这一组回答「进来的钱里有多少是借的、借完还了没有」。
+// ⚠ 分位文案里的年份必须读 g.since，不能写死 ——
+//   三把尺子样本起点不同（① 2014、② 2019），写死就会有一张卡说错年份。
+const kpisLev=[
+  LV&&LV.stock&&LV.stock.v!=null?{k:'杠杆水位',
+   v:LV.stock.lv,u:'',
+   d:`每 100 元流通股 <b>${LV.stock.v.toFixed(2)} 元</b>是借的<br>
+      <span class="mut">${LV.stock.since.slice(0,4)} 年来 ${LV.stock.pct.toFixed(0)}% 分位</span>`,
+   color:LVC[LV.stock.lv]}:null,
+  LV&&LV.trade&&LV.trade.v!=null?{k:'交易杠杆',
+   v:LV.trade.lv,u:'',
+   d:`每 100 元成交，<b>${LV.trade.v.toFixed(1)} 元</b>是借的钱<br>
+      <span class="mut">${LV.trade.since.slice(0,4)} 年来 ${LV.trade.pct.toFixed(0)}% 分位</span>`,
+   color:LVC[LV.trade.lv]}:null,
+  LV&&LV.flow&&LV.flow.v!=null?{k:'杠杆方向（20 日）',
+   v:LV.flow.lv,u:'',
+   d:`净买入 <b>${sgn(LV.flow.v,1)}%</b> 的余额<br>
+      <span class="mut">${LV.flow.since.slice(0,4)} 年来 ${LV.flow.pct.toFixed(0)}% 分位</span>`,
+   color:LVC[LV.flow.lv]}:null,
+].filter(Boolean);
+
+// 渲染：两组各自一个网格。第二组为空时整块不输出（不留一条空行）。
+function renderKpis(list,el){
+  if(!el || !list.length) return;
+  el.innerHTML=list.map(x=>{
+    // ⚠ 一个元素不能有两个 style 属性 —— 浏览器只认第一个，第二个静默丢弃。
+    //   所以涨跌色和显式色要在这里合并成一个 style 字符串，不能各写一个。
+    const c=x.color || (String(x.v).startsWith('-')?C_DOWN:(String(x.v).startsWith('+')?C_UP:''));
+    return `
+    <div class="kpi"${x.tag?` style="border-left:3px solid ${x.tag.c}"`:''}>
+    <div class="k">${x.k}</div>
+    <div class="v"${c?` style="color:${c}"`:''}>${x.v}<small>${x.u||''}</small></div>
+    <div class="d">${x.d||''}</div></div>`;}).join('');
+}
+renderKpis(kpisFlow, document.getElementById('kpis'));
+renderKpis(kpisLev,  document.getElementById('kpisLev'));
+
+// ══════════════════════════════════════════════════════════════
+//  时间滑动条：把 DOM 造出来，接上全局 VIEW
+// ══════════════════════════════════════════════════════════════
+// 预设档位。为什么是这几个数：
+//   全部=1660 天看周期；近 3 年≈730 天看一轮涨跌；近 1 年看当下；
+//   近 3 月≈60 天才能看清单日净流入的形状（全量时它不到 1px）。
+const PRESETS=[
+  {k:'all',  label:'全部',  d:null},
+  {k:'3y',   label:'近 3 年',d:730},
+  {k:'1y',   label:'近 1 年',d:244},
+  {k:'6m',   label:'近半年', d:122},
+  {k:'3m',   label:'近 3 月',d:61},
+];
+// target：这条滑条控制的时间窗对象。默认用全局 VIEW（组合页），
+// 单只页传自己的 SVIEW —— 各 ETF 日期长度不同，共用一个窗会指到错日期。
+function buildTimeSlider(host,labels,onChange,target){
+  const V=target||VIEW;
+  const n=labels.length;
+  // 滑条 max 用的是**本图的** n，但窗口索引是相对本图的。
+  // 全局 VIEW 只有一条（组合页），所以这里必须让每条滑条认自己的窗。
+  V.a=0; V.b=n-1; V.n=n;
+  const uid='ts'+(buildTimeSlider._id=(buildTimeSlider._id||0)+1);
+  host.innerHTML=`
+    <div class="ts">
+      <div class="ts-row">
+        ${PRESETS.map(p=>`<button class="ts-btn${p.d===null?' on':''}" data-p="${p.k}">${p.label}</button>`).join('')}
+        <span class="ts-span" id="${uid}Span">—</span>
+      </div>
+      <div class="ts-track">
+        <div class="ts-rail"></div><div class="ts-fill" id="${uid}Fill"></div>
+        <input type="range" id="${uid}A" min="0" max="${n-1}" value="0" step="1">
+        <input type="range" id="${uid}B" min="0" max="${n-1}" value="${n-1}" step="1">
+      </div>
+      <div class="ts-ends"><span>${labels[0]}</span><span>${labels[n-1]}</span></div>
+    </div>`;
+  const A=host.querySelector('#'+uid+'A'), B=host.querySelector('#'+uid+'B');
+  const fill=host.querySelector('#'+uid+'Fill'), span=host.querySelector('#'+uid+'Span');
+  const MIN_SPAN=5;   // 至少 5 个交易日
+
+  // ⚠ 这里踩过一个坑：保护写成「窗口不够宽就把 b 往外推」，
+  //    但 b 已经在最右端（=n-1）时推不动，窗口就塌成 1 天，图变成一条竖线。
+  //    正确做法是【双向夹】：b 推不动就反过来把 a 往回拉。
+  const paint=()=>{
+    let a=+A.value, b=+B.value;
+    if(a>b){ const t=a; a=b; b=t; }
+    if(b-a<MIN_SPAN){
+      if(b+MIN_SPAN<=n-1) b=a+MIN_SPAN;      // 右边还有空间 → 推右端
+      else { b=n-1; a=Math.max(0,b-MIN_SPAN); }  // 右边到顶 → 拉左端
+    }
+    A.value=a; B.value=b;
+    V.a=a; V.b=b;
+    fill.style.left=(a/(n-1)*100)+'%';
+    fill.style.width=((b-a)/(n-1)*100)+'%';
+    span.innerHTML=`<b>${labels[a]}</b> → <b>${labels[b]}</b>　${b-a+1} 个交易日`;
+    host.querySelectorAll('.ts-btn').forEach(x=>x.classList.remove('on'));
+  };
+  const commit=()=>{paint();applyWin(V);onChange&&onChange();};
+
+  A.addEventListener('input',commit);
+  B.addEventListener('input',commit);
+  host.querySelectorAll('.ts-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      const p=PRESETS.find(x=>x.k===btn.dataset.p);
+      if(p.d===null){ A.value=0; B.value=n-1; }
+      else { B.value=n-1; A.value=Math.max(0,n-1-p.d); }
+      paint(); applyWin(V); onChange&&onChange();
+      btn.classList.add('on');
+    };
+  });
+  paint();
+  return {setRange:(a,b)=>{A.value=a;B.value=b;commit();}};
+}
+
+// ---------- 组合图（单张，双轴：左=上证点位，右=累计净流入）----------
+// 演进史（别重复踩）：
+//   ① 最早是「柱用左轴 + 线用右轴」的单张双轴 → 两轴各自自动缩放，
+//      实测左轴 0 线在 55.0% 高度、右轴 0 线在 22.1% 高度，差 32.8pp，
+//      用户投诉「任意数额都无法与纵坐标匹配」。根子是【两根轴零点落在不同高度】，不是「有双轴」。
+//   ② 于是拆成上下两张，回避了双轴 → 读数安全了，但「钱 vs 位置」的对照关系也没了。
+//   ③ 现在是单张双轴，但两根轴的缩放策略【故意不同】：
+//      右轴（金额）beginAtZero:true —— 零是「不进不出」，必须能看见，零点在底部零线上；
+//      左轴（点位）自动缩放 —— 3200 点里没有「零」这层含义，从 0 起算是无信息的留白。
+//      ⚠ 这不是偏心，是两种量本身的性质不同。实测若左轴也从 0 起算，
+//        1582 点的跨度只能占 35.2% 绘图高度（128px/365px），指数会被压成一条直线。
+//      代价：两根轴的零点不再重合（点位轴根本没有零点刻度）。
+//      所以每根线必须在 legend 和轴标题里写清「读哪一侧」——靠标注消歧，不靠对齐消歧。
+//   ④ 为什么可以叠在一起：实测 corr(上证指数, 累计净流入) = −0.1258，
+//      两者近乎无关 —— 这是【两个独立信号】，不是一个信号画了两遍。
+//      （对比：单只页 份额 vs 累计净流入 = 0.9821，那条才必须降级到 tooltip。）
+(function(){
+  const SH=D.combo.sh_index||[];
+  const hasSh=SH.some(x=>x!=null);
+
+  // ⚠ Chart.js 的 order 是「数值大的画在上层」，不是小的。这里先写反过一次：
+  //    指数线 order:1 被压在蓝色填充区下面，橙线发灰。现在让指数在最上层。
+  const dsets=[
+    {type:'line',label:'区间累计净流入',data:D.combo.cum,yAxisID:'y1',
+     borderColor:C_LINE,backgroundColor:'rgba(29,78,216,.05)',borderWidth:1.5,
+     pointRadius:0,fill:true,tension:.15,order:1},
+  ];
+  if(hasSh){
+    // 橙线放后面入栈 + order 更大 = 画在最上层，避免被蓝色填充区盖住。
+    // ⚠ 宽度 1.7 → 1.3：1660 天挤在 ~1150px 里，每根日线占不到 0.7px，
+    //    1.7px 的笔画会让相邻两天的线在垂直方向叠起来，整条线糊成一片橙雾，
+    //    把蓝线的形状吃掉。细一点反而更能看出「这是高频日线」这个事实。
+    dsets.push({type:'line',label:'上证指数',data:SH,yAxisID:'y',
+      borderColor:C_AMBER,backgroundColor:'transparent',borderWidth:1.3,
+      pointRadius:0,pointHitRadius:0,fill:false,tension:0,order:5});
+  }
+
+  charts.cCombo=new Chart(document.getElementById('cCombo'),{
+    data:{labels:D.days,datasets:dsets},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      // ⚠ 这一行是修「X 轴年份只露半截」的关键：
+      //    实测 400px 高的 canvas 里 chartArea.bottom=374，留给 X 轴 26px，
+      //    而 X 轴本身就要 26px —— 富余 0px，字体渲染差 1px 就把年份切掉。
+      //    加 8px 底部留白后，X 轴实得 34px，有 8px 余量。
+      // 右侧留 26px：右轴标题是竖排文字，宽度约 14px，原来只留 4px 时
+      // 标题和刻度数字几乎贴在一起，视觉上糊成一条。
+      layout:{padding:{bottom:8,right:26,top:2}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{
+          title:c=>c[0].label,
+          // ⚠ 按 label 判断而不是 datasetIndex：dataset 顺序会随 hasSh 变化，
+          //    用序号会在缺指数数据时把「累计净流入」错标成「上证指数」。
+          label:c=>c.dataset.label==='上证指数'
+            ? '上证指数：'+fmt(SH[c.dataIndex],2)+' 点'
+            : '区间累计：'+sgn(D.combo.cum[c.dataIndex])+' 亿',
+          afterBody:c=>{
+            const k=c[0].dataIndex, f=D.combo.flow[k], m=D.combo.members[k];
+            // 第 0 天没有「前一天」，净流入恒为 0 —— 说成 0 会让人以为当天真的不进不出
+            let t='单日净流入：'+(k===0?'—（区间起点）':(f==null?'—':sgn(f)+' 亿'));
+            t+='\n组合规模：'+fmt(D.combo.size[k])+' 亿　成员 '+m+' 只';
+            return t;
+          }
+        }}},
+      scales:{
+        x:yearAxis(D.days),
+        y:{
+          position:'left',afterFit:s=>{s.width=58;},
+          // 不设 beginAtZero：点位不需要从 0 起算（见上方 ③）
+          title:{display:true,text:'上证指数（点）',font:{size:10},color:C_AMBER},
+          ticks:{font:{size:10},color:C_AMBER,callback:v=>Number(v).toFixed(0)},
+          grid:{display:false},
+          display:hasSh
+        },
+        y1:{
+          // 右轴给 74 而不是 58：刻度标签带「亿」字（7000亿 比 4400 宽两成），
+          // 58px 会让数字顶满，竖排标题只能贴着外沿挤出去。
+          position:'right',afterFit:s=>{s.width=74;},
+          beginAtZero:true,
+          title:{display:true,text:'累计净流入（亿元）',font:{size:10},color:C_LINE,
+                 padding:{bottom:4}},
+          ticks:{font:{size:10},color:C_GRAY,callback:v=>v+'亿'},
+          // 只画金额轴的零线，其余刻度线透明：零是「不进不出」，是这张图唯一需要
+          // 强调的语义线（线上=净买入，线下=净卖出）。点位轴没有零，所以零线归右轴。
+          grid:{display:true,
+            color:ctx=>ctx.tick.value===0?'#78716C':'transparent',
+            lineWidth:ctx=>ctx.tick.value===0?1.2:0,
+            tickLength:0}
+        }
+      }}
+  });
+
+  // 接上全局时间窗 + 把滑条造出来
+  bindZoom(charts.cCombo,D.days);
+  window.tsCombo=buildTimeSlider(document.getElementById('tsCombo'),D.days);
+})();
+
+// ---------- 量能与杠杆面板 ----------
+(function(){
+  const box=document.getElementById('mlBox');
+  const VOL=D.volume, MG=D.margin;
+  if(!VOL && !MG){
+    box.innerHTML='<p class="ps">未抓到量能或两融数据（data/index_sh.json 的 turnover / data/margin.json）。<br>'+
+      '跑一次 <code>python3 scripts/fetch_index.py</code> 和 <code>python3 scripts/fetch_margin.py</code> 即可。</p>';
+    return;
+  }
+
+  const vN=VOL?VOL.val.length:0, mN=MG?MG.rzrq.length:0;
+  const v={d:VOL&&VOL.dates[vN-1],v:VOL&&VOL.val[vN-1],m5:VOL&&VOL.ma5[vN-1],m20:VOL&&VOL.ma20[vN-1],p:VOL&&VOL.pctile[vN-1]};
+  const m=MG?MG.latest:null;
+
+  // 面板日期：两个数据源的日期可能不同，分别显示，不合并成一个"今天"
+  const dateParts=[];
+  if(v.d) dateParts.push(`成交额：<b>${v.d}</b>`);
+  if(m)   dateParts.push(`两融：<b>${m.date}</b>（T+1 公布）`);
+  dateParts.push(`份额：<b>${D.latest_date}</b>`);
+  document.getElementById('mlDate').innerHTML=dateParts.join('　·　');
+
+  // 量能分位配色：低位=缩量（蓝），高位=放量（红）。
+  // ⚠ 这里不用「涨红跌绿」——成交额没有涨跌，只有高低。用色阶表达"拥挤度"才不误导。
+  const pcol=p=>p>=80?'#DC2626':p>=60?'#EA580C':p>=40?'#CA8A04':p>=20?'#2563EB':'#1D4ED8';
+
+  let html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px">';
+
+  if(v.d){
+    html+=`
+    <div class="kpi" style="border-left:3px solid ${pcol(v.p)}">
+      <div class="k">两市成交额 · ${v.d}</div>
+      <div class="v">${Math.round(v.v).toLocaleString()}<small>亿</small></div>
+      <div class="d">一年分位 <b style="color:${pcol(v.p)}">${v.p.toFixed(0)}%</b>
+        ${v.p<=20?'　缩量':v.p>=80?'　放量':''}</div>
+    </div>
+    <div class="kpi" style="border-left:3px solid var(--line2)">
+      <div class="k">成交额均线</div>
+      <div class="v">${Math.round(v.m5).toLocaleString()}<small>亿</small></div>
+      <div class="d">5 日均　·　20 日均 ${Math.round(v.m20).toLocaleString()} 亿
+        ${v.v>v.m20?'　高于 20 日均':'　低于 20 日均'}</div>
+    </div>`;
+  }
+
+  // ⚠⚠ 这里原来写的是「两融余额一年分位 2%（降杠杆）」，2026-11-12 判定为【错误】并删除。
+  //
+  //   错在哪：23,023 亿的历史分位会随窗口剧烈摆动 ——
+  //     全历史(2014起) 80% ｜ 近5年 78% ｜ 近3年 63% ｜ 近2年 44% ｜ 近1年 2%
+  //   同一个数，把全历史当参照是「很高」，把近一年当参照是「极低」。
+  //   而近一年窗口里只有一个泡沫峰（2026-07-13 占比 2.90%），拿它当基准，
+  //   2.49% 当然显示 2% —— 但那是「从峰值退下来」，不是「杠杆低」。
+  //
+  //   根因不是算错，是「杠杆」这一个词底下压着三个不同的问题。
+  //   硬挤成一个数，无论选哪个窗口都会误导。所以拆成三把尺子（在下方三张图上）：
+  //     ① 杠杆水位 = 融资余额 ÷ 流通市值   → 借钱买股的仓位有多重
+  //     ② 交易杠杆 = 融资买入额 ÷ 成交额   → 每 100 元成交里多少是借的钱
+  //     ③ 杠杆方向 = 20日净买入 ÷ 两融余额 → 这一个月在加还是在退
+  //   三者秩相关 ①vs② +0.19、①vs③ −0.41、②vs③ −0.28 —— 真的不是一回事。
+  //   分位与切点全部由 compute_demo.py 算好（基准期写死在数据里），前端只读不重算。
+  //
+  //   为什么不在前端算：前端算就必须自己挑窗口，而「挑窗口」本身就是上一版的错源。
+  //   三把尺子只在首页 KPI 各出现一次（一句话结论），详情全部交给三张图，不重复陈列。
+  html+='</div>';
+
+  // 背离提示：这是这个面板真正的价值所在。
+  //   只有把「ETF 钱在进」和「全场在缩量/杠杆在退」两件事并排，才能看出是增量还是腾挪。
+  const flow20=D.combo.flow.slice(-20).reduce((a,b)=>a+b,0);
+  const notes=[];
+  if(v.d && v.p!=null && flow20>0 && v.p<=30)
+    notes.push(`近 20 日 ETF 净流入 <b>${sgn(flow20,0)}</b> 亿，但两市成交额处在一年
+      <b>${v.p.toFixed(0)}%</b> 的低分位 —— <b>钱在进，场子在冷</b>。
+      这种组合通常意味着承接方是少数大资金，而不是市场情绪转暖。`);
+  // ⚠ 这一条原来用 m.pctile<=30 判断「杠杆在退」，是错的（见上方长注释）：
+  //   一年分位 2% 只说明「比一年内的泡沫峰低」，不说明杠杆低。
+  //   改成读后端算好的【方向】尺子（LV.flow），而不是前端自己拿 chg_20d 除一下 ——
+  //   前端除出来的数和后端算的「20 日净买入 ÷ 余额」是同一件事，但两处各算一次，
+  //   一旦哪天口径改了就会不一致。只留一个来源。
+  if(LV && LV.flow && LV.flow.v!=null && LV.flow.v<0 && flow20>0){
+    notes.push(`近 20 日 ETF 净流入 <b>${sgn(flow20,0)}</b> 亿，同期两融余额却减少
+      <b>${sgn(m.chg_20d,0)}</b> 亿（${sgn(LV.flow.v,1)}%）—— <b>杠杆资金在退、ETF 在进</b>。
+      这不像「加杠杆进场」，更像<b>把融资仓位换成 ETF</b>：总敞口没增加，
+      只是从带杠杆的个股挪到了不带杠杆的宽基。`);
+  }
+  if(v.d && v.p!=null && flow20>0 && v.p>=70)
+    notes.push(`成交额一年分位 <b>${v.p.toFixed(0)}%</b> 处于放量区，同期 ETF 净流入
+      <b>${sgn(flow20,0)}</b> 亿 —— 放量伴随净流入，趋势有量的支撑。`);
+  if(!notes.length && flow20<0 && v.p!=null && v.p>=60)
+    notes.push(`成交额在 <b>${v.p.toFixed(0)}%</b> 分位，而 ETF 近 20 日净流出
+      <b>${sgn(flow20,0)}</b> 亿 —— <b>放量出货</b>，比缩量流出更值得警惕。`);
+
+  if(notes.length)
+    html+=`<div style="margin-top:13px;padding:11px 13px;background:#FAFAF9;border-left:2px solid #A8A29E;
+      border-radius:0 6px 6px 0;font-size:12px;line-height:1.85;color:var(--tx2)">
+      ${notes.map(n=>'<div style="margin:2px 0">'+n+'</div>').join('')}</div>`;
+
+  box.innerHTML=html;
+
+  // ══════════════════════════════════════════════════════════════
+  //  杠杆图的两个公共零件（色带 / 当前值虚线）
+  // ══════════════════════════════════════════════════════════════
+  // 全历史大图和下面三张小图都要这两个东西，逻辑完全一样，只有尺寸不同。
+  // 抽成函数是因为上一版在三个地方各写一遍，改色带时改了两处漏了一处。
+  //
+  // ⚠ 透明度做成参数：170px 高的小图必须用浓色（.08~.19），250px 的大图要淡（.03~.08）。
+  //   同一组颜色在小面积上分不出来 —— 实测截图里四段看着像一整块。
+  //   这不是审美问题，是可读性问题。
+  const BAND_FILL_HI={ // 小图用，浓
+    up:['rgba(37,99,235,.17)','rgba(37,99,235,.08)','rgba(234,88,12,.12)','rgba(220,38,38,.17)'],
+    flow:['rgba(22,163,74,.19)','rgba(22,163,74,.08)','rgba(220,38,38,.08)','rgba(220,38,38,.19)'],
+  };
+  const BAND_FILL_LO={ // 大图用，淡
+    up:['rgba(37,99,235,.085)','rgba(37,99,235,.035)','rgba(234,88,12,.055)','rgba(220,38,38,.085)'],
+    flow:['rgba(22,163,74,.10)','rgba(22,163,74,.035)','rgba(220,38,38,.035)','rgba(220,38,38,.10)'],
+  };
+
+  // 色带插件工厂。fills 是「从低到高」4 个颜色，cuts 是 3 个分界。
+  // ⚠ 必须【从高到低】画、且颜色顺序与之对应。第一版写成「从高往下画、颜色却按
+  //   从低到高配」，低档的淡蓝落在整段上方，一条蓝盖住大半张图，四档全看不出。
+  //   画完必须看截图 —— 代码对不代表图对。
+  function makeBands(id, cuts, fills, lineAlpha){
+    return {id,beforeDraw(c){
+      const {ctx,chartArea:a,scales:{y}}=c;
+      // ⚠ chartArea 首帧是 undefined，不判断会直接抛错中断整块脚本
+      if(!a) return;
+      const yTop=y.getPixelForValue(y.max), yBot=y.getPixelForValue(y.min);
+      const edges=[y.max, cuts[2], cuts[1], cuts[0], y.min];
+      for(let i=0;i<4;i++){
+        const t=Math.max(yTop,y.getPixelForValue(edges[i]));
+        const b=Math.min(yBot,y.getPixelForValue(edges[i+1]));
+        if(b>t){ctx.save();ctx.fillStyle=fills[3-i];ctx.fillRect(a.left,t,a.right-a.left,b-t);ctx.restore();}
+      }
+      // 边界细线：光靠色差，相邻两档在缩略尺寸下会糊掉
+      ctx.save();
+      ctx.setLineDash([2,3]);ctx.lineWidth=1;
+      ctx.strokeStyle=`rgba(120,113,108,${lineAlpha||0.38})`;
+      cuts.forEach(cv=>{
+        const py=y.getPixelForValue(cv);
+        if(py<a.top||py>a.bottom) return;
+        ctx.beginPath();ctx.moveTo(a.left,py);ctx.lineTo(a.right,py);ctx.stroke();
+      });
+      ctx.restore();
+    }};
+  }
+
+  // 当前值虚线 + 右端标签工厂。
+  // ⚠ 标签必须抬到虚线上方（py-19）——第一版贴 py-13，正好压在末端圆点上，糊成一团。
+  function makeCur(id, val, col, txt, opt){
+    const o=opt||{};
+    return {id,afterDatasetsDraw(c){
+      const {ctx,chartArea:a,scales:{y}}=c;
+      if(!a || val==null) return;
+      const py=y.getPixelForValue(val);
+      if(py<a.top-1 || py>a.bottom+1) return;   // 超出可视区就不画，别画到边框外
+      ctx.save();
+      ctx.setLineDash([4,3]);ctx.strokeStyle=col;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(a.left,py);ctx.lineTo(a.right,py);ctx.stroke();
+      ctx.restore();
+      ctx.save();
+      ctx.font=`600 ${o.size||10}px ui-monospace,monospace`;
+      const tw=ctx.measureText(txt).width;
+      const h=(o.size||10)+4;
+      const bx=a.right-tw-7, by=py-(h+7);
+      ctx.fillStyle=col;
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(bx,by,tw+9,h,3); else ctx.rect(bx,by,tw+9,h);
+      ctx.fill();
+      ctx.fillStyle='#fff';ctx.textBaseline='middle';ctx.textAlign='left';
+      ctx.fillText(txt,bx+4.5,by+h/2);
+      ctx.restore();
+    }};
+  }
+
+  // 零线工厂：只有 ③ 用得上。
+  // ③ 是有正负的量，零是「没加也没退」这条真实分界；色带只说明罕见程度、不说明方向，
+  // 所以零线不能省 —— 少了它，读者会以为「绿色＝好」而不是「绿色＝在退」。
+  function makeZero(id, on){
+    if(!on) return null;
+    return {id,afterDatasetsDraw(c){
+      const {ctx,chartArea:a,scales:{y}}=c;
+      if(!a || y.min>0 || y.max<0) return;   // 轴没跨零就画不出来，别画
+      const py=y.getPixelForValue(0);
+      ctx.save();ctx.strokeStyle='#A8A29E';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(a.left,py);ctx.lineTo(a.right,py);ctx.stroke();ctx.restore();
+    }};
+  }
+
+  // ---------- ① 杠杆水位 · 全历史大图 ----------
+  // 这张图存在的唯一理由：三张小图为了横向可比，起点被最晚的 ②（2019-01）绑住了，
+  // 于是看不到 2015-07-03 的 4.697%。而那个峰正是判断「2.49% 算不算高」的锚 ——
+  // 没有它，读者只能在 2019 年以来的窄区间里比，会觉得 2.49% 已经接近最高了。
+  //
+  // ⚠ 这张图【不参与横向比较】：它跨 12 年，另外两张跨 7 年，同样宽度的像素代表
+  //   不同的时间跨度。所以它单独占一行、上方有分隔线，位置本身就在说「别横着比」。
+  (function(){
+    const el=document.getElementById('cLevFull');
+    const F=LV&&LV.stock_full;
+    if(!el || !F || !F.series || F.series.length<60) return;
+
+    const cuts=LV.stock.cuts;
+    const COL={很低:'#1D4ED8',偏低:'#2563EB',偏高:'#EA580C',很高:'#DC2626'};
+    const lvNow=LV.stock.lv, col=COL[lvNow]||'#57534E';
+
+    // 头部：档位胶囊 + 当前值 + 距峰顶
+    const badge=document.getElementById('lfBadge');
+    if(badge){badge.textContent=lvNow;badge.style.color='#fff';badge.style.background=col;}
+    const nowEl=document.getElementById('lfNow');
+    if(nowEl) nowEl.innerHTML=`<span style="color:${col}">${F.cur.toFixed(2)}%</span>
+      <span style="color:#A8A29E;font-weight:400">　距 2015 峰顶 <b style="color:#57534E">${sgn(F.gap_from_peak,1)}%</b></span>`;
+
+    // 脚注：把「这个数字该怎么读」直接写出来，不留给读者推
+    const sub=document.getElementById('lfSub');
+    if(sub) sub.innerHTML=
+      `${LV.stock.label}　·　<b>${F.from} → ${F.to}（${F.n} 个交易日）</b><br>
+       当前 <b>${F.cur.toFixed(2)}%</b>（${lvNow}，${LV.stock.pct.toFixed(0)}% 分位）　·　
+       历史峰 <b>${F.peak[1].toFixed(2)}%</b>（${F.peak[0]}，2015 股灾前加杠杆）　·　
+       历史谷 <b>${F.trough[1].toFixed(2)}%</b>（${F.trough[0]}）<br>
+       档位边界 ${cuts.map((c,i)=>`<b>${c}</b>${['很低','偏低','偏高','很高'][i]}`).join(' / ')}`;
+
+    // ⚠ 用日期 → 值建 Map，不要直接拿 series 当 data：
+    //   series 长度是 3125，MG.dates 是 3500，直接画会让横轴错位。
+    const mp=new Map(F.series);
+    const spine=(MG.dates||[]).filter(d=>d>=F.from);
+    const data=spine.map(d=>mp.has(d)?mp.get(d):null);
+
+    // 峰顶/谷底打点：只有色带和终点，读者仍然不知道「最高到过多少」
+    //
+    // ⚠ 标注位置不能用「峰写上面、谷写下面」这种固定规则 —— 改成硬边界之后，
+    //   谷点离轴底只有 5px，写下面就掉出画布（实测「谷 1.73%」被裁掉一半）。
+    //   而峰点离轴顶同样只有 5px，想写上面就得把轴重新撑到 5.0，
+    //   那正是刚才要修掉的「上半张图全是空白」。
+    //   → 所以两个标注都放在点的【右侧、同一高度】：峰右侧是下降段的上方空白，
+    //     谷右侧是底部空白，都是空的，且永远不需要纵向留白。
+    //   再加一圈白描边，万一路过曲线也压不住字。
+    const marks={id:'lfMarks',afterDatasetsDraw(c){
+      const {ctx,chartArea:a,scales:{x,y}}=c;
+      if(!a) return;
+      const put=(dt,v,txt)=>{
+        const i=spine.indexOf(dt);
+        if(i<0) return;
+        const px=x.getPixelForValue(i), py=y.getPixelForValue(v);
+        if(px<a.left||px>a.right||py<a.top||py>a.bottom) return;
+
+        ctx.save();
+        ctx.beginPath();ctx.arc(px,py,3.2,0,7);ctx.fillStyle='#57534E';ctx.fill();
+
+        ctx.font='600 10px ui-monospace,monospace';
+        ctx.textAlign='left';ctx.textBaseline='middle';
+        // 右侧放不下就翻到左边，再把两端都钳进绘图区。
+        // ⚠ 只判断右边界不够：谷点在 index 0，px 就在 a.left，翻到左边之后
+        //   文字会跑出绘图区、压在 y 轴刻度上（窄屏实测「谷 1.73%」和 1.6% 叠在一起）。
+        //   所以两个方向都要钳，宁可贴着曲线也不能出界。
+        const tw=ctx.measureText(txt).width;
+        const right=px+7+tw<=a.right-2;
+        let tx=right?px+7:px-7-tw;
+        tx=Math.min(Math.max(tx,a.left+2),a.right-tw-2);
+        const ty=Math.min(Math.max(py,a.top+7),a.bottom-7);
+        ctx.lineWidth=3;ctx.strokeStyle='rgba(255,255,255,.92)';
+        ctx.lineJoin='round';ctx.strokeText(txt,tx,ty);
+        ctx.fillStyle='#57534E';ctx.fillText(txt,tx,ty);
+        ctx.restore();
+      };
+      put(F.peak[0],   F.peak[1],   `峰 ${F.peak[1].toFixed(2)}%`);
+      put(F.trough[0], F.trough[1], `谷 ${F.trough[1].toFixed(2)}%`);
+    }};
+
+    charts.cLevFull=new Chart(el,{
+      type:'line',
+      data:{labels:spine,datasets:[{
+        data, borderColor:'#57534E', borderWidth:1.4,
+        spanGaps:true, tension:.12, fill:false, pointHoverRadius:4,
+        // 只有最后一个点画出来，否则「现在在哪」要自己找。
+        // ⚠ cannot 写 pointRadius:[...] —— Chart.js 只接受数字或 scriptable 函数，
+        //   传数组静默忽略（不报错也不生效）。
+        pointRadius:ctx=>ctx.dataIndex===data.length-1?4:0,
+        pointBackgroundColor:col,
+      }]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        layout:{padding:{right:38,top:10}},
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{
+            label:c=>`${c.parsed.y==null?'—':c.parsed.y.toFixed(2)+'%'}`,
+            afterLabel:c=>{
+              if(c.parsed.y==null) return '';
+              const g=c.parsed.y;
+              const nm=g<cuts[0]?'很低':g<cuts[1]?'偏低':g<cuts[2]?'偏高':'很高';
+              const i=MG.dates.indexOf(c.label);
+              const rz=i<0?null:MG.rzrq[i];
+              return `${nm}　${rz==null?'':`余额 ${Math.round(rz).toLocaleString()} 亿`}`;
+            }
+          }},
+        },
+        scales:{
+          x:yearAxis(spine),
+          y:{
+            grid:{color:'#F5F5F4'},
+            border:{display:false},
+            ticks:{font:{size:10},color:C_GRAY,maxTicksLimit:5,
+              callback:v=>v.toFixed(1)+'%'},
+            // 硬边界，理由同下面三张小图：suggested* 会被 Chart.js 外扩到整齐刻度，
+            // 结果 4.79 的轴被拉到 5.0，峰顶离顶部留出一段空白。
+            min:F.axis[0], max:F.axis[1],
+          }
+        }
+      },
+      // 大图用淡色带 —— 250px 高、12 年跨度，浓色会把曲线盖住
+      plugins:[makeBands('lfBands',cuts,BAND_FILL_LO.up,0.30),
+               makeCur('lfCur',F.cur,col,`${F.cur.toFixed(2)}%`,{size:11}),
+               marks]
+    });
+  })();
+
+  // ---------- 三把尺子：三张小图 ----------
+  // 为什么不做成一张图三条线：三者量纲不同（2.49% / 9.03% / −10.09%），
+  //   挤进一根轴要么各自归一化（那就看不出绝对值了），要么互相压扁。
+  //   而这三张图的价值恰恰是「各自落在自己那套标准的什么位置」——
+  //   所以必须是三根独立的轴 + 三套独立的色带。
+  //
+  // ⚠⚠ 横轴必须共用同一个时间窗，否则又是「参照系不明」的老毛病：
+  //   三条序列起点不同（①③ 从 2012、② 从 2019），各画各的，
+  //   读者会拿左图 2015 的峰去对齐右图 2019 之后某处，形状一样含义不同。
+  //   这里统一从三者中「最晚的起点」开始画，让三张图的每一个横向像素指同一天。
+  (function(){
+    const host=document.getElementById('lev3');
+    if(!host) return;
+    if(!LV || !LV.stock || !LV.trade || !LV.flow){
+      host.innerHTML='<p class="ps">杠杆数据不足（需要 data/margin.json 且含 rzmre / ltsz 字段）。</p>';
+      return;
+    }
+    const KEYS=['stock','trade','flow'];
+    const G=KEYS.map(k=>LV[k]);
+
+    // 共用时间窗起点由后端给（levers.win），前端不再自己推 ——
+    // 推一遍就多一个可能算错的地方，而且和后端算 axis 用的窗口必须是同一个。
+    const cStart=LV.win || G.map(g=>g.series[0][0]).sort().pop();
+    const spine=(MG.dates||[]).filter(d=>d>=cStart);
+
+    // 每把尺子各自一套色带语义。前两个是「高低」，第三个是「进退」，方向含义相反 ——
+    // 所以颜色不能共用一套映射，否则「在加」会被涂成和「很低」一样的蓝。
+    //
+    // ⚠ 这里只留「名字」和「要不要零线」两件事。颜色走 LVC（档位→色）、
+    //   色带走 BAND_FILL_HI（尺寸→透明度），都在别处统一定义。
+    //   2026-11-12 删掉了原来重复存在的 cols / fills 两份 —— 它们从来没被读过，
+    //   留着只会让人以为改这里就有效。
+    const BANDS={
+      stock:{names:['很低','偏低','偏高','很高'], zero:false},
+      trade:{names:['很低','偏低','偏高','很高'], zero:false},
+      flow:{names:['大幅在退','在退','在加','大幅在加'], zero:true},
+    };
+
+    host.innerHTML=KEYS.map((k,i)=>{
+      const g=LV[k];
+      return `<div class="levcell" data-k="${k}">
+        <div class="levhead">
+          <span class="nm">${g.name}</span>
+          <span class="badge" style="color:#fff;background:${LVC[g.lv]||'#57534E'}">${g.lv}</span>
+          <span class="val" style="color:${LVC[g.lv]||'#57534E'}">
+            ${k==='flow'?sgn(g.v,1):g.v.toFixed(k==='stock'?2:1)}${g.unit}</span>
+        </div>
+        <div class="lbox"><canvas id="cv-${k}"></canvas></div>
+        <div class="levsub">${g.label}<br>
+          分位 <b>${g.pct==null?'—':g.pct.toFixed(0)+'%'}</b>
+          （${g.since.slice(0,4)} 起 ${g.n} 天）<br>
+          档位边界 ${g.cuts.map((c,j)=>`${c}${BANDS[k].names[j]}`).join(' / ')}
+        </div>
+      </div>`;
+    }).join('');
+
+    // 逐张建图
+    KEYS.forEach(k=>{
+      const g=LV[k], B=BANDS[k];
+      const dp = k==='stock'?2:1;
+      const el=document.getElementById('cv-'+k);
+      if(!el) return;
+
+      // ⚠ 用日期查值铺到统一脊骨上，不要直接拿 series 当 data ——
+      //   series 长度与 MG.dates 不同（② 少 1600 天），直接画会让横轴错位。
+      const mp=new Map(g.series);
+      const data=spine.map(d=>mp.has(d)?mp.get(d):null);
+      const curIdx=data.length-1;
+      const col=LVC[g.lv]||'#57534E';
+
+      // ── 三个零件全部走工厂 ──
+      // 色带 / 零线 / 当前值虚线这三段原来是三份内联复制，和上面全历史大图各写一遍。
+      // 2026-11-12 抽成 makeBands / makeZero / makeCur，尺寸与透明度是参数。
+      // ⚠ 小图必须用 BAND_FILL_HI（浓）：170px 高，同一组淡色在这么小的面积上
+      //   四档会糊成一整块 —— 这是可读性问题，不是审美问题。
+      const bands=makeBands('bd-'+k, g.cuts,
+                            k==='flow'?BAND_FILL_HI.flow:BAND_FILL_HI.up, 0.38);
+      const zeroLine=makeZero('zl-'+k, B.zero);
+      const curLine=makeCur('cl-'+k, g.v, col,
+                            (k==='flow'?sgn(g.v,1):g.v.toFixed(dp))+'%');
+
+      const pgs=[bands,curLine].concat(zeroLine?[zeroLine]:[]);
+
+      charts['cLev_'+k]=new Chart(el,{
+        type:'line',
+        data:{labels:spine,datasets:[{
+          data, borderColor:'#57534E', borderWidth:1.5,
+          spanGaps:true, tension:.15, fill:false, pointHoverRadius:3.5,
+          // ⚠ 不能写 pointRadius:[...] —— Chart.js 只接受数字或 scriptable 函数，
+          //   传数组静默忽略（不报错、也不生效），排查很费时间。
+          pointRadius:ctx=>ctx.dataIndex===curIdx?3.5:0,
+          pointBackgroundColor:col,
+        }]},
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          interaction:{mode:'index',intersect:false},
+          layout:{padding:{right:30,top:4}},
+          plugins:{
+            legend:{display:false},
+            tooltip:{callbacks:{
+              label:c=>`${c.parsed.y==null?'—':c.parsed.y.toFixed(dp)+'%'}　${g.lv}`,
+              afterLabel:c=>{
+                if(c.parsed.y==null) return '';
+                const i=MG.dates.indexOf(c.label);
+                if(i<0) return '';
+                if(k==='flow'){
+                  const amt=c.parsed.y/100*MG.rzrq[i];
+                  return `≈ 20 日净买入 ${sgn(amt,0)} 亿`;
+                }
+                return `两融余额 ${Math.round(MG.rzrq[i]).toLocaleString()} 亿`;
+              }
+            }},
+          },
+          scales:{
+            // ⚠ 不能写 yearAxis(spine,{ticks:{maxTicksLimit:4}}) ——
+            //   yearAxis 里 Object.assign 只会把整个 ticks 对象换掉，
+            //   换掉之后 callback/afterBuildTicks 全没了，轴直接显示完整日期
+            //   （实测显示成 "2019-01-02" 这种）。这里直接复用它的默认 ticks。
+            x:yearAxis(spine,{
+              afterBuildTicks:axis=>{
+                // 7 年的窗口里每年一个刻度会挤成 8 个标签，隔年取一个
+                const idx=spine.map((d,i)=>i)
+                  .filter(i=>i===0||spine[i].slice(0,4)!==spine[i-1].slice(0,4));
+                axis.ticks=idx.filter((_,j)=>idx.length<=5||j%2===0)
+                  .map(i=>({value:i,label:spine[i].slice(0,4)}));
+              }
+            }),
+            y:{
+              grid:{color:'#F5F5F4'},
+              border:{display:false},
+              ticks:{font:{size:9.5},color:C_GRAY,maxTicksLimit:4,
+                callback:v=>v.toFixed(k==='stock'?1:0)+'%'},
+              // 纵轴用【硬边界】min/max，不用 suggestedMin/Max。
+              // ⚠ suggested* 只是「建议」，Chart.js 仍会把轴外扩到整齐刻度——
+              //   实测 ③ 的数据只到 +19.5%，轴却被拉到 +40%，上半张图全是空白，
+              //   曲线被压在下半截，四档色带也缺了最上面那一档的观感。
+              //   后端给的 axis 已经是「真实极值 ∪ 档位边界 + 余量」，直接照用就够。
+              min:g.axis[0], max:g.axis[1],
+            }
+          }
+        },
+        plugins:pgs
+      });
+    });
+  })();
+})();
+
+// ---------- 快照表 ----------
+document.querySelector('#tSnap tbody').innerHTML=D.rows.map(r=>{
+  const L=r.latest, i=r.inst.latest;
+  return `<tr>
+    <td><span class="cd">${r.code}</span></td>
+    <td>${r.name}</td><td class="mut">${r.index}</td>
+    <td class="num">${fmt(L.shares)}</td>
+    <td class="num ${L.chg_1d>0?'up':L.chg_1d<0?'down':''}">${L.chg_1d==null?'—':(L.chg_1d>0?'+':'')+fmt(L.chg_1d,2)+'%'}</td>
+    <td class="num ${L.flow>0?'up':L.flow<0?'down':''}">${sgn(L.flow)}</td>
+    <td class="num ${sumN(r.flow.filter(x=>x!=null),5)>0?'up':'down'}">${sgn(sumN(r.flow.filter(x=>x!=null),5))}</td>
+    <td class="num ${sumN(r.flow.filter(x=>x!=null),20)>0?'up':'down'}">${sgn(sumN(r.flow.filter(x=>x!=null),20))}</td>
+    <td class="num">${fmt(L.price,3)}</td>
+    <td class="num">${i?fmt(i.inst_pct)+'%':'—'}</td>
+  </tr>`;
+}).join('') + (D.thin||[]).map(t=>{
+  const i=t.inst.latest, L=t.latest;
+  return `<tr style="background:#FAFAF9">
+    <td><span class="cd">${t.code}</span></td>
+    <td>${t.name} <span class="tag t-mid" style="margin-left:4px">深市</span></td>
+    <td class="mut">${t.index}</td>
+    <td class="num">${fmt(L.shares)}</td>
+    <td class="num mut" title="${t.note||''}">—</td>
+    <td class="num mut" title="${t.note||''}">—</td>
+    <td class="num mut">—</td><td class="num mut">—</td>
+    <td class="num">${fmt(L.price,3)}</td>
+    <td class="num">${i?fmt(i.inst_pct)+'%':'—'}</td>
+  </tr>`;
+}).join('');
+
+// ---------- 两块面板已删除（2026-11-12，OO：删掉，看不懂） ----------
+// ① 买卖拆分：数据是对的（净流入 1459.7 + 浮盈 2479.7 = 规模增加 3939.4），
+//    但为了证明「不是算错」摆了 3 张 KPI + 4 段长解释 + 2 张表 + 逐只价差表。
+//    **论证比结论长十倍，等于没给结论。**
+// ② 平准周期 11 段：11 阶段 × 7 标的 = 77 格，读者记不住任何一格；
+//    而且切分点是人选的，换个人会切出另一套 11 段。
+// 保留：D.combo.turnover 与 D.cycle 数据仍由后端产出，只是页面不再渲染 ——
+//    以后若要用「卖出均价高于买入均价」这类结论，数据还在，不用重抓。
+// ---------- 单只 ----------
+let cur=0;
+let sSub=null;    // 单只叠加图对 SVIEW 的订阅句柄（切票时要解绑）
+const picker=document.getElementById('picker');
+picker.innerHTML=D.rows.map((r,i)=>`<button data-i="${i}" class="${i===0?'on':''}">${r.name}</button>`).join('');
+picker.onclick=e=>{
+  if(e.target.tagName!=='BUTTON')return;
+  const i=+e.target.dataset.i;
+  [...picker.children].forEach(b=>b.classList.toggle('on',+b.dataset.i===i));
+  drawSingle(i);
+};
+function drawSingle(i){
+  cur=i;
+  const r=D.rows[i];
+  document.getElementById('sTitle').textContent=`${r.code} ${r.name}　${r.manager}　${r.index}`;
+  ['cOverlay','cLevel'].forEach(k=>{if(charts[k]){charts[k].destroy();delete charts[k];}});
+
+  // ===== 一张叠加图：左轴价格（元），右轴份额（亿份）=====
+  // 价格 2.1–3.8 元、份额 63–611 亿份，单位不同、量级差 300 倍，没法共用一根轴。
+  // 上一轮的双轴之所以「读数骗人」，根子是两根轴各自自动缩放 → 两个零点落在不同高度
+  // （实测差 32.8 个百分点），同一像素点能读出两个都「正确」的数。
+  // 这次的处理不是拆图，而是把两根轴的【零点强制对齐】：两边都 beginAtZero，
+  // 于是 0 线在底部同一条水平线上。左轴读价格、右轴读份额，各读各的，不再互相冒充。
+  charts.cOverlay=new Chart(document.getElementById('cOverlay'),{
+    data:{labels:r.dates,datasets:[
+      {type:'line',label:'价格',data:r.price,yAxisID:'y',
+       borderColor:C_AMBER,backgroundColor:'transparent',borderWidth:1.5,
+       pointRadius:0,fill:false,tension:0,order:1},
+      {type:'line',label:'份额',data:r.shares,yAxisID:'y1',
+       borderColor:'#1D4ED8',backgroundColor:'rgba(29,78,216,.06)',borderWidth:1.6,
+       pointRadius:0,fill:true,tension:.1,order:2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      layout:{padding:{bottom:8,right:26,top:2}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{
+          title:c=>c[0].label,
+          label:c=>{
+            const k=c.dataIndex;
+            if(c.datasetIndex===0) return '价格：'+fmt(r.price[k],3)+' 元';
+            return '份额：'+fmt(r.shares[k])+' 亿份';
+          },
+          // 累计净流入不进图，但悬停时给出 —— 它和份额高度重合，只是金额口径
+          afterBody:c=>{
+            const k=c[0].dataIndex;
+            return '区间累计净流入：'+sgn(r.cum[k])+' 亿'+(r.flow[k]!=null?('\n单日净流入：'+sgn(r.flow[k])+' 亿'):'');
+          }
+        }}},
+      scales:{
+        x:yearAxis(r.dates),
+        // 左轴＝价格。beginAtZero 是关键：让它的 0 与右轴 0 落在同一高度
+        y:{position:'left',beginAtZero:true,afterFit:s=>{s.width=58;},
+           title:{display:true,text:'价格（元）',font:{size:10},color:C_AMBER},
+           ticks:{font:{size:10},color:C_AMBER,callback:v=>Number(v).toFixed(1)},
+           grid:{color:'#F5F5F4'}},
+        // 右轴＝份额。同样 beginAtZero，零点对齐后不会错位
+        y1:{position:'right',beginAtZero:true,afterFit:s=>{s.width=68;},
+           title:{display:true,text:'份额（亿份）',font:{size:10},color:'#1D4ED8'},
+           ticks:{font:{size:10},color:'#1D4ED8'},
+           grid:{display:false}}
+      }}
+  });
+
+  // 单只页自己一条滑条。
+  // ⚠ 不能直接复用组合页那个全局 VIEW：各 ETF 的 dates 长度不同
+  //    （科创50 2020-11 才上市，深市只有 2 天），同一个索引在两只票上指向不同日期。
+  //    所以这里用「单只自己的时间窗」，切票时重建滑条并重置到全部。
+  if(charts.cOverlay){
+    if(sSub) unbind(sSub);          // 先把上一只的订阅摘掉，否则它会去更新已销毁的图
+    // 切票重置到「全部」：沿用上一只的索引窗口会指到错日期（甚至越界）
+    SVIEW.a=0; SVIEW.b=r.dates.length-1; SVIEW.n=r.dates.length;
+    sSub=bindZoom(charts.cOverlay,r.dates,SVIEW);
+    buildTimeSlider(document.getElementById('tsSingle'),r.dates,null,SVIEW);
+  }
+
+  // 水位与机构持仓：总份额与机构持有份额同为「亿份」，一根轴就能读，不需要指数化。
+  const ih=(r.inst.history||[]).slice().reverse();
+  charts.cLevel=new Chart(document.getElementById('cLevel'),{
+    data:{labels:ih.map(x=>x.date),datasets:[
+      {type:'bar',label:'机构持有份额',data:ih.map(x=>+(x.total_yi*x.inst_pct/100).toFixed(2)),
+       backgroundColor:'#7F77DD',borderWidth:0,barPercentage:.6,order:2},
+      {type:'line',label:'总份额',data:ih.map(x=>x.total_yi),
+       borderColor:'#1D4ED8',borderWidth:1.8,pointRadius:2.5,pointBackgroundColor:'#1D4ED8',
+       tension:.15,order:1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+'：'+fmt(c.parsed.y,2)+' 亿份'}}},
+      scales:{
+        x:{ticks:{font:{size:10},color:C_GRAY},grid:{display:false}},
+        y:{position:'left',afterFit:s=>{s.width=54;},
+           title:{display:true,text:'亿份',font:{size:10},color:C_GRAY},
+           ticks:{font:{size:10},color:C_GRAY},grid:{color:'#F5F5F4'}}
+      }}
+  });
+
+  const ins=r.inst.latest;
+  document.getElementById('levelNote').innerHTML=
+    `柱＝机构持有份额，线＝总份额，两者<b>单位相同（亿份）</b>，可以直接比高矮。`+
+    (ins?`　最新一期（${ins.date}）：总份额 ${fmt(ins.total_yi)} 亿份 × 机构占比 ${fmt(ins.inst_pct)}% = <b>${fmt(r.inst.inst_share_yi)} 亿份</b>。`:'')+
+    `<br><span class="mut">机构占比来自半年报，一年只有两个点，所以柱子稀疏；总份额是日频，所以线是连续的。
+      <b>两者时间尺度不同，不要拿某一根柱子去对应某一天的线。</b></span>`;
+
+  // 四象限
+  const q=r.quad, qb=document.getElementById('quadBox');
+  if(!q){ qb.innerHTML='<p class="ps">该标的样本不足 20 日，暂不统计</p>'; return; }
+  const names=['逆势承接','资金追高','获利了结','双杀'];
+  const col=['#3730A3','#92400E','#57534E','#86198F'];
+  const desc=['份额涨、价格跌 — 越跌越买',
+              '份额涨、价格涨 — 追着买',
+              '份额跌、价格涨 — 边涨边卖',
+              '份额跌、价格跌 — 两边都在跑'];
+  qb.innerHTML=`
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:11px;margin-bottom:14px">
+    ${q.pct.map((p,i)=>`<div class="kpi" style="border-left:3px solid ${col[i]}">
+      <div class="k">${names[i]}</div>
+      <div class="v" style="color:${col[i]}">${p}<small>%</small></div>
+      <div class="d">${desc[i]}</div>
+    </div>`).join('')}
+  </div>
+  <div class="tblwrap" style="max-height:none">
+    <table><thead><tr>
+      <th>每年最强的「逆势承接」窗口</th><th class="num">份额变化</th><th class="num">价格变化</th>
+    </tr></thead><tbody>
+    ${q.best.map(b=>`<tr>
+      <td>${b.date}</td>
+      <td class="num up"><b>+${fmt(b.dsh,1)}%</b></td>
+      <td class="num down">${fmt(b.dpr,1)}%</td>
+    </tr>`).join('')||'<tr><td colspan="3" class="mut">区间内未出现份额 +5% 且价格 −3% 的窗口</td></tr>'}
+    </tbody></table>
+  </div>
+  <p class="ps" style="margin-top:11px;line-height:1.8">
+    样本 ${q.n} 个交易日（20 日滚动窗口）。四格加起来 100%。<br>
+    <b>怎么用：</b>如果一只 ETF 的「逆势承接」占比明显偏高（科创50 36%、中证红利 35%），说明它的资金<b>习惯在跌的时候进</b>；
+    反过来「获利了结」占比高（沪深300 36%），说明<b>涨的时候更容易被卖</b>——这不是好坏判断，是这只标的的资金性格。
+  </p>`;
+}
+drawSingle(0);
+
+// ---------- 机构存活率 ----------
+document.querySelector('#tSurv tbody').innerHTML=D.rows.concat(D.thin||[]).map(r=>{
+  const s=r.survival;
+  if(!s) return `<tr><td><span class="cd">${r.code}</span></td><td>${r.name}</td>
+    <td class="num mut">—</td><td class="num">${fmt(r.latest.shares,1)}</td>
+    <td class="num mut">—</td><td class="num mut">—</td>
+    <td class="mut" style="font-size:11px">定期报告未披露足够历史</td></tr>`;
+  const p=s.survival_pct;
+  const cls=p<50?'up':p<100?'':'mut';
+  return `<tr>
+    <td><span class="cd">${r.code}</span></td><td>${r.name}</td>
+    <td class="num">${s.peak_date}　<b>${fmt(s.peak_inst_yi,0)}</b></td>
+    <td class="num"><b>${fmt(s.cur_shares_yi,1)}</b></td>
+    <td class="num ${cls}"><b>${fmt(p,1)}%</b></td>
+    <td class="num ${p<100?'up':'mut'}">${p<100?fmt(s.sold_at_least_pct,1)+'%':'—'}</td>
+    <td style="font-size:11.5px">${s.proof
+      ? `<b class="up">已证明净卖出</b>　当前总量已少于峰值期机构持仓`
+      : s.peak_is_latest
+        ? `<span class="mut">峰值期即最新一期，此证明退化为份额扩张，无信息量</span>`
+        : p>100
+          ? `<span class="mut">份额在扩张，未触及该证明</span>`
+          : `<span class="mut">区间内未跌破峰值持仓</span>`}</td>
+  </tr>`;
+}).join('');
+
+// ---------- 机构基准 ----------
+document.querySelector('#tInst tbody').innerHTML=D.rows.map(r=>{
+  const h=r.inst.history;
+  if(!h.length) return '';
+  const a=h[0], b=h[1];
+  const s=r.inst.scale[0];
+  const d=a.inst_pct-(b?b.inst_pct:0);
+  return `<tr>
+    <td><span class="cd">${r.code}</span></td><td>${r.name}</td><td class="mut">${a.date}</td>
+    <td class="num">${fmt(a.total_yi,2)}</td>
+    <td class="num">${fmt(a.inst_pct,2)}%</td>
+    <td class="num"><b>${fmt(r.inst.inst_share_yi,2)}</b></td>
+    <td class="num ${d>0?'up':d<0?'down':''}">${b?(d>0?'+':'')+fmt(d,2)+'pp':'—'}</td>
+    <td class="num">${s?fmt(s.buy_yi,2):'—'}</td>
+    <td class="num">${s?fmt(s.sell_yi,2):'—'}</td>
+  </tr>`;
+}).join('');
+
+document.getElementById('instCharts').innerHTML=D.rows.map(r=>`
+  <div class="panel"><div class="ph"><div class="pt">${r.name}</div>
+  <div class="ps">机构持有份额（亿份）</div></div>
+  <div class="chartbox" style="height:180px"><canvas id="ic_${r.code}"></canvas></div></div>`).join('') +
+  (D.thin||[]).map(r=>`
+  <div class="panel"><div class="ph"><div class="pt">${r.name}</div>
+  <div class="ps">机构持有份额（亿份）</div></div>
+  <div class="chartbox" style="height:180px"><canvas id="ic_${r.code}"></canvas></div></div>`).join('');
+
+// ⚠ 这 7 张图【故意不加】时间滑条，理由是数据本身没有时间密度：
+//    机构持有比例来自半年报，一年只有 2 个点，全区间一共 8 根柱子。
+//    加滑条把它缩到「近 3 月」，结果是一根柱子 —— 那不是功能，是噪音。
+//    （对比：组合图 1660 个交易日、股息率 712 天，才有可缩放的余地。）
+//    这也是「所有图都加滑条」唯一不该照做的地方，选择在这里写明而不是默默不做。
+
+D.rows.concat(D.thin||[]).forEach(r=>{
+  const h=[...(r.inst.history||[])].reverse();
+  if(!h.length)return;
+  const el=document.getElementById('ic_'+r.code);
+  if(!el)return;
+  new Chart(el,{
+    type:'bar',
+    data:{labels:h.map(x=>x.date.slice(0,7)),datasets:[{
+      label:'机构持有',data:h.map(x=>+(x.total_yi*x.inst_pct/100).toFixed(2)),
+      backgroundColor:'#7F77DD',borderWidth:0,barPercentage:.65}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y,2)+' 亿份'}}},
+      scales:{x:{ticks:{font:{size:10},color:'#A8A29E'},grid:{display:false}},
+        y:{ticks:{font:{size:10},color:'#A8A29E'},grid:{color:'#F5F5F4'}}}}
+  });
+});
+
+// ---------- 个股 ----------
+(function(){
+  const P=S.periods;                    // ['2026-09-30','2026-06-30','2026-03-31','2025-12-31']
+  let curP=0, oldP=2;                   // 默认 Q3 vs Q1：这一对才有信息量
+  const fmtP=d=>d.slice(0,7).replace('-',' Q').replace(' Q0',' Q').replace(' Q1',' Q1');
+
+  function build(){
+    const curDate=P[curP], oldDate=P[oldP];
+    const body=S.holders.map(h=>{
+      const cur=(h.by_period[curDate]||[]), old=(h.by_period[oldDate]||[]);
+      const oldMap={}; old.forEach(x=>oldMap[x.code]=x);
+      const curMap={}; cur.forEach(x=>curMap[x.code]=x);
+
+      const items=cur.map(x=>{
+        const o=oldMap[x.code];
+        let st='不变', d=null;
+        if(!o) st='新进前十';
+        else { d=+(x.shares_yi-o.shares_yi).toFixed(4);
+               st = Math.abs(d)<0.0001?'不变':(d>0?'增持':'减持'); }
+        return {...x, st, d};
+      }).sort((a,b)=>(a.st==='新进前十'?-1:b.st==='新进前十'?1:(b.d||0)-(a.d||0)));
+
+      const exited=old.filter(x=>!curMap[x.code])
+                      .sort((a,b)=>b.shares_yi-a.shares_yi);
+      const nUp=items.filter(x=>x.st==='增持').length;
+      const nDown=items.filter(x=>x.st==='减持').length;
+      const nSame=items.filter(x=>x.st==='不变').length;
+      const nNew=items.filter(x=>x.st==='新进前十').length;
+
+      // 只数变化才是这个模块最该看的东西
+      const deltaCnt=cur.length-old.length;
+      const headline = deltaCnt===0
+        ? `<span class="mut">只数不变（${cur.length} 只），以下为逐股变动</span>`
+        : `<b class="up">${old.length} 只 → ${cur.length} 只</b>　`
+          + `<span class="mut">净${deltaCnt<0?'减少':'增加'} ${Math.abs(deltaCnt)} 只</span>`;
+
+      const rowsHtml=items.map(x=>{
+        const tc={'增持':'t-hi','减持':'t-lo','不变':'t-mid','新进前十':'t-lo'}[x.st];
+        return `<tr><td><span class="cd">${x.code}</span> ${x.name}</td>
+          <td class="num">${fmt(x.shares_yi,2)}</td>
+          <td class="num">${x.ratio!=null?fmt(x.ratio,2)+'%':'—'}</td>
+          <td><span class="tag ${tc}">${x.st}</span></td>
+          <td class="num ${x.d>0?'up':x.d<0?'down':'mut'}">${x.d!=null?((x.d>0?'+':'')+fmt(x.d,2)):'—'}</td></tr>`;
+      }).join('');
+
+      // 退出列表：这是重点，不折叠成一行字
+      const exHtml = exited.length ? `
+        <div style="margin-top:12px;border:1px solid #FCD34D;background:#FFFBEB;border-radius:8px;padding:11px 13px">
+          <div style="font-size:12px;font-weight:600;color:#92400E;margin-bottom:7px">
+            退出前十 ${exited.length} 只　
+            <span style="font-weight:400">（上期在前十、本期已不在。<b>不等于清仓</b>——季报只披露前十大，跌出前十就看不见了）</span>
+          </div>
+          <details open>
+            <summary style="font-size:11.5px;color:#B45309">按上期持股量排序，前 60 只列明细（共 ${exited.length} 只）</summary>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
+              ${exited.slice(0,60).map((e,i)=>`<span style="font-size:11px;background:#fff;border:1px solid #FDE68A;
+                border-radius:4px;padding:2px 6px;color:#78350F">${e.code} ${e.name}
+                <b style="color:#92400E">${fmt(e.shares_yi,2)}</b></span>`).join('')}
+              ${exited.length>60?`<span style="font-size:11px;color:#92400E">…等共 ${exited.length} 只</span>`:''}
+            </div>
+          </details>
+        </div>` : '';
+
+      return `<div class="panel"><div class="ph">
+        <div class="pt">${h.short} <span style="font-weight:400;color:#A8A29E;font-size:12px">${h.name}</span></div>
+        <div class="ps">${headline}</div>
+      </div>
+      <div class="ps" style="margin-bottom:10px">${h.desc}</div>
+      <div style="font-size:11.5px;color:var(--tx2);margin-bottom:8px">
+        增持 <b class="up">${nUp}</b>　减持 <b class="down">${nDown}</b>　
+        不变 <b>${nSame}</b>　新进前十 <b>${nNew}</b>　退出前十 <b class="down">${exited.length}</b>
+      </div>
+      <div class="tblwrap" style="max-height:${Math.min(420, 90+items.length*33)}px"><table>
+        <thead><tr><th>股票</th><th class="num">持股（亿股）</th><th class="num">占流通股</th>
+        <th>环比状态</th><th class="num">增减（亿股）</th></tr></thead>
+        <tbody>${rowsHtml}</tbody></table></div>
+      ${exHtml}</div>`;
+    }).join('');
+
+    document.getElementById('stockBody').innerHTML=`
+      <div class="panel"><div class="ph">
+        <div class="pt">选两期对比</div>
+        <div class="ps">季报只披露前十大流通股东，所以「只数」本身就是一个信号</div>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:12.5px">
+        <label>本期　<select id="selCur">${P.map((d,i)=>`<option value="${i}" ${i===curP?'selected':''}>${d}</option>`).join('')}</select></label>
+        <span class="mut">对比</span>
+        <label>上期　<select id="selOld">${P.map((d,i)=>`<option value="${i}" ${i===oldP?'selected':''}>${d}</option>`).join('')}</select></label>
+        <span class="mut" style="font-size:11.5px">默认 Q3 对 Q1 — 这两期才有变化，Q3 对 Q2 会全是「不变」</span>
+      </div></div>` + body;
+
+    document.getElementById('selCur').onchange=e=>{curP=+e.target.value; build();};
+    document.getElementById('selOld').onchange=e=>{oldP=+e.target.value; build();};
+  }
+  build();
+})();
+
+
+// ---------- 股息率 ----------
+(function(){
+  const st={'已达买入线':'t-lo','已达卖出线':'t-hi','接近买入线':'t-mid'};
+  let sel=0, dc=null, dp=null;
+  const dSubs=[];   // 股息率两张图对 DVIEW 的订阅（换标的时要解绑）
+  const rows=V.rows;
+  const kpi=[
+    {k:'监控标的',v:rows.length,u:'只'},
+    {k:'已达买入线',v:rows.filter(r=>r.latest.state==='已达买入线').length,u:'只'},
+    {k:'接近买入线',v:rows.filter(r=>r.latest.state==='接近买入线').length,u:'只'},
+    {k:'平均股息率',v:(rows.reduce((a,r)=>a+(r.latest.dy||0),0)/rows.length).toFixed(2),u:'%'},
+  ];
+  document.getElementById('diviBody').innerHTML=`
+  <div class="kpis">${kpi.map(x=>`<div class="kpi"><div class="k">${x.k}</div>
+    <div class="v">${x.v}<small>${x.u}</small></div></div>`).join('')}</div>
+
+  <div class="panel">
+    <div class="ph"><div class="pt">股息率与买卖线</div>
+      <div class="ps">分位 = 当前股息率在过去两年分布中的位置，越低越便宜（股息率越高）</div></div>
+    <div class="tblwrap"><table><thead><tr>
+      <th>名称</th><th>代码</th><th class="num">股息率</th><th class="num">买入线</th>
+      <th class="num">卖出线</th><th class="num">距买入线</th><th class="num">两年分位</th>
+      <th class="num">两年区间</th><th>状态</th>
+    </tr></thead><tbody>
+    ${rows.map((r,i)=>{const L=r.latest;
+      return `<tr style="cursor:pointer" data-i="${i}">
+        <td>${r.name}</td><td class="cd">${r.code}</td>
+        <td class="num"><b>${fmt(L.dy,2)}%</b></td>
+        <td class="num mut">${r.buy==null?'—':fmt(r.buy,1)}</td>
+        <td class="num mut">${r.sell==null?'—':fmt(r.sell,1)}</td>
+        <td class="num ${L.gap_to_buy>0?'':'down'}">${L.gap_to_buy==null?'—':(L.gap_to_buy>0?'+':'')+fmt(L.gap_to_buy,2)}</td>
+        <td class="num ${L.dy_pct_rank<30?'up':''}">${L.dy_pct_rank==null?'—':fmt(L.dy_pct_rank,0)+'%'}</td>
+        <td class="num mut" style="font-size:11px">${fmt(L.dy_min,2)}–${fmt(L.dy_max,2)}%</td>
+        <td><span class="tag ${st[L.state]||'t-mid'}">${L.state}</span></td>
+      </tr>`}).join('')}
+    </tbody></table></div>
+  </div>
+
+  <div class="panel">
+    <div class="ph"><div class="pt" id="dTitle">—</div>
+      <div class="ps" id="dPair">—</div></div>
+    <div class="chartbox" style="height:186px"><canvas id="dChart"></canvas></div>
+    <div style="height:6px"></div>
+    <div class="chartbox" style="height:120px"><canvas id="dPriceChart"></canvas></div>
+    <div id="tsDivi"></div>
+    <div class="ps" style="margin-top:10px;line-height:1.75" id="dNote"></div>
+  </div>
+
+  <div class="panel"><div class="ph"><div class="pt">口径（这段很重要，别跳过）</div></div>
+  <p style="font-size:12.5px;line-height:1.9;color:var(--tx2)">
+  <b>股息率 = 年化每股分红 ÷ 股价</b>，其中年化每股分红 = 最近一个完整财年的两次派息之和，<b>按报告期配对</b>。<br><br>
+  <b>为什么不能按「近 12 个月除权日求和」：</b>2025 年起银行改成「中期 + 年度」两次派息，12 个月窗口会装进 3 次。
+  实测工商银行按除权日求和得 0.4614 元 → 5.37%，按报告期配对是 0.1689 + 0.1511 = 0.3200 元 → 3.73%。后者才是年化。<br><br>
+  <b>历史曲线没有未来函数：</b>不是拿今天的分红回填 2024 年，而是对每个历史日期，只用那天已经除权的分红重新配对。
+  所以曲线上的每一次跳变，都对应一次真实的除权事件。<br><br>
+  本站 11 只标的的当前股息率与你本地 <code>alert_my_dividend</code> 的缓存一致，最大偏差 0.05 个百分点（价差来自盘中/收盘价不同）。
+  </p></div>`;
+  function drawDivi(i){
+    sel=i; const r=rows[i], L=r.latest;
+    document.getElementById('dTitle').textContent=`${r.code} ${r.name}　股息率 ${fmt(L.dy,2)}%`;
+    document.getElementById('dPair').textContent=`当前年化分红 ${fmt(L.dps,4)} 元（${L.pair||'—'}）　股价 ${fmt(L.price,2)} 元`;
+    if(dc){dc.destroy();dc=null;}
+    if(dp){dp.destroy();dp=null;}
+    // 股息率（约 3–6%）与股价（10–100 元）曾叠在一张双轴图上。
+    // 最要命的不是读数对不上，是「买入线 / 卖出线」这两条决策线 ——
+    // 它们属于左边的股息率刻度，一旦右轴也画着股价，会让人误以为买卖点和股价是同一件事。
+    // 拆成两张：上＝股息率与决策线（同一把尺），下＝股价（另一把尺，单独读）。
+    const sets=[{type:'line',label:'股息率（%）',data:r.dy,
+      borderColor:'#B45309',backgroundColor:'rgba(180,83,9,.07)',borderWidth:1.8,
+      pointRadius:0,fill:true,tension:.1}];
+    if(r.buy!=null) sets.push({type:'line',label:`买入线 ${r.buy}%`,data:r.dy.map(()=>r.buy),
+      borderColor:'#16A34A',borderWidth:1,pointRadius:0,borderDash:[5,4]});
+    if(r.sell!=null) sets.push({type:'line',label:`卖出线 ${r.sell}%`,data:r.dy.map(()=>r.sell),
+      borderColor:'#DC2626',borderWidth:1,pointRadius:0,borderDash:[5,4]});
+    dc=new Chart(document.getElementById('dChart'),{
+      data:{labels:r.dates,datasets:sets},
+      options:{responsive:true,maintainAspectRatio:false,animation:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:true,position:'top',align:'end',
+          labels:{boxWidth:10,boxHeight:2,font:{size:10},color:'#57534E',usePointStyle:false}}},
+        scales:{x:yearAxis(r.dates,{ticks:{display:false}}),
+          y:{position:'left',afterFit:s=>{s.width=54},
+             title:{display:true,text:'股息率 %',font:{size:10},color:'#B45309'},
+             ticks:{font:{size:10},color:C_GRAY,callback:v=>v+'%'},grid:{color:'#F5F5F4'}}}}
+    });
+    dp=new Chart(document.getElementById('dPriceChart'),{
+      type:'line',
+      data:{labels:r.dates,datasets:[{label:'股价',data:r.price,
+        borderColor:'#1D4ED8',backgroundColor:'rgba(29,78,216,.05)',borderWidth:1.3,
+        pointRadius:0,fill:true,tension:.1}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false},
+          tooltip:{callbacks:{label:c=>'股价：'+fmt(c.parsed.y,2)+' 元'}}},
+        scales:{x:yearAxis(r.dates),
+          y:{position:'left',afterFit:s=>{s.width=54},
+             title:{display:true,text:'股价 元',font:{size:10},color:'#1D4ED8'},
+             ticks:{font:{size:10},color:C_GRAY,callback:v=>Number(v).toFixed(1)},
+             grid:{color:'#F5F5F4'}}}}
+    });
+    document.getElementById('dNote').innerHTML=
+      `两年区间 ${fmt(L.dy_min,2)}% ~ ${fmt(L.dy_max,2)}%，当前 ${fmt(L.dy,2)}% 处于第 <b>${fmt(L.dy_pct_rank,0)}</b> 百分位。`+
+      (L.gap_to_buy>0?`距买入线还差 <b>${fmt(L.gap_to_buy,2)}</b> 个百分点（约需股价再跌 ${fmt((1-(L.gap_to_buy+L.dy)/L.dy)*100,1).replace('-','')}% 或分红提升）。`:'');
+
+    // 股息率上下两张图共用同一条日期轴，所以共用一条滑条、同步缩放 ——
+    // 否则「上面某天的股息率」对不上「下面同一天的股价」，两张图就白拼在一起了。
+    while(dSubs.length) unbind(dSubs.pop());
+    DVIEW.a=0; DVIEW.b=r.dates.length-1; DVIEW.n=r.dates.length;
+    dSubs.push(bindZoom(dc,r.dates,DVIEW), bindZoom(dp,r.dates,DVIEW));
+    buildTimeSlider(document.getElementById('tsDivi'),r.dates,null,DVIEW);
+  }
+  document.getElementById('diviBody').addEventListener('click',e=>{
+    const tr=e.target.closest('tr[data-i]');
+    if(tr) drawDivi(+tr.dataset.i);
+  });
+  drawDivi(0);
+})();
+
+// ---------- tab ----------
+function showPane(name){
+  const b=[...document.querySelectorAll('nav button')].find(x=>x.dataset.pane===name);
+  if(!b) return;
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  document.getElementById('pane-'+name).classList.add('on');
+  Object.values(charts).forEach(c=>c.resize&&c.resize());
+}
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick=()=>showPane(b.dataset.pane);
+});
+// 支持 #divi 这类直链，方便分享到某一页
+if(location.hash) showPane(location.hash.slice(1));
+
+// ── 装到桌面：自绘按钮 ───────────────────────────────────────────
+// 为什么不用「等浏览器自己弹」：
+//   Chrome 的自动提示受 engagement heuristic 约束 —— 用户得在页面上交互过一小段时间
+//   才会弹。第一次打开、看一眼就退出，一辈子不会弹。
+//   自己画的按钮不受这个延迟限制：浏览器一触发 beforeinstallprompt 就存下来，
+//   点按钮即装。
+//
+// ⚠ 三种状态要分开处理，否则按钮会变成永远点不动的假按钮：
+//   ① 已经在独立窗口里跑（已装）→ 整个条不显示
+//   ② Chrome 触发了 beforeinstallprompt → 显示真按钮，点了弹系统安装框
+//   ③ 小米浏览器 / 微信内置 / iOS 等不支持的环境 → 显示「怎么加」的文字说明，
+//      不给按钮（给按钮点了没反应，比不给更糟）
+(function(){
+  const bar = document.getElementById('installBar');
+  const btn = document.getElementById('installBtn');
+  const tip = document.getElementById('installTip');
+  const close = document.getElementById('installClose');
+  if(!bar) return;
+
+  // 已装：独立窗口（Android/桌面）或 iOS 的主屏模式
+  const standalone = window.matchMedia('(display-mode: standalone)').matches
+                  || window.matchMedia('(display-mode: minimal-ui)').matches
+                  || navigator.standalone === true;
+  if(standalone) return;
+
+  // 只在手机上提示。桌面浏览器打开这页时整条不显示 ——
+  // 这条提示对桌面用户是纯噪声（他本来就没有「桌面」可加），
+  // 而这个页面的主要读法是在手机上随手看一眼。
+  // ⚠ 判据用「触摸 + 窄屏」而不是只看宽度：iPad 横屏 1024px 也该显示，
+  //   而桌面把窗口拖窄到 400px 也不该显示。
+  const touch = matchMedia('(pointer: coarse)').matches
+             || (navigator.maxTouchPoints || 0) > 0;
+  if(!touch && innerWidth > 820) return;
+
+  // 用户点过「以后再说」，本次会话不再打扰。不写 localStorage：
+  // 手机上这页是「装到桌面天天看」的东西，写死了以后就再也不会提示。
+  let deferred = null, dismissed = false;
+
+  function paint(mode){
+    if(dismissed) { bar.style.display='none'; return; }
+    bar.style.display='flex';
+    if(mode === 'prompt'){
+      btn.style.display='inline-block';
+      tip.textContent = '装到桌面，下次一点就开，没有地址栏';
+    } else {
+      btn.style.display='none';
+      // 环境不支持安装时，给一句能照做的话，而不是一句「不支持」
+      // ⚠ 每句都要短。手机上这条最多占 ~56px（一行标题 + 一行说明），
+      //   实测两行说明会把条撑到 91px，把首屏内容整个推下去。
+      const ua = navigator.userAgent;
+      if(/MicroMessenger/i.test(ua)){
+        tip.innerHTML = '微信里装不了，点 <b>···</b> → 在浏览器打开';
+      } else if(/MiuiBrowser|XiaoMi/i.test(ua)){
+        tip.innerHTML = '点 <b>⋮</b> → 工具箱 → 添加快捷方式 → 选<b>「手机桌面」</b>';
+      } else {
+        tip.innerHTML = '点浏览器菜单 → <b>添加到主屏幕</b>';
+      }
+    }
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();          // 拦下 Chrome 的默认小条，改用自己的按钮
+    deferred = e;
+    paint('prompt');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferred = null;
+    dismissed = true;
+    bar.style.display = 'none';
+  });
+
+  btn.onclick = async () => {
+    if(!deferred) return;
+    deferred.prompt();
+    const { outcome } = await deferred.userChoice;
+    deferred = null;
+    if(outcome === 'accepted'){ dismissed = true; bar.style.display='none'; }
+    else { bar.style.display='none'; }   // 用户拒绝，本次不再显示
+  };
+
+  // 兜底：不是所有浏览器都会触发 beforeinstallprompt（小米浏览器就不会）。
+  // ⚠ 这里踩过一次：原本写成「先藏着，等 900ms 没事件再显示文字说明」，
+  //   结果是打开页面先空 900ms，然后整块内容猛地往下跳 56px —— 比闪一下难受得多。
+  //   改成【一开始就显示中性文案】：盒子立刻占位、高度固定，
+  //   后面无论升级成按钮还是换成环境说明，都只是换文字，不产生位移。
+  paint('text');
+  // 1.5 秒还没事件，才把「中性文案」换成「你这个浏览器该点哪里」。
+  // ⚠ 用 1.5s 不是 900ms：Chrome 触发事件常在 1s 上下，太早换会先显示
+  //   「点菜单添加」再变成按钮，读起来像自相矛盾。
+  setTimeout(() => { if(!deferred) paint('text'); }, 1500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,4823 @@
+{
+ "updated_at": "2026-11-10 17:35",
+ "periods": [
+  "2026-09-30",
+  "2026-06-30",
+  "2026-03-31",
+  "2025-12-31"
+ ],
+ "holders": [
+  {
+   "name": "中央汇金投资有限责任公司",
+   "short": "汇金投资",
+   "desc": "汇金公司本部，主要持有四大行等系统性重要机构",
+   "by_period": {
+    "2026-09-30": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 1887.9191,
+      "ratio": 64.13,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 1428.5789,
+      "ratio": 57.141,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 1404.8881,
+      "ratio": 40.142,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 1240.0466,
+      "ratio": 34.793,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000166",
+      "name": "申万宏源",
+      "shares_yi": 50.2061,
+      "ratio": 20.051,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601066",
+      "name": "中信建投",
+      "shares_yi": 23.8605,
+      "ratio": 30.761,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601995",
+      "name": "中金公司",
+      "shares_yi": 19.3616,
+      "ratio": 40.109,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601336",
+      "name": "新华保险",
+      "shares_yi": 9.7753,
+      "ratio": 31.336,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ],
+    "2026-06-30": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 1887.9191,
+      "ratio": 64.13,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 1428.5789,
+      "ratio": 57.141,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 1404.8881,
+      "ratio": 40.142,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 1240.0466,
+      "ratio": 34.793,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000166",
+      "name": "申万宏源",
+      "shares_yi": 50.2061,
+      "ratio": 20.051,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601066",
+      "name": "中信建投",
+      "shares_yi": 23.8605,
+      "ratio": 30.761,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601995",
+      "name": "中金公司",
+      "shares_yi": 19.3616,
+      "ratio": 40.109,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601336",
+      "name": "新华保险",
+      "shares_yi": 9.7753,
+      "ratio": 31.336,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ],
+    "2026-03-31": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 1887.9191,
+      "ratio": 64.13,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 1428.5789,
+      "ratio": 57.141,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 1404.8881,
+      "ratio": 40.142,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 1240.0466,
+      "ratio": 34.793,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000166",
+      "name": "申万宏源",
+      "shares_yi": 50.2061,
+      "ratio": 20.051,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601066",
+      "name": "中信建投",
+      "shares_yi": 23.8605,
+      "ratio": 30.761,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601995",
+      "name": "中金公司",
+      "shares_yi": 19.3616,
+      "ratio": 40.109,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601336",
+      "name": "新华保险",
+      "shares_yi": 9.7753,
+      "ratio": 31.336,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ],
+    "2025-12-31": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 1887.9191,
+      "ratio": 64.13,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 1428.5789,
+      "ratio": 57.141,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 1404.8881,
+      "ratio": 40.142,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 1240.0466,
+      "ratio": 34.793,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000166",
+      "name": "申万宏源",
+      "shares_yi": 50.2061,
+      "ratio": 20.051,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601066",
+      "name": "中信建投",
+      "shares_yi": 23.8605,
+      "ratio": 30.761,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601995",
+      "name": "中金公司",
+      "shares_yi": 19.3616,
+      "ratio": 40.109,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601336",
+      "name": "新华保险",
+      "shares_yi": 9.7753,
+      "ratio": 31.336,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ]
+   },
+   "latest": {
+    "period": "2026-09-30",
+    "count": 8,
+    "total_yi": 6064.64
+   }
+  },
+  {
+   "name": "中央汇金资产管理有限责任公司",
+   "short": "汇金资管",
+   "desc": "汇金的全资子公司，持股更分散，含建筑、保险等",
+   "by_period": {
+    "2026-09-30": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 18.1002,
+      "ratio": 0.615,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 12.5543,
+      "ratio": 0.359,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 10.1392,
+      "ratio": 0.284,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601668",
+      "name": "中国建筑",
+      "shares_yi": 5.8333,
+      "ratio": 1.412,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 4.9664,
+      "ratio": 0.199,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601318",
+      "name": "中国平安",
+      "shares_yi": 4.703,
+      "ratio": 2.597,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601998",
+      "name": "中信银行",
+      "shares_yi": 2.6714,
+      "ratio": 0.48,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601390",
+      "name": "中国中铁",
+      "shares_yi": 2.3044,
+      "ratio": 0.939,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600015",
+      "name": "华夏银行",
+      "shares_yi": 1.6336,
+      "ratio": 1.062,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601186",
+      "name": "中国铁建",
+      "shares_yi": 1.3852,
+      "ratio": 1.02,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601628",
+      "name": "中国人寿",
+      "shares_yi": 1.1717,
+      "ratio": 0.415,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600104",
+      "name": "上汽集团",
+      "shares_yi": 0.9859,
+      "ratio": 0.858,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000333",
+      "name": "美的集团",
+      "shares_yi": 0.8826,
+      "ratio": 1.171,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002142",
+      "name": "宁波银行",
+      "shares_yi": 0.755,
+      "ratio": 1.144,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600585",
+      "name": "海螺水泥",
+      "shares_yi": 0.6877,
+      "ratio": 1.303,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000895",
+      "name": "双汇发展",
+      "shares_yi": 0.309,
+      "ratio": 0.892,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601336",
+      "name": "新华保险",
+      "shares_yi": 0.2825,
+      "ratio": 0.906,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ],
+    "2026-06-30": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 18.1002,
+      "ratio": 0.615,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 12.5543,
+      "ratio": 0.359,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 10.1392,
+      "ratio": 0.284,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601668",
+      "name": "中国建筑",
+      "shares_yi": 5.8333,
+      "ratio": 1.412,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 4.9664,
+      "ratio": 0.199,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601318",
+      "name": "中国平安",
+      "shares_yi": 4.703,
+      "ratio": 2.597,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601998",
+      "name": "中信银行",
+      "shares_yi": 2.6714,
+      "ratio": 0.48,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601390",
+      "name": "中国中铁",
+      "shares_yi": 2.3044,
+      "ratio": 0.939,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600015",
+      "name": "华夏银行",
+      "shares_yi": 1.6336,
+      "ratio": 1.062,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601186",
+      "name": "中国铁建",
+      "shares_yi": 1.3852,
+      "ratio": 1.02,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601628",
+      "name": "中国人寿",
+      "shares_yi": 1.1717,
+      "ratio": 0.415,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600104",
+      "name": "上汽集团",
+      "shares_yi": 0.9859,
+      "ratio": 0.858,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000333",
+      "name": "美的集团",
+      "shares_yi": 0.8826,
+      "ratio": 1.175,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002142",
+      "name": "宁波银行",
+      "shares_yi": 0.755,
+      "ratio": 1.144,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600585",
+      "name": "海螺水泥",
+      "shares_yi": 0.6877,
+      "ratio": 1.298,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000895",
+      "name": "双汇发展",
+      "shares_yi": 0.309,
+      "ratio": 0.892,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601336",
+      "name": "新华保险",
+      "shares_yi": 0.2825,
+      "ratio": 0.906,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ],
+    "2026-03-31": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 18.1002,
+      "ratio": 0.615,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 12.5543,
+      "ratio": 0.359,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 10.1392,
+      "ratio": 0.284,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601668",
+      "name": "中国建筑",
+      "shares_yi": 5.8333,
+      "ratio": 1.412,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 4.9664,
+      "ratio": 0.199,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601318",
+      "name": "中国平安",
+      "shares_yi": 4.703,
+      "ratio": 2.597,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600028",
+      "name": "中国石化",
+      "shares_yi": 3.1522,
+      "ratio": 0.266,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601868",
+      "name": "中国能建",
+      "shares_yi": 3.0659,
+      "ratio": 0.735,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601766",
+      "name": "中国中车",
+      "shares_yi": 2.9806,
+      "ratio": 1.039,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601998",
+      "name": "中信银行",
+      "shares_yi": 2.6714,
+      "ratio": 0.48,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601390",
+      "name": "中国中铁",
+      "shares_yi": 2.3044,
+      "ratio": 0.933,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600795",
+      "name": "国电电力",
+      "shares_yi": 2.0938,
+      "ratio": 1.174,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600030",
+      "name": "中信证券",
+      "shares_yi": 2.0515,
+      "ratio": 1.386,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601857",
+      "name": "中国石油",
+      "shares_yi": 2.017,
+      "ratio": 0.11,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601006",
+      "name": "大秦铁路",
+      "shares_yi": 1.9989,
+      "ratio": 0.992,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600019",
+      "name": "宝钢股份",
+      "shares_yi": 1.9012,
+      "ratio": 0.873,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000002",
+      "name": "万科A",
+      "shares_yi": 1.8548,
+      "ratio": 1.556,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200002",
+      "name": "万科B",
+      "shares_yi": 1.8548,
+      "ratio": 1.556,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600048",
+      "name": "保利发展",
+      "shares_yi": 1.7582,
+      "ratio": 1.469,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600015",
+      "name": "华夏银行",
+      "shares_yi": 1.6336,
+      "ratio": 1.062,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "300059",
+      "name": "东方财富",
+      "shares_yi": 1.5175,
+      "ratio": 1.138,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600808",
+      "name": "马钢股份",
+      "shares_yi": 1.3917,
+      "ratio": 1.807,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601186",
+      "name": "中国铁建",
+      "shares_yi": 1.3852,
+      "ratio": 1.02,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601901",
+      "name": "方正证券",
+      "shares_yi": 1.3578,
+      "ratio": 1.649,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601628",
+      "name": "中国人寿",
+      "shares_yi": 1.1717,
+      "ratio": 0.415,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601669",
+      "name": "中国电建",
+      "shares_yi": 1.098,
+      "ratio": 0.84,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601088",
+      "name": "中国神华",
+      "shares_yi": 1.0608,
+      "ratio": 0.534,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600104",
+      "name": "上汽集团",
+      "shares_yi": 0.9859,
+      "ratio": 0.858,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601800",
+      "name": "中国交建",
+      "shares_yi": 0.9599,
+      "ratio": 0.593,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601000",
+      "name": "唐山港",
+      "shares_yi": 0.918,
+      "ratio": 1.549,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600026",
+      "name": "中远海能",
+      "shares_yi": 0.9074,
+      "ratio": 1.902,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601012",
+      "name": "隆基绿能",
+      "shares_yi": 0.9025,
+      "ratio": 1.191,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000333",
+      "name": "美的集团",
+      "shares_yi": 0.8826,
+      "ratio": 1.176,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000898",
+      "name": "鞍钢股份",
+      "shares_yi": 0.8365,
+      "ratio": 0.893,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600406",
+      "name": "国电南瑞",
+      "shares_yi": 0.7641,
+      "ratio": 0.954,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600027",
+      "name": "华电国际",
+      "shares_yi": 0.7625,
+      "ratio": 0.697,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002142",
+      "name": "宁波银行",
+      "shares_yi": 0.755,
+      "ratio": 1.144,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600585",
+      "name": "海螺水泥",
+      "shares_yi": 0.6877,
+      "ratio": 1.298,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000728",
+      "name": "国元证券",
+      "shares_yi": 0.6798,
+      "ratio": 1.558,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601898",
+      "name": "中煤能源",
+      "shares_yi": 0.6575,
+      "ratio": 0.496,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600325",
+      "name": "华发股份",
+      "shares_yi": 0.6483,
+      "ratio": 2.356,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002415",
+      "name": "海康威视",
+      "shares_yi": 0.647,
+      "ratio": 0.715,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000031",
+      "name": "大悦城",
+      "shares_yi": 0.6448,
+      "ratio": 1.504,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600031",
+      "name": "三一重工",
+      "shares_yi": 0.6424,
+      "ratio": 0.699,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601018",
+      "name": "宁波港",
+      "shares_yi": 0.627,
+      "ratio": 0.322,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600522",
+      "name": "中天科技",
+      "shares_yi": 0.6095,
+      "ratio": 1.786,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002475",
+      "name": "立讯精密",
+      "shares_yi": 0.5804,
+      "ratio": 0.798,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600017",
+      "name": "日照港",
+      "shares_yi": 0.5667,
+      "ratio": 1.842,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600812",
+      "name": "华北制药",
+      "shares_yi": 0.5492,
+      "ratio": 3.201,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600170",
+      "name": "上海建工",
+      "shares_yi": 0.528,
+      "ratio": 0.594,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000598",
+      "name": "兴蓉环境",
+      "shares_yi": 0.5277,
+      "ratio": 1.771,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000402",
+      "name": "金融街",
+      "shares_yi": 0.5178,
+      "ratio": 1.733,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002500",
+      "name": "山西证券",
+      "shares_yi": 0.517,
+      "ratio": 1.44,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000563",
+      "name": "陕国投A",
+      "shares_yi": 0.5097,
+      "ratio": 0.997,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600642",
+      "name": "申能股份",
+      "shares_yi": 0.5005,
+      "ratio": 1.023,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600252",
+      "name": "中恒集团",
+      "shares_yi": 0.4978,
+      "ratio": 1.563,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000652",
+      "name": "泰达股份",
+      "shares_yi": 0.4895,
+      "ratio": 3.32,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000900",
+      "name": "现代投资",
+      "shares_yi": 0.4715,
+      "ratio": 3.107,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600674",
+      "name": "川投能源",
+      "shares_yi": 0.4636,
+      "ratio": 0.951,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000883",
+      "name": "湖北能源",
+      "shares_yi": 0.4622,
+      "ratio": 0.713,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600064",
+      "name": "南京高科",
+      "shares_yi": 0.4618,
+      "ratio": 2.669,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002153",
+      "name": "石基信息",
+      "shares_yi": 0.4492,
+      "ratio": 2.808,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000063",
+      "name": "中兴通讯",
+      "shares_yi": 0.4217,
+      "ratio": 0.882,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600895",
+      "name": "张江高科",
+      "shares_yi": 0.4012,
+      "ratio": 2.591,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000686",
+      "name": "东北证券",
+      "shares_yi": 0.401,
+      "ratio": 1.713,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000858",
+      "name": "五粮液",
+      "shares_yi": 0.3933,
+      "ratio": 1.013,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600376",
+      "name": "首开股份",
+      "shares_yi": 0.3841,
+      "ratio": 1.489,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600717",
+      "name": "天津港",
+      "shares_yi": 0.3533,
+      "ratio": 1.221,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000030",
+      "name": "富奥股份",
+      "shares_yi": 0.3426,
+      "ratio": 1.993,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200030",
+      "name": "富奥B",
+      "shares_yi": 0.3426,
+      "ratio": 1.993,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600021",
+      "name": "上海电力",
+      "shares_yi": 0.3387,
+      "ratio": 1.201,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600637",
+      "name": "东方明珠",
+      "shares_yi": 0.3375,
+      "ratio": 1.004,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600435",
+      "name": "北方导航",
+      "shares_yi": 0.3344,
+      "ratio": 2.211,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002073",
+      "name": "软控股份",
+      "shares_yi": 0.3325,
+      "ratio": 3.28,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000541",
+      "name": "佛山照明",
+      "shares_yi": 0.3316,
+      "ratio": 2.174,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200541",
+      "name": "粤照明B",
+      "shares_yi": 0.3316,
+      "ratio": 2.174,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000631",
+      "name": "顺发恒能",
+      "shares_yi": 0.3189,
+      "ratio": 1.387,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601666",
+      "name": "平煤股份",
+      "shares_yi": 0.3176,
+      "ratio": 1.286,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000895",
+      "name": "双汇发展",
+      "shares_yi": 0.309,
+      "ratio": 0.892,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002277",
+      "name": "友阿股份",
+      "shares_yi": 0.3085,
+      "ratio": 2.213,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600056",
+      "name": "中国医药",
+      "shares_yi": 0.3051,
+      "ratio": 2.041,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600261",
+      "name": "阳光照明",
+      "shares_yi": 0.3024,
+      "ratio": 2.265,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600120",
+      "name": "浙江东方",
+      "shares_yi": 0.3013,
+      "ratio": 0.882,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600037",
+      "name": "歌华有线",
+      "shares_yi": 0.2987,
+      "ratio": 2.146,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600657",
+      "name": "信达地产",
+      "shares_yi": 0.2983,
+      "ratio": 1.046,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600757",
+      "name": "长江传媒",
+      "shares_yi": 0.2914,
+      "ratio": 2.401,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002244",
+      "name": "滨江集团",
+      "shares_yi": 0.2845,
+      "ratio": 1.032,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601336",
+      "name": "新华保险",
+      "shares_yi": 0.2825,
+      "ratio": 0.906,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601139",
+      "name": "深圳燃气",
+      "shares_yi": 0.2746,
+      "ratio": 0.955,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000685",
+      "name": "中山公用",
+      "shares_yi": 0.2692,
+      "ratio": 2.147,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601158",
+      "name": "重庆水务",
+      "shares_yi": 0.2639,
+      "ratio": 0.55,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600578",
+      "name": "京能电力",
+      "shares_yi": 0.2606,
+      "ratio": 0.389,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000600",
+      "name": "建投能源",
+      "shares_yi": 0.2359,
+      "ratio": 2.164,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600851",
+      "name": "海欣股份",
+      "shares_yi": 0.226,
+      "ratio": 1.872,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "900917",
+      "name": "海欣B股",
+      "shares_yi": 0.226,
+      "ratio": 1.872,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601010",
+      "name": "ST文峰",
+      "shares_yi": 0.2195,
+      "ratio": 1.188,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002396",
+      "name": "星网锐捷",
+      "shares_yi": 0.2094,
+      "ratio": 3.589,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600787",
+      "name": "中储股份",
+      "shares_yi": 0.2063,
+      "ratio": 0.951,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000726",
+      "name": "鲁泰A",
+      "shares_yi": 0.1988,
+      "ratio": 2.439,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200726",
+      "name": "鲁泰B",
+      "shares_yi": 0.1988,
+      "ratio": 2.439,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600284",
+      "name": "浦东建设",
+      "shares_yi": 0.1983,
+      "ratio": 2.044,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600663",
+      "name": "陆家嘴",
+      "shares_yi": 0.1973,
+      "ratio": 0.464,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "900932",
+      "name": "陆家B股",
+      "shares_yi": 0.1973,
+      "ratio": 0.464,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600009",
+      "name": "上海机场",
+      "shares_yi": 0.1882,
+      "ratio": 0.92,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000997",
+      "name": "新大陆",
+      "shares_yi": 0.1852,
+      "ratio": 1.839,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000061",
+      "name": "农产品",
+      "shares_yi": 0.1843,
+      "ratio": 1.027,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600557",
+      "name": "康缘药业",
+      "shares_yi": 0.1789,
+      "ratio": 3.159,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600826",
+      "name": "兰生股份",
+      "shares_yi": 0.178,
+      "ratio": 2.42,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600633",
+      "name": "浙数文化",
+      "shares_yi": 0.1755,
+      "ratio": 1.384,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000823",
+      "name": "超声电子",
+      "shares_yi": 0.1693,
+      "ratio": 3.153,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000538",
+      "name": "云南白药",
+      "shares_yi": 0.1662,
+      "ratio": 0.937,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600894",
+      "name": "广日股份",
+      "shares_yi": 0.1628,
+      "ratio": 1.931,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000006",
+      "name": "深振业A",
+      "shares_yi": 0.1605,
+      "ratio": 1.189,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002267",
+      "name": "陕天然气",
+      "shares_yi": 0.1575,
+      "ratio": 1.417,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601801",
+      "name": "皖新传媒",
+      "shares_yi": 0.1567,
+      "ratio": 0.8,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600750",
+      "name": "华润江中",
+      "shares_yi": 0.1555,
+      "ratio": 2.474,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600736",
+      "name": "苏州高新",
+      "shares_yi": 0.1502,
+      "ratio": 1.305,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002225",
+      "name": "濮耐股份",
+      "shares_yi": 0.1497,
+      "ratio": 1.578,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002294",
+      "name": "信立泰",
+      "shares_yi": 0.1407,
+      "ratio": 1.262,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600874",
+      "name": "创业环保",
+      "shares_yi": 0.1387,
+      "ratio": 0.883,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000973",
+      "name": "佛塑科技",
+      "shares_yi": 0.1386,
+      "ratio": 1.432,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000568",
+      "name": "泸州老窖",
+      "shares_yi": 0.1354,
+      "ratio": 0.92,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000062",
+      "name": "深圳华强",
+      "shares_yi": 0.1307,
+      "ratio": 1.251,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002030",
+      "name": "达安基因",
+      "shares_yi": 0.1282,
+      "ratio": 0.913,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600628",
+      "name": "新世界",
+      "shares_yi": 0.1273,
+      "ratio": 1.968,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002029",
+      "name": "七匹狼",
+      "shares_yi": 0.1273,
+      "ratio": 1.913,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000417",
+      "name": "合百集团",
+      "shares_yi": 0.1233,
+      "ratio": 1.582,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002250",
+      "name": "联化科技",
+      "shares_yi": 0.1203,
+      "ratio": 1.345,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601888",
+      "name": "中国中免",
+      "shares_yi": 0.1185,
+      "ratio": 0.57,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600422",
+      "name": "昆药集团",
+      "shares_yi": 0.1181,
+      "ratio": 1.561,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002242",
+      "name": "九阳股份",
+      "shares_yi": 0.112,
+      "ratio": 1.471,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600519",
+      "name": "贵州茅台",
+      "shares_yi": 0.104,
+      "ratio": 0.83,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600694",
+      "name": "大商股份",
+      "shares_yi": 0.1033,
+      "ratio": 3.0,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600780",
+      "name": "通宝能源",
+      "shares_yi": 0.0884,
+      "ratio": 0.771,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "603328",
+      "name": "依顿电子",
+      "shares_yi": 0.086,
+      "ratio": 0.862,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002365",
+      "name": "永安药业",
+      "shares_yi": 0.0761,
+      "ratio": 3.103,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000661",
+      "name": "长春高新",
+      "shares_yi": 0.0643,
+      "ratio": 1.608,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002066",
+      "name": "瑞泰科技",
+      "shares_yi": 0.0615,
+      "ratio": 2.661,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002724",
+      "name": "海洋王",
+      "shares_yi": 0.0565,
+      "ratio": 0.996,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002053",
+      "name": "云南能投",
+      "shares_yi": 0.0528,
+      "ratio": 0.573,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600729",
+      "name": "重百集团",
+      "shares_yi": 0.0437,
+      "ratio": 2.27,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002462",
+      "name": "嘉事堂",
+      "shares_yi": 0.0436,
+      "ratio": 1.496,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600510",
+      "name": "黑牡丹",
+      "shares_yi": 0.0429,
+      "ratio": 0.416,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "300396",
+      "name": "ST迪瑞",
+      "shares_yi": 0.0273,
+      "ratio": 1.004,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "300321",
+      "name": "同大股份",
+      "shares_yi": 0.0159,
+      "ratio": 1.794,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ],
+    "2025-12-31": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 18.1002,
+      "ratio": 0.615,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 12.5543,
+      "ratio": 0.359,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 10.1392,
+      "ratio": 0.284,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601668",
+      "name": "中国建筑",
+      "shares_yi": 5.8333,
+      "ratio": 1.412,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 4.9664,
+      "ratio": 0.199,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601318",
+      "name": "中国平安",
+      "shares_yi": 4.703,
+      "ratio": 2.597,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600028",
+      "name": "中国石化",
+      "shares_yi": 3.1522,
+      "ratio": 0.266,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601868",
+      "name": "中国能建",
+      "shares_yi": 3.0659,
+      "ratio": 0.735,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601766",
+      "name": "中国中车",
+      "shares_yi": 2.9806,
+      "ratio": 1.039,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601998",
+      "name": "中信银行",
+      "shares_yi": 2.6714,
+      "ratio": 0.48,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601390",
+      "name": "中国中铁",
+      "shares_yi": 2.3044,
+      "ratio": 0.934,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600795",
+      "name": "国电电力",
+      "shares_yi": 2.0938,
+      "ratio": 1.174,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600030",
+      "name": "中信证券",
+      "shares_yi": 2.0515,
+      "ratio": 1.386,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601857",
+      "name": "中国石油",
+      "shares_yi": 2.017,
+      "ratio": 0.11,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601006",
+      "name": "大秦铁路",
+      "shares_yi": 1.9989,
+      "ratio": 0.992,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600019",
+      "name": "宝钢股份",
+      "shares_yi": 1.9012,
+      "ratio": 0.873,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000002",
+      "name": "万科A",
+      "shares_yi": 1.8548,
+      "ratio": 1.556,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200002",
+      "name": "万科B",
+      "shares_yi": 1.8548,
+      "ratio": 1.556,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600048",
+      "name": "保利发展",
+      "shares_yi": 1.7582,
+      "ratio": 1.469,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600015",
+      "name": "华夏银行",
+      "shares_yi": 1.6336,
+      "ratio": 1.062,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "300059",
+      "name": "东方财富",
+      "shares_yi": 1.5175,
+      "ratio": 1.138,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600808",
+      "name": "马钢股份",
+      "shares_yi": 1.3917,
+      "ratio": 1.807,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601186",
+      "name": "中国铁建",
+      "shares_yi": 1.3852,
+      "ratio": 1.02,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601901",
+      "name": "方正证券",
+      "shares_yi": 1.3578,
+      "ratio": 1.649,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601628",
+      "name": "中国人寿",
+      "shares_yi": 1.1717,
+      "ratio": 0.415,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601669",
+      "name": "中国电建",
+      "shares_yi": 1.098,
+      "ratio": 0.84,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601088",
+      "name": "中国神华",
+      "shares_yi": 1.0608,
+      "ratio": 0.534,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600104",
+      "name": "上汽集团",
+      "shares_yi": 0.9859,
+      "ratio": 0.858,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601800",
+      "name": "中国交建",
+      "shares_yi": 0.9599,
+      "ratio": 0.593,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601000",
+      "name": "唐山港",
+      "shares_yi": 0.918,
+      "ratio": 1.549,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600026",
+      "name": "中远海能",
+      "shares_yi": 0.9074,
+      "ratio": 1.902,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601012",
+      "name": "隆基绿能",
+      "shares_yi": 0.9025,
+      "ratio": 1.191,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000333",
+      "name": "美的集团",
+      "shares_yi": 0.8826,
+      "ratio": 1.177,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000898",
+      "name": "鞍钢股份",
+      "shares_yi": 0.8365,
+      "ratio": 0.893,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600406",
+      "name": "国电南瑞",
+      "shares_yi": 0.7641,
+      "ratio": 0.956,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600027",
+      "name": "华电国际",
+      "shares_yi": 0.7625,
+      "ratio": 0.746,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002142",
+      "name": "宁波银行",
+      "shares_yi": 0.755,
+      "ratio": 1.144,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600585",
+      "name": "海螺水泥",
+      "shares_yi": 0.6877,
+      "ratio": 1.298,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000728",
+      "name": "国元证券",
+      "shares_yi": 0.6798,
+      "ratio": 1.558,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601898",
+      "name": "中煤能源",
+      "shares_yi": 0.6575,
+      "ratio": 0.496,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600325",
+      "name": "华发股份",
+      "shares_yi": 0.6483,
+      "ratio": 2.356,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002415",
+      "name": "海康威视",
+      "shares_yi": 0.647,
+      "ratio": 0.715,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000031",
+      "name": "大悦城",
+      "shares_yi": 0.6448,
+      "ratio": 1.504,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600031",
+      "name": "三一重工",
+      "shares_yi": 0.6424,
+      "ratio": 0.699,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601018",
+      "name": "宁波港",
+      "shares_yi": 0.627,
+      "ratio": 0.322,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600522",
+      "name": "中天科技",
+      "shares_yi": 0.6095,
+      "ratio": 1.786,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002475",
+      "name": "立讯精密",
+      "shares_yi": 0.5804,
+      "ratio": 0.798,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600017",
+      "name": "日照港",
+      "shares_yi": 0.5667,
+      "ratio": 1.842,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600812",
+      "name": "华北制药",
+      "shares_yi": 0.5492,
+      "ratio": 3.201,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600170",
+      "name": "上海建工",
+      "shares_yi": 0.528,
+      "ratio": 0.594,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000598",
+      "name": "兴蓉环境",
+      "shares_yi": 0.5277,
+      "ratio": 1.771,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000402",
+      "name": "金融街",
+      "shares_yi": 0.5178,
+      "ratio": 1.733,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002500",
+      "name": "山西证券",
+      "shares_yi": 0.517,
+      "ratio": 1.44,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000563",
+      "name": "陕国投A",
+      "shares_yi": 0.5097,
+      "ratio": 0.997,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600642",
+      "name": "申能股份",
+      "shares_yi": 0.5005,
+      "ratio": 1.023,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600252",
+      "name": "中恒集团",
+      "shares_yi": 0.4978,
+      "ratio": 1.563,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000652",
+      "name": "泰达股份",
+      "shares_yi": 0.4895,
+      "ratio": 3.32,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000900",
+      "name": "现代投资",
+      "shares_yi": 0.4715,
+      "ratio": 3.107,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600674",
+      "name": "川投能源",
+      "shares_yi": 0.4636,
+      "ratio": 0.951,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000883",
+      "name": "湖北能源",
+      "shares_yi": 0.4622,
+      "ratio": 0.713,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600064",
+      "name": "南京高科",
+      "shares_yi": 0.4618,
+      "ratio": 2.669,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002153",
+      "name": "石基信息",
+      "shares_yi": 0.4492,
+      "ratio": 2.808,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600743",
+      "name": "华远控股",
+      "shares_yi": 0.4342,
+      "ratio": 1.851,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000063",
+      "name": "中兴通讯",
+      "shares_yi": 0.4217,
+      "ratio": 0.882,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600895",
+      "name": "张江高科",
+      "shares_yi": 0.4012,
+      "ratio": 2.591,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000686",
+      "name": "东北证券",
+      "shares_yi": 0.401,
+      "ratio": 1.713,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000858",
+      "name": "五粮液",
+      "shares_yi": 0.3933,
+      "ratio": 1.013,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600376",
+      "name": "首开股份",
+      "shares_yi": 0.3841,
+      "ratio": 1.489,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600717",
+      "name": "天津港",
+      "shares_yi": 0.3533,
+      "ratio": 1.221,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000030",
+      "name": "富奥股份",
+      "shares_yi": 0.3426,
+      "ratio": 1.993,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200030",
+      "name": "富奥B",
+      "shares_yi": 0.3426,
+      "ratio": 1.993,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600021",
+      "name": "上海电力",
+      "shares_yi": 0.3387,
+      "ratio": 1.201,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600637",
+      "name": "东方明珠",
+      "shares_yi": 0.3375,
+      "ratio": 1.004,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600435",
+      "name": "北方导航",
+      "shares_yi": 0.3344,
+      "ratio": 2.211,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002073",
+      "name": "软控股份",
+      "shares_yi": 0.3325,
+      "ratio": 3.281,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000541",
+      "name": "佛山照明",
+      "shares_yi": 0.3316,
+      "ratio": 2.174,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200541",
+      "name": "粤照明B",
+      "shares_yi": 0.3316,
+      "ratio": 2.174,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000631",
+      "name": "顺发恒能",
+      "shares_yi": 0.3189,
+      "ratio": 1.331,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601666",
+      "name": "平煤股份",
+      "shares_yi": 0.3176,
+      "ratio": 1.286,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000895",
+      "name": "双汇发展",
+      "shares_yi": 0.309,
+      "ratio": 0.892,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002277",
+      "name": "友阿股份",
+      "shares_yi": 0.3085,
+      "ratio": 2.213,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600056",
+      "name": "中国医药",
+      "shares_yi": 0.3051,
+      "ratio": 2.041,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600261",
+      "name": "阳光照明",
+      "shares_yi": 0.3024,
+      "ratio": 2.265,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600120",
+      "name": "浙江东方",
+      "shares_yi": 0.3013,
+      "ratio": 0.882,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600037",
+      "name": "歌华有线",
+      "shares_yi": 0.2987,
+      "ratio": 2.146,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600657",
+      "name": "信达地产",
+      "shares_yi": 0.2983,
+      "ratio": 1.046,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600757",
+      "name": "长江传媒",
+      "shares_yi": 0.2914,
+      "ratio": 2.401,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002244",
+      "name": "滨江集团",
+      "shares_yi": 0.2845,
+      "ratio": 1.032,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601336",
+      "name": "新华保险",
+      "shares_yi": 0.2825,
+      "ratio": 0.906,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601139",
+      "name": "深圳燃气",
+      "shares_yi": 0.2746,
+      "ratio": 0.955,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000685",
+      "name": "中山公用",
+      "shares_yi": 0.2692,
+      "ratio": 2.147,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601158",
+      "name": "重庆水务",
+      "shares_yi": 0.2639,
+      "ratio": 0.55,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600578",
+      "name": "京能电力",
+      "shares_yi": 0.2606,
+      "ratio": 0.389,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000600",
+      "name": "建投能源",
+      "shares_yi": 0.2359,
+      "ratio": 2.164,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600851",
+      "name": "海欣股份",
+      "shares_yi": 0.226,
+      "ratio": 1.872,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "900917",
+      "name": "海欣B股",
+      "shares_yi": 0.226,
+      "ratio": 1.872,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601010",
+      "name": "ST文峰",
+      "shares_yi": 0.2195,
+      "ratio": 1.188,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002396",
+      "name": "星网锐捷",
+      "shares_yi": 0.2094,
+      "ratio": 3.589,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600787",
+      "name": "中储股份",
+      "shares_yi": 0.2063,
+      "ratio": 0.951,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000726",
+      "name": "鲁泰A",
+      "shares_yi": 0.1988,
+      "ratio": 2.439,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200726",
+      "name": "鲁泰B",
+      "shares_yi": 0.1988,
+      "ratio": 2.439,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600284",
+      "name": "浦东建设",
+      "shares_yi": 0.1983,
+      "ratio": 2.044,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600663",
+      "name": "陆家嘴",
+      "shares_yi": 0.1973,
+      "ratio": 0.464,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "900932",
+      "name": "陆家B股",
+      "shares_yi": 0.1973,
+      "ratio": 0.464,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600009",
+      "name": "上海机场",
+      "shares_yi": 0.1882,
+      "ratio": 0.92,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000997",
+      "name": "新大陆",
+      "shares_yi": 0.1852,
+      "ratio": 1.839,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000061",
+      "name": "农产品",
+      "shares_yi": 0.1843,
+      "ratio": 1.086,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600557",
+      "name": "康缘药业",
+      "shares_yi": 0.1789,
+      "ratio": 3.159,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600826",
+      "name": "兰生股份",
+      "shares_yi": 0.178,
+      "ratio": 2.42,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600633",
+      "name": "浙数文化",
+      "shares_yi": 0.1755,
+      "ratio": 1.384,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000823",
+      "name": "超声电子",
+      "shares_yi": 0.1693,
+      "ratio": 3.153,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000538",
+      "name": "云南白药",
+      "shares_yi": 0.1662,
+      "ratio": 0.937,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600894",
+      "name": "广日股份",
+      "shares_yi": 0.1628,
+      "ratio": 1.931,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000006",
+      "name": "深振业A",
+      "shares_yi": 0.1605,
+      "ratio": 1.189,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002267",
+      "name": "陕天然气",
+      "shares_yi": 0.1575,
+      "ratio": 1.417,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601801",
+      "name": "皖新传媒",
+      "shares_yi": 0.1567,
+      "ratio": 0.8,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600750",
+      "name": "华润江中",
+      "shares_yi": 0.1555,
+      "ratio": 2.474,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600736",
+      "name": "苏州高新",
+      "shares_yi": 0.1502,
+      "ratio": 1.305,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002225",
+      "name": "濮耐股份",
+      "shares_yi": 0.1497,
+      "ratio": 1.578,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002294",
+      "name": "信立泰",
+      "shares_yi": 0.1407,
+      "ratio": 1.262,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600874",
+      "name": "创业环保",
+      "shares_yi": 0.1387,
+      "ratio": 0.883,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000973",
+      "name": "佛塑科技",
+      "shares_yi": 0.1386,
+      "ratio": 1.432,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000568",
+      "name": "泸州老窖",
+      "shares_yi": 0.1354,
+      "ratio": 0.922,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000062",
+      "name": "深圳华强",
+      "shares_yi": 0.1307,
+      "ratio": 1.251,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002030",
+      "name": "达安基因",
+      "shares_yi": 0.1282,
+      "ratio": 0.913,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600628",
+      "name": "新世界",
+      "shares_yi": 0.1273,
+      "ratio": 1.968,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002029",
+      "name": "七匹狼",
+      "shares_yi": 0.1273,
+      "ratio": 1.913,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000417",
+      "name": "合百集团",
+      "shares_yi": 0.1233,
+      "ratio": 1.582,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002250",
+      "name": "联化科技",
+      "shares_yi": 0.1203,
+      "ratio": 1.345,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "400297",
+      "name": "国化5",
+      "shares_yi": 0.1198,
+      "ratio": 2.731,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601888",
+      "name": "中国中免",
+      "shares_yi": 0.1185,
+      "ratio": 0.573,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600422",
+      "name": "昆药集团",
+      "shares_yi": 0.1181,
+      "ratio": 1.561,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002242",
+      "name": "九阳股份",
+      "shares_yi": 0.112,
+      "ratio": 1.471,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600519",
+      "name": "贵州茅台",
+      "shares_yi": 0.104,
+      "ratio": 0.83,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600694",
+      "name": "大商股份",
+      "shares_yi": 0.1033,
+      "ratio": 3.0,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600780",
+      "name": "通宝能源",
+      "shares_yi": 0.0884,
+      "ratio": 0.771,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "603328",
+      "name": "依顿电子",
+      "shares_yi": 0.086,
+      "ratio": 0.862,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002365",
+      "name": "永安药业",
+      "shares_yi": 0.0761,
+      "ratio": 3.103,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000661",
+      "name": "长春高新",
+      "shares_yi": 0.0643,
+      "ratio": 1.608,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002066",
+      "name": "瑞泰科技",
+      "shares_yi": 0.0615,
+      "ratio": 2.661,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002724",
+      "name": "海洋王",
+      "shares_yi": 0.0565,
+      "ratio": 0.996,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002053",
+      "name": "云南能投",
+      "shares_yi": 0.0528,
+      "ratio": 0.573,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600729",
+      "name": "重百集团",
+      "shares_yi": 0.0437,
+      "ratio": 2.27,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002462",
+      "name": "嘉事堂",
+      "shares_yi": 0.0436,
+      "ratio": 1.496,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600510",
+      "name": "黑牡丹",
+      "shares_yi": 0.0429,
+      "ratio": 0.416,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "300396",
+      "name": "ST迪瑞",
+      "shares_yi": 0.0273,
+      "ratio": 1.004,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "300321",
+      "name": "同大股份",
+      "shares_yi": 0.0159,
+      "ratio": 1.794,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ]
+   },
+   "latest": {
+    "period": "2026-09-30",
+    "count": 17,
+    "total_yi": 69.37
+   }
+  },
+  {
+   "name": "中国证券金融股份有限公司",
+   "short": "证金公司",
+   "desc": "证金公司，2015 年救市主力，与汇金是不同主体",
+   "by_period": {
+    "2026-09-30": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 79.4116,
+      "ratio": 2.698,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 24.1613,
+      "ratio": 0.678,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 21.8926,
+      "ratio": 0.876,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601328",
+      "name": "交通银行",
+      "shares_yi": 18.9165,
+      "ratio": 3.346,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 18.4275,
+      "ratio": 0.527,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600795",
+      "name": "国电电力",
+      "shares_yi": 8.9693,
+      "ratio": 5.029,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601998",
+      "name": "中信银行",
+      "shares_yi": 6.446,
+      "ratio": 1.158,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000166",
+      "name": "申万宏源",
+      "shares_yi": 6.3522,
+      "ratio": 2.537,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600219",
+      "name": "南山铝业",
+      "shares_yi": 5.8926,
+      "ratio": 5.131,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601628",
+      "name": "中国人寿",
+      "shares_yi": 5.0708,
+      "ratio": 1.794,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601088",
+      "name": "中国神华",
+      "shares_yi": 4.3669,
+      "ratio": 2.198,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600028",
+      "name": "中国石化",
+      "shares_yi": 4.2624,
+      "ratio": 0.36,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600177",
+      "name": "雅戈尔",
+      "shares_yi": 2.5113,
+      "ratio": 5.576,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601857",
+      "name": "中国石油",
+      "shares_yi": 2.4206,
+      "ratio": 0.132,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601898",
+      "name": "中煤能源",
+      "shares_yi": 2.0429,
+      "ratio": 1.541,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000333",
+      "name": "美的集团",
+      "shares_yi": 1.4169,
+      "ratio": 1.88,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601601",
+      "name": "中国太保",
+      "shares_yi": 1.4109,
+      "ratio": 1.467,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601633",
+      "name": "长城汽车",
+      "shares_yi": 0.7225,
+      "ratio": 0.847,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000651",
+      "name": "格力电器",
+      "shares_yi": 0.7175,
+      "ratio": 1.301,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000858",
+      "name": "五粮液",
+      "shares_yi": 0.6246,
+      "ratio": 1.609,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000895",
+      "name": "双汇发展",
+      "shares_yi": 0.3131,
+      "ratio": 0.904,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000568",
+      "name": "泸州老窖",
+      "shares_yi": 0.2222,
+      "ratio": 1.511,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601808",
+      "name": "中海油服",
+      "shares_yi": 0.1329,
+      "ratio": 0.278,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ],
+    "2026-06-30": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 79.4116,
+      "ratio": 2.698,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 24.1613,
+      "ratio": 0.678,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 21.8926,
+      "ratio": 0.876,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601328",
+      "name": "交通银行",
+      "shares_yi": 18.9165,
+      "ratio": 3.346,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 18.4275,
+      "ratio": 0.527,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600795",
+      "name": "国电电力",
+      "shares_yi": 8.9693,
+      "ratio": 5.029,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601998",
+      "name": "中信银行",
+      "shares_yi": 6.446,
+      "ratio": 1.158,
+      "change": "-322300637",
+      "ratio_change": null
+     },
+     {
+      "code": "000166",
+      "name": "申万宏源",
+      "shares_yi": 6.3522,
+      "ratio": 2.537,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600219",
+      "name": "南山铝业",
+      "shares_yi": 5.8926,
+      "ratio": 5.131,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601628",
+      "name": "中国人寿",
+      "shares_yi": 5.0708,
+      "ratio": 1.794,
+      "change": "-194604016",
+      "ratio_change": null
+     },
+     {
+      "code": "601088",
+      "name": "中国神华",
+      "shares_yi": 4.3669,
+      "ratio": 2.198,
+      "change": "-146591451",
+      "ratio_change": null
+     },
+     {
+      "code": "600028",
+      "name": "中国石化",
+      "shares_yi": 4.2624,
+      "ratio": 0.36,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600177",
+      "name": "雅戈尔",
+      "shares_yi": 2.5113,
+      "ratio": 5.576,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601857",
+      "name": "中国石油",
+      "shares_yi": 2.4206,
+      "ratio": 0.132,
+      "change": "-227296838",
+      "ratio_change": null
+     },
+     {
+      "code": "601898",
+      "name": "中煤能源",
+      "shares_yi": 2.0429,
+      "ratio": 1.541,
+      "change": "-81646981",
+      "ratio_change": null
+     },
+     {
+      "code": "000333",
+      "name": "美的集团",
+      "shares_yi": 1.4169,
+      "ratio": 1.886,
+      "change": "-7942555",
+      "ratio_change": null
+     },
+     {
+      "code": "601601",
+      "name": "中国太保",
+      "shares_yi": 1.4109,
+      "ratio": 1.467,
+      "change": "-124234133",
+      "ratio_change": null
+     },
+     {
+      "code": "601633",
+      "name": "长城汽车",
+      "shares_yi": 0.7225,
+      "ratio": 0.846,
+      "change": "-115890658",
+      "ratio_change": null
+     },
+     {
+      "code": "000651",
+      "name": "格力电器",
+      "shares_yi": 0.7175,
+      "ratio": 1.301,
+      "change": "-5546301",
+      "ratio_change": null
+     },
+     {
+      "code": "000858",
+      "name": "五粮液",
+      "shares_yi": 0.6246,
+      "ratio": 1.609,
+      "change": "-13583866",
+      "ratio_change": null
+     },
+     {
+      "code": "000895",
+      "name": "双汇发展",
+      "shares_yi": 0.3131,
+      "ratio": 0.904,
+      "change": "-22735072",
+      "ratio_change": null
+     },
+     {
+      "code": "000568",
+      "name": "泸州老窖",
+      "shares_yi": 0.2222,
+      "ratio": 1.511,
+      "change": "-10087296",
+      "ratio_change": null
+     },
+     {
+      "code": "601808",
+      "name": "中海油服",
+      "shares_yi": 0.1329,
+      "ratio": 0.278,
+      "change": "-58056568",
+      "ratio_change": null
+     }
+    ],
+    "2026-03-31": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 79.4116,
+      "ratio": 2.698,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 24.1613,
+      "ratio": 0.678,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 21.8926,
+      "ratio": 0.876,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600028",
+      "name": "中国石化",
+      "shares_yi": 19.7856,
+      "ratio": 1.669,
+      "change": "-346816373",
+      "ratio_change": null
+     },
+     {
+      "code": "601328",
+      "name": "交通银行",
+      "shares_yi": 18.9165,
+      "ratio": 3.346,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 18.4275,
+      "ratio": 0.527,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601998",
+      "name": "中信银行",
+      "shares_yi": 9.669,
+      "ratio": 1.738,
+      "change": "-52041193",
+      "ratio_change": null
+     },
+     {
+      "code": "600795",
+      "name": "国电电力",
+      "shares_yi": 8.9693,
+      "ratio": 5.029,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600000",
+      "name": "浦发银行",
+      "shares_yi": 8.4154,
+      "ratio": 2.527,
+      "change": "-337565173",
+      "ratio_change": null
+     },
+     {
+      "code": "601628",
+      "name": "中国人寿",
+      "shares_yi": 7.0169,
+      "ratio": 2.483,
+      "change": "-6553464",
+      "ratio_change": null
+     },
+     {
+      "code": "000166",
+      "name": "申万宏源",
+      "shares_yi": 6.3522,
+      "ratio": 2.537,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600219",
+      "name": "南山铝业",
+      "shares_yi": 5.8926,
+      "ratio": 5.131,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601088",
+      "name": "中国神华",
+      "shares_yi": 5.8328,
+      "ratio": 2.936,
+      "change": "-11438648",
+      "ratio_change": null
+     },
+     {
+      "code": "601766",
+      "name": "中国中车",
+      "shares_yi": 4.7034,
+      "ratio": 1.639,
+      "change": "-135319843",
+      "ratio_change": null
+     },
+     {
+      "code": "601857",
+      "name": "中国石油",
+      "shares_yi": 4.6936,
+      "ratio": 0.256,
+      "change": "-550803429",
+      "ratio_change": null
+     },
+     {
+      "code": "601899",
+      "name": "紫金矿业",
+      "shares_yi": 4.3753,
+      "ratio": 1.645,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601800",
+      "name": "中国交建",
+      "shares_yi": 3.8325,
+      "ratio": 2.366,
+      "change": "-100591319",
+      "ratio_change": null
+     },
+     {
+      "code": "601211",
+      "name": "国泰海通",
+      "shares_yi": 3.7046,
+      "ratio": 2.179,
+      "change": "-50109506",
+      "ratio_change": null
+     },
+     {
+      "code": "000625",
+      "name": "长安汽车",
+      "shares_yi": 3.5201,
+      "ratio": 3.553,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200625",
+      "name": "长安B",
+      "shares_yi": 3.5201,
+      "ratio": 3.553,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000001",
+      "name": "平安银行",
+      "shares_yi": 3.3946,
+      "ratio": 1.749,
+      "change": "-89770089",
+      "ratio_change": null
+     },
+     {
+      "code": "601668",
+      "name": "中国建筑",
+      "shares_yi": 2.8936,
+      "ratio": 0.7,
+      "change": "-968941768",
+      "ratio_change": null
+     },
+     {
+      "code": "601898",
+      "name": "中煤能源",
+      "shares_yi": 2.8594,
+      "ratio": 2.157,
+      "change": "-49684242",
+      "ratio_change": null
+     },
+     {
+      "code": "600011",
+      "name": "华能国际",
+      "shares_yi": 2.7992,
+      "ratio": 1.783,
+      "change": "-187028780",
+      "ratio_change": null
+     },
+     {
+      "code": "601601",
+      "name": "中国太保",
+      "shares_yi": 2.6533,
+      "ratio": 2.758,
+      "change": "-5764776",
+      "ratio_change": null
+     },
+     {
+      "code": "600177",
+      "name": "雅戈尔",
+      "shares_yi": 2.5113,
+      "ratio": 5.432,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601919",
+      "name": "中远海控",
+      "shares_yi": 2.4178,
+      "ratio": 1.579,
+      "change": "-132152304",
+      "ratio_change": null
+     },
+     {
+      "code": "600115",
+      "name": "中国东航",
+      "shares_yi": 2.233,
+      "ratio": 1.011,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600031",
+      "name": "三一重工",
+      "shares_yi": 2.2214,
+      "ratio": 2.416,
+      "change": "-11207146",
+      "ratio_change": null
+     },
+     {
+      "code": "600406",
+      "name": "国电南瑞",
+      "shares_yi": 2.0817,
+      "ratio": 2.599,
+      "change": "-29176699",
+      "ratio_change": null
+     },
+     {
+      "code": "000776",
+      "name": "广发证券",
+      "shares_yi": 1.9532,
+      "ratio": 2.496,
+      "change": "-32551783",
+      "ratio_change": null
+     },
+     {
+      "code": "000333",
+      "name": "美的集团",
+      "shares_yi": 1.9158,
+      "ratio": 2.553,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601633",
+      "name": "长城汽车",
+      "shares_yi": 1.8814,
+      "ratio": 2.206,
+      "change": "-8752710",
+      "ratio_change": null
+     },
+     {
+      "code": "600999",
+      "name": "招商证券",
+      "shares_yi": 1.7079,
+      "ratio": 1.964,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600886",
+      "name": "国投电力",
+      "shares_yi": 1.6938,
+      "ratio": 2.272,
+      "change": "-34274279",
+      "ratio_change": null
+     },
+     {
+      "code": "000651",
+      "name": "格力电器",
+      "shares_yi": 1.6145,
+      "ratio": 2.924,
+      "change": "-18417984",
+      "ratio_change": null
+     },
+     {
+      "code": "601225",
+      "name": "陕西煤业",
+      "shares_yi": 1.608,
+      "ratio": 1.659,
+      "change": "-34244649",
+      "ratio_change": null
+     },
+     {
+      "code": "600029",
+      "name": "南方航空",
+      "shares_yi": 1.5899,
+      "ratio": 0.877,
+      "change": "-161495567",
+      "ratio_change": null
+     },
+     {
+      "code": "601985",
+      "name": "中国核电",
+      "shares_yi": 1.5743,
+      "ratio": 0.834,
+      "change": "-307975594",
+      "ratio_change": null
+     },
+     {
+      "code": "601688",
+      "name": "华泰证券",
+      "shares_yi": 1.3504,
+      "ratio": 1.496,
+      "change": "-17867693",
+      "ratio_change": null
+     },
+     {
+      "code": "600690",
+      "name": "海尔智家",
+      "shares_yi": 1.2789,
+      "ratio": 1.364,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600887",
+      "name": "伊利股份",
+      "shares_yi": 1.2634,
+      "ratio": 2.007,
+      "change": "-56085995",
+      "ratio_change": null
+     },
+     {
+      "code": "600061",
+      "name": "国投资本",
+      "shares_yi": 1.2104,
+      "ratio": 1.893,
+      "change": "-71077421",
+      "ratio_change": null
+     },
+     {
+      "code": "601111",
+      "name": "中国国航",
+      "shares_yi": 0.8973,
+      "ratio": 0.554,
+      "change": "-221568596",
+      "ratio_change": null
+     },
+     {
+      "code": "601788",
+      "name": "光大证券",
+      "shares_yi": 0.8952,
+      "ratio": 1.942,
+      "change": "-40567915",
+      "ratio_change": null
+     },
+     {
+      "code": "600585",
+      "name": "海螺水泥",
+      "shares_yi": 0.8776,
+      "ratio": 1.656,
+      "change": "-27462901",
+      "ratio_change": null
+     },
+     {
+      "code": "000858",
+      "name": "五粮液",
+      "shares_yi": 0.8716,
+      "ratio": 2.246,
+      "change": "-5221517",
+      "ratio_change": null
+     },
+     {
+      "code": "600741",
+      "name": "华域汽车",
+      "shares_yi": 0.8339,
+      "ratio": 2.645,
+      "change": "-10921354",
+      "ratio_change": null
+     },
+     {
+      "code": "601186",
+      "name": "中国铁建",
+      "shares_yi": 0.8338,
+      "ratio": 0.614,
+      "change": "-239706009",
+      "ratio_change": null
+     },
+     {
+      "code": "600674",
+      "name": "川投能源",
+      "shares_yi": 0.7855,
+      "ratio": 1.611,
+      "change": "-36213812",
+      "ratio_change": null
+     },
+     {
+      "code": "601808",
+      "name": "中海油服",
+      "shares_yi": 0.7134,
+      "ratio": 1.495,
+      "change": "-66639932",
+      "ratio_change": null
+     },
+     {
+      "code": "000768",
+      "name": "中航西飞",
+      "shares_yi": 0.7085,
+      "ratio": 2.552,
+      "change": "-22261135",
+      "ratio_change": null
+     },
+     {
+      "code": "002475",
+      "name": "立讯精密",
+      "shares_yi": 0.5981,
+      "ratio": 0.823,
+      "change": "-24623350",
+      "ratio_change": null
+     },
+     {
+      "code": "000338",
+      "name": "潍柴动力",
+      "shares_yi": 0.5465,
+      "ratio": 0.787,
+      "change": "-108962940",
+      "ratio_change": null
+     },
+     {
+      "code": "000895",
+      "name": "双汇发展",
+      "shares_yi": 0.5404,
+      "ratio": 1.56,
+      "change": "-3928494",
+      "ratio_change": null
+     },
+     {
+      "code": "600018",
+      "name": "上港集团",
+      "shares_yi": 0.5141,
+      "ratio": 0.221,
+      "change": "-641904376",
+      "ratio_change": null
+     },
+     {
+      "code": "600547",
+      "name": "山东黄金",
+      "shares_yi": 0.4749,
+      "ratio": 1.03,
+      "change": "-61345607",
+      "ratio_change": null
+     },
+     {
+      "code": "600276",
+      "name": "恒瑞医药",
+      "shares_yi": 0.4224,
+      "ratio": 0.636,
+      "change": "-53156816",
+      "ratio_change": null
+     },
+     {
+      "code": "002241",
+      "name": "歌尔股份",
+      "shares_yi": 0.3566,
+      "ratio": 1.135,
+      "change": "-47384764",
+      "ratio_change": null
+     },
+     {
+      "code": "600309",
+      "name": "万华化学",
+      "shares_yi": 0.3516,
+      "ratio": 1.123,
+      "change": "-38189152",
+      "ratio_change": null
+     },
+     {
+      "code": "000538",
+      "name": "云南白药",
+      "shares_yi": 0.3399,
+      "ratio": 1.917,
+      "change": "-3387277",
+      "ratio_change": null
+     },
+     {
+      "code": "000568",
+      "name": "泸州老窖",
+      "shares_yi": 0.3231,
+      "ratio": 2.196,
+      "change": "-1529942",
+      "ratio_change": null
+     },
+     {
+      "code": "601881",
+      "name": "中国银河",
+      "shares_yi": 0.3049,
+      "ratio": 0.279,
+      "change": "-53589731",
+      "ratio_change": null
+     },
+     {
+      "code": "002236",
+      "name": "大华股份",
+      "shares_yi": 0.3005,
+      "ratio": 1.42,
+      "change": "-9558269",
+      "ratio_change": null
+     },
+     {
+      "code": "601888",
+      "name": "中国中免",
+      "shares_yi": 0.2436,
+      "ratio": 1.172,
+      "change": "-34085015",
+      "ratio_change": null
+     },
+     {
+      "code": "600660",
+      "name": "福耀玻璃",
+      "shares_yi": 0.2333,
+      "ratio": 0.894,
+      "change": "-4765397",
+      "ratio_change": null
+     },
+     {
+      "code": "600362",
+      "name": "江西铜业",
+      "shares_yi": 0.1944,
+      "ratio": 0.562,
+      "change": "-84274985",
+      "ratio_change": null
+     },
+     {
+      "code": "000963",
+      "name": "华东医药",
+      "shares_yi": 0.191,
+      "ratio": 1.089,
+      "change": "-3091474",
+      "ratio_change": null
+     },
+     {
+      "code": "300408",
+      "name": "三环集团",
+      "shares_yi": 0.189,
+      "ratio": 1.011,
+      "change": "-8598257",
+      "ratio_change": null
+     },
+     {
+      "code": "600196",
+      "name": "复星医药",
+      "shares_yi": 0.187,
+      "ratio": 0.7,
+      "change": "-20038956",
+      "ratio_change": null
+     },
+     {
+      "code": "601021",
+      "name": "春秋航空",
+      "shares_yi": 0.1566,
+      "ratio": 1.6,
+      "change": "-1236571",
+      "ratio_change": null
+     },
+     {
+      "code": "600600",
+      "name": "青岛啤酒",
+      "shares_yi": 0.1451,
+      "ratio": 1.064,
+      "change": "-1501762",
+      "ratio_change": null
+     },
+     {
+      "code": "002466",
+      "name": "天齐锂业",
+      "shares_yi": 0.1273,
+      "ratio": 0.747,
+      "change": "-15118844",
+      "ratio_change": null
+     },
+     {
+      "code": "002304",
+      "name": "洋河股份",
+      "shares_yi": 0.0554,
+      "ratio": 0.368,
+      "change": "-8253950",
+      "ratio_change": null
+     },
+     {
+      "code": "600436",
+      "name": "片仔癀",
+      "shares_yi": 0.0459,
+      "ratio": 0.762,
+      "change": "-6658876",
+      "ratio_change": null
+     },
+     {
+      "code": "600519",
+      "name": "贵州茅台",
+      "shares_yi": 0.0404,
+      "ratio": 0.322,
+      "change": "-4001908",
+      "ratio_change": null
+     },
+     {
+      "code": "300033",
+      "name": "同花顺",
+      "shares_yi": 0.0287,
+      "ratio": 0.916,
+      "change": "-3017842",
+      "ratio_change": null
+     }
+    ],
+    "2025-12-31": [
+     {
+      "code": "601988",
+      "name": "中国银行",
+      "shares_yi": 79.4116,
+      "ratio": 2.698,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601398",
+      "name": "工商银行",
+      "shares_yi": 24.1613,
+      "ratio": 0.678,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600028",
+      "name": "中国石化",
+      "shares_yi": 23.2537,
+      "ratio": 1.962,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601939",
+      "name": "建设银行",
+      "shares_yi": 21.8926,
+      "ratio": 0.876,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601328",
+      "name": "交通银行",
+      "shares_yi": 18.9165,
+      "ratio": 3.346,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601288",
+      "name": "农业银行",
+      "shares_yi": 18.4275,
+      "ratio": 0.527,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601668",
+      "name": "中国建筑",
+      "shares_yi": 12.583,
+      "ratio": 3.045,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600000",
+      "name": "浦发银行",
+      "shares_yi": 11.7911,
+      "ratio": 3.54,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601857",
+      "name": "中国石油",
+      "shares_yi": 10.2017,
+      "ratio": 0.557,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601998",
+      "name": "中信银行",
+      "shares_yi": 10.1894,
+      "ratio": 1.831,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601818",
+      "name": "光大银行",
+      "shares_yi": 9.8938,
+      "ratio": 1.674,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600795",
+      "name": "国电电力",
+      "shares_yi": 8.9693,
+      "ratio": 5.029,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600010",
+      "name": "包钢股份",
+      "shares_yi": 7.6749,
+      "ratio": 2.446,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601628",
+      "name": "中国人寿",
+      "shares_yi": 7.0824,
+      "ratio": 2.506,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600018",
+      "name": "上港集团",
+      "shares_yi": 6.9331,
+      "ratio": 2.982,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601899",
+      "name": "紫金矿业",
+      "shares_yi": 6.9119,
+      "ratio": 2.599,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600019",
+      "name": "宝钢股份",
+      "shares_yi": 6.666,
+      "ratio": 3.06,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600900",
+      "name": "长江电力",
+      "shares_yi": 6.5798,
+      "ratio": 2.741,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000166",
+      "name": "申万宏源",
+      "shares_yi": 6.3522,
+      "ratio": 2.537,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601166",
+      "name": "兴业银行",
+      "shares_yi": 6.2224,
+      "ratio": 2.94,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601390",
+      "name": "中国中铁",
+      "shares_yi": 6.1926,
+      "ratio": 2.509,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601868",
+      "name": "中国能建",
+      "shares_yi": 6.1337,
+      "ratio": 1.471,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601766",
+      "name": "中国中车",
+      "shares_yi": 6.0566,
+      "ratio": 2.11,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601088",
+      "name": "中国神华",
+      "shares_yi": 5.9472,
+      "ratio": 2.993,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600219",
+      "name": "南山铝业",
+      "shares_yi": 5.8926,
+      "ratio": 5.131,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601618",
+      "name": "中国中冶",
+      "shares_yi": 5.8904,
+      "ratio": 2.842,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600036",
+      "name": "招商银行",
+      "shares_yi": 5.2423,
+      "ratio": 2.079,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601800",
+      "name": "中国交建",
+      "shares_yi": 4.8385,
+      "ratio": 2.987,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600011",
+      "name": "华能国际",
+      "shares_yi": 4.6695,
+      "ratio": 2.975,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601985",
+      "name": "中国核电",
+      "shares_yi": 4.6541,
+      "ratio": 2.465,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601600",
+      "name": "中国铝业",
+      "shares_yi": 4.4828,
+      "ratio": 2.619,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601669",
+      "name": "中国电建",
+      "shares_yi": 4.3277,
+      "ratio": 3.311,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600115",
+      "name": "中国东航",
+      "shares_yi": 4.2967,
+      "ratio": 1.945,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000001",
+      "name": "平安银行",
+      "shares_yi": 4.2923,
+      "ratio": 2.212,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000625",
+      "name": "长安汽车",
+      "shares_yi": 4.2636,
+      "ratio": 4.306,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200625",
+      "name": "长安B",
+      "shares_yi": 4.2636,
+      "ratio": 4.306,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601211",
+      "name": "国泰海通",
+      "shares_yi": 4.2057,
+      "ratio": 2.474,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000100",
+      "name": "TCL科技",
+      "shares_yi": 4.1055,
+      "ratio": 2.269,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601919",
+      "name": "中远海控",
+      "shares_yi": 3.7393,
+      "ratio": 2.414,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600048",
+      "name": "保利发展",
+      "shares_yi": 3.5714,
+      "ratio": 2.984,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600104",
+      "name": "上汽集团",
+      "shares_yi": 3.4977,
+      "ratio": 3.043,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601898",
+      "name": "中煤能源",
+      "shares_yi": 3.3562,
+      "ratio": 2.531,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601169",
+      "name": "北京银行",
+      "shares_yi": 3.2403,
+      "ratio": 1.533,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601186",
+      "name": "中国铁建",
+      "shares_yi": 3.2309,
+      "ratio": 2.379,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600029",
+      "name": "南方航空",
+      "shares_yi": 3.2048,
+      "ratio": 1.769,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601111",
+      "name": "中国国航",
+      "shares_yi": 3.113,
+      "ratio": 1.922,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601601",
+      "name": "中国太保",
+      "shares_yi": 2.7109,
+      "ratio": 2.818,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600177",
+      "name": "雅戈尔",
+      "shares_yi": 2.5113,
+      "ratio": 5.432,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600027",
+      "name": "华电国际",
+      "shares_yi": 2.4439,
+      "ratio": 2.39,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600406",
+      "name": "国电南瑞",
+      "shares_yi": 2.3734,
+      "ratio": 2.968,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600031",
+      "name": "三一重工",
+      "shares_yi": 2.3335,
+      "ratio": 2.538,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000157",
+      "name": "中联重科",
+      "shares_yi": 2.3304,
+      "ratio": 2.703,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600958",
+      "name": "东方证券",
+      "shares_yi": 2.2787,
+      "ratio": 2.682,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000776",
+      "name": "广发证券",
+      "shares_yi": 2.2787,
+      "ratio": 2.996,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601377",
+      "name": "兴业证券",
+      "shares_yi": 2.1396,
+      "ratio": 2.478,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600886",
+      "name": "国投电力",
+      "shares_yi": 2.0366,
+      "ratio": 2.732,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600015",
+      "name": "华夏银行",
+      "shares_yi": 2.0145,
+      "ratio": 1.309,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601006",
+      "name": "大秦铁路",
+      "shares_yi": 1.9949,
+      "ratio": 0.99,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000333",
+      "name": "美的集团",
+      "shares_yi": 1.9815,
+      "ratio": 2.643,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601633",
+      "name": "长城汽车",
+      "shares_yi": 1.9689,
+      "ratio": 2.309,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601225",
+      "name": "陕西煤业",
+      "shares_yi": 1.9505,
+      "ratio": 2.012,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600061",
+      "name": "国投资本",
+      "shares_yi": 1.9212,
+      "ratio": 3.005,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600690",
+      "name": "海尔智家",
+      "shares_yi": 1.8259,
+      "ratio": 1.947,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600887",
+      "name": "伊利股份",
+      "shares_yi": 1.8242,
+      "ratio": 2.898,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000651",
+      "name": "格力电器",
+      "shares_yi": 1.7987,
+      "ratio": 3.257,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600999",
+      "name": "招商证券",
+      "shares_yi": 1.7079,
+      "ratio": 1.964,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000425",
+      "name": "徐工机械",
+      "shares_yi": 1.6692,
+      "ratio": 1.796,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000338",
+      "name": "潍柴动力",
+      "shares_yi": 1.6361,
+      "ratio": 2.354,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601688",
+      "name": "华泰证券",
+      "shares_yi": 1.5291,
+      "ratio": 1.694,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601901",
+      "name": "方正证券",
+      "shares_yi": 1.3946,
+      "ratio": 1.694,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601808",
+      "name": "中海油服",
+      "shares_yi": 1.3798,
+      "ratio": 2.892,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000002",
+      "name": "万科A",
+      "shares_yi": 1.3267,
+      "ratio": 1.113,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "200002",
+      "name": "万科B",
+      "shares_yi": 1.3267,
+      "ratio": 1.113,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601788",
+      "name": "光大证券",
+      "shares_yi": 1.3009,
+      "ratio": 2.821,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000876",
+      "name": "新希望",
+      "shares_yi": 1.256,
+      "ratio": 2.791,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600585",
+      "name": "海螺水泥",
+      "shares_yi": 1.1522,
+      "ratio": 2.174,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600674",
+      "name": "川投能源",
+      "shares_yi": 1.1476,
+      "ratio": 2.354,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600547",
+      "name": "山东黄金",
+      "shares_yi": 1.0883,
+      "ratio": 2.361,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600362",
+      "name": "江西铜业",
+      "shares_yi": 1.0372,
+      "ratio": 2.995,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601117",
+      "name": "中国化学",
+      "shares_yi": 0.9865,
+      "ratio": 1.62,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600276",
+      "name": "恒瑞医药",
+      "shares_yi": 0.954,
+      "ratio": 1.437,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600741",
+      "name": "华域汽车",
+      "shares_yi": 0.9431,
+      "ratio": 2.991,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000768",
+      "name": "中航西飞",
+      "shares_yi": 0.9311,
+      "ratio": 3.358,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000858",
+      "name": "五粮液",
+      "shares_yi": 0.9239,
+      "ratio": 2.38,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002475",
+      "name": "立讯精密",
+      "shares_yi": 0.8443,
+      "ratio": 1.161,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601881",
+      "name": "中国银河",
+      "shares_yi": 0.8408,
+      "ratio": 0.769,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002241",
+      "name": "歌尔股份",
+      "shares_yi": 0.8304,
+      "ratio": 2.644,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002736",
+      "name": "国信证券",
+      "shares_yi": 0.7509,
+      "ratio": 0.781,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600309",
+      "name": "万华化学",
+      "shares_yi": 0.7335,
+      "ratio": 2.343,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "001979",
+      "name": "招商蛇口",
+      "shares_yi": 0.6768,
+      "ratio": 0.804,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601888",
+      "name": "中国中免",
+      "shares_yi": 0.5844,
+      "ratio": 2.825,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000895",
+      "name": "双汇发展",
+      "shares_yi": 0.5797,
+      "ratio": 1.673,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600009",
+      "name": "上海机场",
+      "shares_yi": 0.5762,
+      "ratio": 2.816,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "603288",
+      "name": "海天味业",
+      "shares_yi": 0.5254,
+      "ratio": 0.898,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600588",
+      "name": "用友网络",
+      "shares_yi": 0.4977,
+      "ratio": 1.456,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600332",
+      "name": "白云山",
+      "shares_yi": 0.4728,
+      "ratio": 2.908,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601607",
+      "name": "上海医药",
+      "shares_yi": 0.4133,
+      "ratio": 1.115,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600085",
+      "name": "同仁堂",
+      "shares_yi": 0.4103,
+      "ratio": 2.992,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002236",
+      "name": "大华股份",
+      "shares_yi": 0.3961,
+      "ratio": 1.872,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600196",
+      "name": "复星医药",
+      "shares_yi": 0.3874,
+      "ratio": 1.451,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000538",
+      "name": "云南白药",
+      "shares_yi": 0.3737,
+      "ratio": 2.108,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000568",
+      "name": "泸州老窖",
+      "shares_yi": 0.3384,
+      "ratio": 2.303,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600660",
+      "name": "福耀玻璃",
+      "shares_yi": 0.281,
+      "ratio": 1.077,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002466",
+      "name": "天齐锂业",
+      "shares_yi": 0.2785,
+      "ratio": 1.699,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "300408",
+      "name": "三环集团",
+      "shares_yi": 0.275,
+      "ratio": 1.471,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600570",
+      "name": "恒生电子",
+      "shares_yi": 0.2494,
+      "ratio": 1.317,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "000963",
+      "name": "华东医药",
+      "shares_yi": 0.2219,
+      "ratio": 1.266,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "601021",
+      "name": "春秋航空",
+      "shares_yi": 0.1689,
+      "ratio": 1.727,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600600",
+      "name": "青岛啤酒",
+      "shares_yi": 0.1602,
+      "ratio": 1.174,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "002304",
+      "name": "洋河股份",
+      "shares_yi": 0.1379,
+      "ratio": 0.915,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600436",
+      "name": "片仔癀",
+      "shares_yi": 0.1125,
+      "ratio": 1.865,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "600519",
+      "name": "贵州茅台",
+      "shares_yi": 0.0804,
+      "ratio": 0.642,
+      "change": "不变",
+      "ratio_change": null
+     },
+     {
+      "code": "300033",
+      "name": "同花顺",
+      "shares_yi": 0.0589,
+      "ratio": 2.137,
+      "change": "不变",
+      "ratio_change": null
+     }
+    ]
+   },
+   "latest": {
+    "period": "2026-09-30",
+    "count": 23,
+    "total_yi": 216.71
+   }
+  }
+ ]
+}

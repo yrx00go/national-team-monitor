@@ -1,0 +1,141 @@
+name: 每日更新国家队监测数据
+
+# 时区：GitHub Actions 的 cron 一律是 UTC。
+# 上交所 ETF 份额通常在收盘后（约 17:00–21:00 CST）发布，所以定在
+# 22:10 CST = 14:10 UTC 跑第一次，留出余量。
+# 再加 08:10 CST（00:10 UTC）跑第二次兜底 —— 晚上那次没拿到就早上补。
+on:
+  schedule:
+    - cron: '10 14 * * 1-5'   # 22:10 CST 工作日
+    - cron: '10 0 * * 2-6'    # 08:10 CST 周二至周六（补前一天）
+  workflow_dispatch:           # 支持手动触发，方便第一次验证
+    inputs:
+      backfill_days:
+        description: '回补最近 N 天（留空则只跑日常更新）'
+        required: false
+        default: ''
+
+permissions:
+  contents: write              # 提交数据需要
+  pages: write                 # 发布 Pages 需要
+  id-token: write
+
+concurrency:
+  group: etf-daily
+  cancel-in-progress: false    # 不取消正在跑的，避免数据半截
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # ⚠ 必须显式声明 outputs，否则 deploy 里的 needs.update.outputs.changed 永远是空，
+    #   `if: != 'false'` 会判成 skip —— 页面就再也不会更新了（这个坑很隐蔽）
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 只用标准库，不装任何第三方包 —— 少一个失败点
+      - name: 检查依赖
+        run: python3 -c "import json,urllib.request,zipfile,re,statistics;print('stdlib OK')"
+
+      - name: 回补（手动触发时）
+        if: ${{ github.event.inputs.backfill_days != '' }}
+        run: python3 scripts/fetch_etf.py --backfill ${{ github.event.inputs.backfill_days }}
+
+      - name: 抓取并构建
+        id: build
+        # update.py 的退出码含义：
+        #   0 = 全部成功
+        #   1 = 有可选步骤失败（数据已更新但可能不完整，页面照常发布）
+        #   其他/抛出 = 核心步骤（份额）失败，数据没动
+        # 这里不用 || true 掩盖，而是把状态记下来，让「降级发布」可见但不阻断发布。
+        run: |
+          set +e
+          python3 scripts/update.py
+          code=$?
+          set -e
+          echo "exit_code=$code" >> $GITHUB_OUTPUT
+          if [ $code -eq 1 ]; then
+            echo "### ⚠ 降级发布" >> $GITHUB_STEP_SUMMARY
+            echo "核心数据已更新，但有可选步骤失败，详见上方日志。" >> $GITHUB_STEP_SUMMARY
+          elif [ $code -ne 0 ]; then
+            echo "### ✗ 核心抓取失败，数据未更新" >> $GITHUB_STEP_SUMMARY
+            exit $code
+          fi
+
+      - name: 提交数据
+        id: commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data demo_site.html
+          if git diff --staged --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "数据无变化，跳过提交"
+          else
+            LATEST=$(python3 -c "import json;print(json.load(open('data/demo.json'))['latest_date'])")
+            git commit -m "data: 更新至 ${LATEST}"
+            git push
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      # 失败时的可见信号：不要让它静默烂掉
+      - name: 失败汇总
+        if: failure()
+        run: |
+          echo "### ⚠ 本次抓取失败" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "最可能的原因（按概率排序）：" >> $GITHUB_STEP_SUMMARY
+          echo "1. 交易所接口对境外 IP 限速或拒绝（这是本项目最大的技术风险）" >> $GITHUB_STEP_SUMMARY
+          echo "2. 非交易日但接口返回了异常结构" >> $GITHUB_STEP_SUMMARY
+          echo "3. 交易所临时故障" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "排查：本机跑 \`python3 scripts/update.py\` 是否能通。若本机能通而 runner 不通，就是这个原因。" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    needs: update
+    # 只有「update 成功」才发布；changed=false（数据没变）也照常发布一次，
+    # 保证 Pages 上的东西和仓库一致。
+    if: needs.update.result == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: 拉取刚提交的数据
+        run: git pull --ff-only || true
+
+      - name: 准备站点
+        run: |
+          mkdir -p _site
+          cp demo_site.html _site/index.html
+          cp -r data _site/data
+          # ⚠ manifest.json + icons/ 必须一起发。少任何一个，Chrome 的「安装应用」
+          #   都会【静默失效】——不报错、不提示，只是永远不出现按钮。
+          #   图标是 WebAPK 生成时必须真实取到的资源，缺 192 或 512 任一张都不行。
+          cp manifest.json _site/manifest.json
+          cp -r icons _site/icons
+          echo "站点文件："
+          ls -la _site/ _site/icons/
+          test -f _site/manifest.json && echo "✓ manifest.json"
+          test -f _site/icons/icon-192.png && echo "✓ icon-192"
+          test -f _site/icons/icon-512.png && echo "✓ icon-512"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
