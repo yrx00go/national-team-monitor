@@ -45,9 +45,22 @@ STOCKS = [
     ('建设银行', '601939', 'sh', 6.0, 3.0, 'half'),
     ('中国平安', '601318', 'sh', 5.0, 2.0, 'all'),
     ('中国人寿', '601628', 'sh', None, None, None),
+    ('新华保险', '601336', 'sh', None, None, None),
+    ('中国太保', '601601', 'sh', None, None, None),
     ('长江电力', '600900', 'sh', 5.0, None, 'hold'),
 ]
 START = '2023-12-01'   # 与 ETF 模块对齐：2023 年 12 月至今
+
+# 「险企观察仓」分组（2026-11-13 OO 指定，三只高股息险企一起看）。
+# ⚠ 只做分组标记，不动任何既有标的的买卖线：平安 601318 原有的 5.0/2.0 是她自己
+#    那套策略的配置，加个标签就把信号删掉，属于擅自改口径。
+# ⚠ 新加入的新华 601336、太保 601601 的 buy/sell 一律 None —— 观察仓是「只看，不下单」，
+#    给它们配买卖线会把观察仓读成交易信号。
+WATCH_GROUP = {
+    '601336': '险企观察仓',
+    '601318': '险企观察仓',   # 原本就在池里，不重复添加数据
+    '601601': '险企观察仓',
+}
 EM_URL = 'https://datacenter-web.eastmoney.com/api/data/v1/get'
 
 
@@ -217,6 +230,7 @@ def main():
 
         rows.append({
             'name': name, 'code': code,
+            'group': WATCH_GROUP.get(code),
             'buy': buy, 'sell': sell, 'mode': mode,
             'dates': dates,
             'price': prices,

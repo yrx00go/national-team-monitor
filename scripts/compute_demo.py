@@ -1397,6 +1397,68 @@ def main():
         print('  （无上报记录，体检状态由数据文件反推）')
 
     out['health'] = health
+
+    # ── 市场共识层（2026-11-13 新增）───────────────────────────────
+    # 和上面所有字段的区别：上面全是**事实**（份额、价格、流入），
+    # 这一块是**别人的判断**。两者结构完全不同，所以单独一个字段，
+    # 页面上也单独一栏，混在一起会让人分不清哪个能当依据。
+    #
+    # ⚠ 读不到时给 None，不要让整个 compute 崩掉 ——
+    #   这一层是「可选」的（没有它页面照常可用），
+    #   但也不能静默：sentiment.json 缺失时页面上要显示「未获取」。
+    try:
+        _sp = os.path.join(DATA, 'sentiment.json')
+        if os.path.exists(_sp):
+            _sj = json.load(open(_sp, encoding='utf-8'))
+            out['sentiment'] = {
+                'at': _sj.get('at'),
+                'date': _sj.get('date'),
+                'judgment': _sj.get('judgment') or {},
+                'valuations': _sj.get('valuations') or [],
+                'consensus': _sj.get('consensus') or {},
+                'mood': _sj.get('mood') or {},
+                'hot_stocks': (_sj.get('hot_stocks') or [])[:20],
+                'plates': _sj.get('plates') or {},
+                'news': {k: (v or [])[:8] for k, v in (_sj.get('news') or {}).items()},
+                'toutiao_hot_fin': _sj.get('toutiao_hot_fin') or [],
+                'toutiao_feed': (_sj.get('toutiao_feed') or [])[:10],
+                'guba': (_sj.get('guba') or [])[:15],
+                'heat': _sj.get('heat') or {},
+                'percentile': _sj.get('percentile') or {},
+                'history_days': _sj.get('history_days'),
+                'min_sample': _sj.get('min_sample'),
+                # 当天大盘涨跌：这一层唯一的事实锚（2026-11-13 新增）。
+                # 判断里有一票直接用它，页面也要能单独显示。
+                'index_chg': _sj.get('index_chg'),
+                'index_chg_date': _sj.get('index_chg_date'),
+                # 主题词表覆盖率：第一票的置信度。必须透传，
+                # 否则页面上「5 家媒体在说算力硬件」看起来像全体意见。
+                'topic_cov': _sj.get('topic_cov') or {},
+            }
+            # 这一层也要进体检 —— 否则它挂了没人知道，
+            # 页面会一直显示昨天的共识，看起来像今天的。
+            _sd = out['sentiment'].get('date') or ''
+            _st = 'ok' if _sd == today_real else (
+                'stale' if _sd else 'fail')
+            health.append({
+                'key': 'sentiment', 'name': '市场共识（媒体+股吧+热度）',
+                'state': _st, 'last': _sd or None,
+                'lag': _fh._gap(_sd, today_real) if _sd else None,
+                'got': None, 'want': None,
+                'note': (f'共 {len(out["sentiment"]["news"].get("a_share") or [])} 篇 A股新闻'
+                         if _st == 'ok' else f'停在 {_sd}，需重跑 fetch_sentiment.py'),
+                'days_bad': 0, 'days_silent': 0,
+            })
+            out['health'] = health
+            print(f'  市场共识：{out["sentiment"]["judgment"].get("stance")}　'
+                  f'{_sd}')
+        else:
+            out['sentiment'] = None
+            print('  ⚠ 没有 data/sentiment.json（先跑 fetch_sentiment.py）')
+    except Exception as e:
+        out['sentiment'] = None
+        print(f'  ⚠ 市场共识读取失败（不影响事实层）：{type(e).__name__}: {e}')
+
     _bad = [h for h in health if h['state'] != 'ok']
     if _bad:
         print(f'\n  数据体检：{len(health)} 项，{len(_bad)} 项有问题')

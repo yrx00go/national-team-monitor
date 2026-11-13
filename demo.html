@@ -76,6 +76,10 @@ nav button.on{color:var(--tx);border-bottom-color:var(--tx);font-weight:600}
 .ph{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .pt{font-size:14px;font-weight:600}
 .ps{font-size:11.5px;color:var(--tx3)}
+/* 市场共识栏用的两列容器。
+   ⚠ 列宽只写在这里，模板里不许再写 inline grid-template-columns ——
+     inline 的优先级高于 media query，写了断点就失效（实测过）。 */
+.cons2{display:grid;grid-template-columns:1fr 1fr}
 .chartbox{position:relative;width:100%}
 
 /* ── 时间滑动条 ─────────────────────────────────────────────
@@ -266,6 +270,10 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#F5F5F4;
 .t-hi{background:#FEE2E2;color:#991B1B}
 .t-lo{background:#DCFCE7;color:#166534}
 .t-mid{background:#F5F5F4;color:#78716C}
+.t-watch{background:#DBEAFE;color:#1D4ED8}
+tr.watch td{background:#F2F7FF}
+tr.grp td{background:#E8F0FE;color:#1D4ED8;font-size:11.5px;font-weight:600;padding:5px 10px}
+tr.grp span{font-weight:400;color:#64748B}
 /* 四象限形态：四种中性色，不暗示好坏 */
 .q1{background:#E0E7FF;color:#3730A3}   /* 逆势承接 */
 .q2{background:#FEF3C7;color:#92400E}   /* 资金追高 */
@@ -280,6 +288,11 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#F5F5F4;
   .grid2{grid-template-columns:1fr}
   /* 4 张卡在 1100 以下挤不下，降成 2 列；杠杆那组 3 张也降成 2 列 */
   .kpis,.kpis.k3{grid-template-columns:repeat(2,1fr)}
+  /* 市场共识栏的两列（证据 / 反面证据、A股新闻 / 股吧）在窄屏堆叠。
+     ⚠ 必须放在这里而不是 inline style —— 那些块是模板字符串拼出来的，
+       写 inline 会盖过 media query（inline 优先级高于外部样式表）。
+       所以模板里只给 class="cons2"，宽度控制全交给这两个断点。 */
+  .cons2{grid-template-columns:1fr !important}
 }
 @media(max-width:900px){
   .wrap{padding:20px 14px 60px}
@@ -360,6 +373,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#F5F5F4;
   <button data-pane="inst">国家队持仓基准</button>
   <button data-pane="stock">个股季报</button>
   <button data-pane="divi">股息率监控</button>
+  <button data-pane="consensus">市场共识</button>
 </nav>
 
 <!-- ========== 组合 ========== -->
@@ -559,6 +573,16 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#F5F5F4;
 <!-- ========== 股息率 ========== -->
 <div class="pane" id="pane-divi">
   <div id="diviBody"></div>
+</div>
+
+<!-- ========== 市场共识 ==========
+     ⚠ 这一栏和上面五栏是【两类东西】，不能混着读：
+       上面五栏是「已经发生的事」——份额、价格、流入、两融。有权威出处，可回溯。
+       这一栏是「别人在怎么说」——媒体标题、股吧帖子、热度榜。是统计，不是事实。
+     所以这里每一块都标了「这是什么 / 它不能拿来干什么」，
+     因为没有出处的数字最容易被当成结论用。 -->
+<div class="pane" id="pane-consensus">
+  <div id="consBody"></div>
 </div>
 
 <div class="src">
@@ -1983,6 +2007,10 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   let sel=0, dc=null, dp=null;
   const dSubs=[];   // 股息率两张图对 DVIEW 的订阅（换标的时要解绑）
   const rows=V.rows;
+  // 观察仓分组：把同一组的标的排在一起，其余保持原有顺序（JS 稳定排序）。
+  // ⚠ 只改显示顺序，data-i 仍指向 rows 的原始下标，drawDivi(i) 不会串位。
+  const ordered=rows.map((r,i)=>({r,i})).sort((a,b)=>(a.r.group?0:1)-(b.r.group?0:1));
+  const watchN=ordered.filter(x=>x.r.group).length;
   const kpi=[
     {k:'监控标的',v:rows.length,u:'只'},
     {k:'已达买入线',v:rows.filter(r=>r.latest.state==='已达买入线').length,u:'只'},
@@ -2001,9 +2029,11 @@ D.rows.concat(D.thin||[]).forEach(r=>{
       <th class="num">卖出线</th><th class="num">距买入线</th><th class="num">两年分位</th>
       <th class="num">两年区间</th><th>状态</th>
     </tr></thead><tbody>
-    ${rows.map((r,i)=>{const L=r.latest;
-      return `<tr style="cursor:pointer" data-i="${i}">
-        <td>${r.name}</td><td class="cd">${r.code}</td>
+    ${ordered.map(({r,i},k)=>{const L=r.latest;
+      const grp=(r.group && (k===0 || !ordered[k-1].r.group))
+        ? `<tr class="grp"><td colspan="9">${r.group} · ${watchN} 只　<span>只观察，不含买入建议；新华、太保未设买卖线，平安原有买卖线保留</span></td></tr>` : '';
+      return grp+`<tr class="${r.group?'watch':''}" style="cursor:pointer" data-i="${i}">
+        <td>${r.name}${r.group?' <span class="tag t-watch">观察仓</span>':''}</td><td class="cd">${r.code}</td>
         <td class="num"><b>${fmt(L.dy,2)}%</b></td>
         <td class="num mut">${r.buy==null?'—':fmt(r.buy,1)}</td>
         <td class="num mut">${r.sell==null?'—':fmt(r.sell,1)}</td>
@@ -2032,7 +2062,8 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   实测工商银行按除权日求和得 0.4614 元 → 5.37%，按报告期配对是 0.1689 + 0.1511 = 0.3200 元 → 3.73%。后者才是年化。<br><br>
   <b>历史曲线没有未来函数：</b>不是拿今天的分红回填 2024 年，而是对每个历史日期，只用那天已经除权的分红重新配对。
   所以曲线上的每一次跳变，都对应一次真实的除权事件。<br><br>
-  本站 11 只标的的当前股息率与你本地 <code>alert_my_dividend</code> 的缓存一致，最大偏差 0.05 个百分点（价差来自盘中/收盘价不同）。
+  本站原有 11 只标的的当前股息率与你本地 <code>alert_my_dividend</code> 的缓存一致，最大偏差 0.05 个百分点（价差来自盘中/收盘价不同）。<br><br>
+  <b>2026-11-13 新增</b>新华保险、中国太保到「险企观察仓」。这两只尚无本地缓存对照，读数按同一口径计算；<b>观察仓是分组标记，不是交易信号</b> —— 新加入的两只不设买卖线，平安原有的买卖线保持不变。
   </p></div>`;
   function drawDivi(i){
     sel=i; const r=rows[i], L=r.latest;
@@ -2092,7 +2123,329 @@ D.rows.concat(D.thin||[]).forEach(r=>{
     const tr=e.target.closest('tr[data-i]');
     if(tr) drawDivi(+tr.dataset.i);
   });
-  drawDivi(0);
+  drawDivi(ordered.length?ordered[0].i:0);
+})();
+
+// ---------- 市场共识 ----------
+// ⚠ 这一栏的写法和其他栏有本质区别，改之前先读这段：
+//   别的栏是「读事实」：份额涨了就是涨了，出错可以拿交易所原始数据核对。
+//   这一栏是「读别人说的话」：媒体标题、股吧帖子、热度榜。
+//   它的误差不是「抓错了」，而是「抓对了但归纳错了」——
+//   所以每一条都带原始样例（examples），每块都写明它不能拿来干什么。
+//   把归纳结果的置信度写出来，比把归纳做得更漂亮重要。
+(function(){
+  const S=D.sentiment;
+  const el=document.getElementById('consBody');
+  if(!S){
+    el.innerHTML=`<div class="panel"><div class="ph"><div class="pt">市场共识</div></div>
+      <div class="ps" style="line-height:1.9">还没有抓过这一层的数据。<br>
+      跑一次 <code>python3 scripts/fetch_sentiment.py</code> 就有了。<br>
+      <span class="mut">这一栏和上面五栏不同：它读的是「别人在怎么说」，不是已发生的事实。</span></div></div>`;
+    return;
+  }
+  const J=S.judgment||{};
+  const V=S.valuations||[];
+  const P=S.percentile||{};
+  const H=S.heat||{};
+  const MO=S.mood||{};
+  const pl=S.plates||{};
+
+  // 立场配色：偏强用涨色、偏弱用跌色、分化用中性灰
+  const stanceColor={'一致偏强':'var(--up)','偏强':'var(--up)',
+    '一致偏弱':'var(--down)','偏弱':'var(--down)','分化':'#B45309','样本不足':'var(--tx3)'}[J.stance]||'var(--tx2)';
+
+  const fmtPct=(v,d=1)=>v==null?'—':(+v).toFixed(d)+'%';
+
+  // 分位条：低分位（便宜）用绿色、高分位（贵）用红色。
+  // 注意方向：这里跟「涨红跌绿」是反的，因为「贵」不是「涨」。
+  const pctBar=(p)=>{
+    if(p==null) return '<span class="mut">—</span>';
+    const c=p>=80?'var(--up)':(p<=20?'var(--down)':'var(--tx3)');
+    return `<span style="display:inline-flex;align-items:center;gap:6px">
+      <span style="display:inline-block;width:52px;height:5px;background:#F0EFED;border-radius:3px;position:relative">
+        <span style="position:absolute;left:0;top:0;height:5px;width:${Math.max(2,Math.min(100,p))}%;background:${c};border-radius:3px"></span>
+      </span><b style="color:${c};font-variant-numeric:tabular-nums">${p.toFixed(0)}%</b></span>`;
+  };
+
+  // ── 一句话判断 ──
+  const judgeCard = !J.stance ? '' : `
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">今天的判断：<span style="color:${stanceColor}">${J.stance}</span></div>
+      <div class="ps">${S.date||''}</div>
+    </div>
+    <div style="font-size:13.5px;line-height:1.85;margin-bottom:14px">${J.line||''}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:14px">
+      ${(J.votes||[]).map(v=>{
+        const c=v.v>0?'var(--up)':(v.v<0?'var(--down)':'var(--tx3)');
+        const lab=v.v>0?'偏强':(v.v<0?'偏弱':'中性');
+        return `<div class="kpi"><div class="k">${v.name}</div>
+          <div class="v" style="font-size:15px;color:${c}">${lab}</div>
+          <div class="d">${v.why||''}</div></div>`;
+      }).join('')}
+    </div>
+    ${(J.missing||[]).length?`
+    <div style="background:#FEF3C7;border-left:3px solid #B45309;padding:8px 11px;border-radius:4px;
+                font-size:12px;line-height:1.75;margin-bottom:14px">
+      <b>今天缺了这几票</b>：${(J.missing||[]).join('；')}<br>
+      <span class="mut">缺票会改变结论。上面那句判断是<b>在少 ${(J.missing||[]).length} 票的情况下</b>得出的，
+      不是完整的四维一致。</span>
+    </div>`:''}
+    <div class="cons2" style="gap:14px">
+      <div><div class="k" style="font-size:11px;color:var(--tx3);margin-bottom:6px">支撑这个判断的</div>
+        <ul style="margin:0;padding-left:16px;line-height:1.9;font-size:12.5px">
+          ${(J.evidence||[]).map(e=>`<li>${e}</li>`).join('')||'<li class="mut">无</li>'}</ul></div>
+      <div><div class="k" style="font-size:11px;color:var(--tx3);margin-bottom:6px">反过来想的</div>
+        <ul style="margin:0;padding-left:16px;line-height:1.9;font-size:12.5px">
+          ${(J.anti||[]).map(e=>`<li>${e}</li>`).join('')||'<li class="mut">无</li>'}</ul></div>
+    </div>
+    ${J.note?`<div class="ps" style="margin-top:12px;line-height:1.8;padding-top:10px;border-top:1px solid var(--line)">${J.note}</div>`:''}
+  </div>`;
+
+  // ── 媒体在说什么 ──
+  const consBlock=(key,title,note)=>{
+    const rows=(S.consensus||{})[key]||[];
+    if(!rows.length) return `<div class="panel"><div class="ph"><div class="pt">${title}</div></div>
+      <div class="ps">今天没抽到。可能是新闻太少，或都不含可识别的主题词。</div></div>`;
+    const dl={'up':'在涨','down':'在跌','mix':'分歧','flat':'没方向'};
+    const dc={'up':'var(--up)','down':'var(--down)','mix':'#B45309','flat':'var(--tx3)'};
+    // ⚠ 四列分开摆，不合成一个数。
+    //   之前只显示「5 家」+「在跌」，读者会读成「5 家媒体说在跌」，
+    //   实际是「5 家提到，其中 3 家说跌、2 家说涨」（或 4 家没方向）。
+    //   一个数字承载不了两个口径 —— 那是让人误读，不是简化。
+    return `<div class="panel">
+      <div class="ph"><div class="pt">${title}</div><div class="ps">${note}</div></div>
+      <div class="tblwrap"><table><thead><tr>
+        <th>主题</th><th>方向</th><th class="num">提到</th>
+        <th class="num">说涨</th><th class="num">说跌</th><th class="num">没方向</th>
+        <th>原始标题（可复核）</th>
+      </tr></thead><tbody>
+      ${rows.map(c=>`<tr>
+        <td><b>${c.text}</b></td>
+        <td style="color:${dc[c.dir]||'var(--tx2)'};font-weight:600">${dl[c.dir]||'—'}</td>
+        <td class="num mut">${c.sources} 家</td>
+        <td class="num" style="color:${c.n_up?'var(--up)':'var(--tx3)'}">${c.n_up||0}</td>
+        <td class="num" style="color:${c.n_down?'var(--down)':'var(--tx3)'}">${c.n_down||0}</td>
+        <td class="num mut">${c.n_flat||0}</td>
+        <td class="mut" style="font-size:11.5px;line-height:1.65">
+          ${(c.examples||[]).map(e=>`<div>· ${e}</div>`).join('')||'—'}</td>
+      </tr>`).join('')}
+      </tbody></table></div>
+      <div class="ps" style="margin-top:9px;line-height:1.8">这是<b>媒体选题的重合度</b>，不是市场真相。
+        同一件事 5 家都报，说明编辑们认为它重要，不说明它正确。<br>
+        ⚠ <b>「提到」不等于「表态」</b>：说涨 + 说跌 + 没方向 = 提到。
+        同一家媒体若同时发过看涨和看跌的稿子，按篇数多的那边算一次，所以不会出现「分项加起来超过提到」。
+      </div>
+    </div>`;
+  };
+
+  // ── 估值分位 ──
+  const valBlock = !V.length?'':`
+  <div class="panel">
+    <div class="ph"><div class="pt">贵不贵：指数估值历史分位</div>
+      <div class="ps">PE 分位 = 当前市盈率在它自己历史上的位置。低 = 比过去便宜，高 = 比过去贵</div></div>
+    <div class="tblwrap"><table><thead><tr>
+      <th>指数</th><th class="num">PE</th><th class="num">PE 分位</th>
+      <th class="num">PB 分位</th><th class="num">股息率</th><th class="num">ROE</th>
+    </tr></thead><tbody>
+    ${V.map(v=>`<tr>
+      <td>${v.name}</td>
+      <td class="num">${v.pe==null?'—':v.pe.toFixed(2)}</td>
+      <td class="num">${pctBar(v.pe_pct)}</td>
+      <td class="num">${pctBar(v.pb_pct)}</td>
+      <td class="num">${fmtPct(v.div_yield,2)}</td>
+      <td class="num mut">${fmtPct(v.roe,1)}</td>
+    </tr>`).join('')}
+    </tbody></table></div>
+    <div class="ps" style="margin-top:9px;line-height:1.8">
+      ⚠ 分位只回答「贵不贵」，<b>不回答「会涨还是会跌」</b>。贵可以更贵，便宜可以更便宜。
+      这一列真正的用处是：<b>同样一笔新增的钱，放在低分位的地方，长期赔率更好</b>。
+    </div>
+  </div>`;
+
+  // ── 板块热度 → ETF ──
+  const plateBlock=(list,title)=>!((list||[]).length)?'':`
+  <div class="panel">
+    <div class="ph"><div class="pt">${title}</div>
+      <div class="ps">热度是该板块的讨论量，不是涨幅。右侧是可直接下单的对应 ETF</div></div>
+    <div class="tblwrap"><table><thead><tr>
+      <th class="num">#</th><th>板块</th><th class="num">涨幅</th>
+      <th class="num">热度</th><th>对应 ETF</th><th class="num">代码</th>
+    </tr></thead><tbody>
+    ${list.map((p,i)=>`<tr>
+      <td class="num mut">${i+1}</td>
+      <td>${p.name}</td>
+      <td class="num" style="color:${p.chg>0?'var(--up)':(p.chg<0?'var(--down)':'var(--tx3)')}">
+        ${p.chg==null?'—':(p.chg>0?'+':'')+p.chg.toFixed(2)+'%'}</td>
+      <td class="num mut">${p.heat==null?'—':(p.heat/10000).toFixed(1)+'万'}</td>
+      <td class="mut">${p.etf||'—'}</td>
+      <td class="num cd">${p.etf_code||'—'}</td>
+    </tr>`).join('')}
+    </tbody></table></div>
+  </div>`;
+
+  // ── 热股 ──
+  const hotBlock = !(S.hot_stocks||[]).length?'':`
+  <div class="panel">
+    <div class="ph"><div class="pt">A股人气榜 Top 20</div>
+      <div class="ps">热度 = 该股被讨论的量。带「为什么」的是同花顺的 AI 归因，只有约 1/4 的票有</div></div>
+    <div class="tblwrap"><table><thead><tr>
+      <th class="num">#</th><th>名称</th><th class="num">涨幅</th><th class="num">热度</th>
+      <th>概念</th><th>连板</th><th>为什么热</th>
+    </tr></thead><tbody>
+    ${S.hot_stocks.map(s=>`<tr>
+      <td class="num mut">${s.rank}</td>
+      <td><b>${s.name}</b> <span class="cd">${s.code}</span></td>
+      <td class="num" style="color:${(s.chg||0)>0?'var(--up)':((s.chg||0)<0?'var(--down)':'var(--tx3)')}">
+        ${s.chg==null?'—':(s.chg>0?'+':'')+s.chg.toFixed(2)+'%'}</td>
+      <td class="num mut">${s.heat==null?'—':(s.heat/10000).toFixed(0)+'万'}</td>
+      <td class="mut" style="font-size:11.5px">${(s.tags||[]).slice(0,2).join(' / ')||'—'}</td>
+      <td class="mut" style="font-size:11.5px">${s.mark||'—'}</td>
+      <td class="mut" style="font-size:11px;max-width:340px;line-height:1.6">${
+        s.why?`<details><summary style="cursor:pointer">展开</summary>${s.why.slice(0,300)}…</details>`:'—'}</td>
+    </tr>`).join('')}
+    </tbody></table></div>
+  </div>`;
+
+  // ── 情绪 ──
+  const g=MO.guba||{}, f=MO.feed||{};
+  // ⚠ m.n 为 0 时不能直接 return '' 把卡片吞掉。
+  //   2026-11-13 实测股吧被限流，那一格整块消失，页面看起来像「今天没有散户情绪」，
+  //   实际是「我们没抓到」。**消失的信息比明确写出的缺失更危险** ——
+  //   读者不会察觉少了一块，只会把剩下的当成全部。
+  const moodBar=(m,label)=>{
+    if(!m || !m.n){
+      return `<div class="kpi" style="margin:0">
+        <div class="k">${label}</div>
+        <div class="v" style="font-size:15px;color:var(--tx3)">没取到</div>
+        <div class="d">今天没抓到帖子（限流或改版），不是「散户没表态」</div></div>`;
+    }
+    const dec=(m.bull||0)+(m.bear||0);
+    return `<div class="kpi" style="margin:0">
+      <div class="k">${label}</div>
+      <div class="v" style="font-size:16px">
+        <span style="color:var(--up)">${m.bull}</span>
+        <span class="mut" style="font-size:12px"> / </span>
+        <span style="color:var(--down)">${m.bear}</span>
+        <small style="margin-left:6px">看多 / 看空</small></div>
+      <div class="d">共 ${m.n} 条，其中 ${m.n-dec} 条没有明确态度</div></div>`;
+  };
+
+  // ── 热度与分位 ──
+  const pctRow=(key,label,unit)=>{
+    const p=P[key]||{};
+    if(p.val==null) return '';
+    const v=unit==='万'?(p.val/10000).toFixed(0)+'万':p.val;
+    const pc=p.pct;
+    return `<tr><td>${label}</td><td class="num"><b>${v}</b></td>
+      <td class="num">${pc==null
+        ? `<span class="mut" style="font-size:11px">样本 ${p.n}/${S.min_sample} 天</span>`
+        : pctBar(pc)}</td></tr>`;
+  };
+
+  // ── 词表覆盖度：第一票的置信度 ──
+  // ⚠ 这一块必须存在。2026-11-13 实测：A股 56 篇里只有 23 篇（41%）
+  //   被主题词表识别，其余 33 篇几乎全是「创业板指跌3%」这类指数级涨跌 ——
+  //   词表按板块组织，指数名一个都没收。
+  //   所以「5 家媒体说算力硬件在跌」这个结论，是在四成样本上得出的。
+  //   不写这个数，读者会把它当成当天媒体的全部意见。
+  const cov=S.topic_cov||{};
+  const covBlock = !Object.keys(cov).length ? '' : `
+  <div class="panel">
+    <div class="ph"><div class="pt">主题词表读到了多少报道</div>
+      <div class="ps">这是上面「媒体在说什么」那张表的<b>覆盖率</b>，也就是它的置信度</div></div>
+    <div class="tblwrap"><table><thead><tr>
+      <th>话题</th><th class="num">报道总数</th><th class="num">读到主题</th>
+      <th class="num">覆盖率</th><th>没读到的是什么</th>
+    </tr></thead><tbody>
+      ${Object.entries(cov).map(([k,v])=>`<tr>
+        <td>${({a_share:'A股',gold:'黄金'})[k]||k}</td>
+        <td class="num">${v.n} 篇</td>
+        <td class="num">${v.hit} 篇</td>
+        <td class="num">${v.pct==null?'—':pctBar(v.pct)}</td>
+        <td class="mut" style="font-size:11.5px;line-height:1.65">${
+          k==='a_share'?'多是指数级播报（「创业板指跌3%」「沪指跌0.56%」），词表只收板块名，不收指数名'
+          :'基本全覆盖'}</td>
+      </tr>`).join('')}
+    </tbody></table></div>
+    <div class="ps" style="margin-top:9px;line-height:1.8">
+      ⚠ 覆盖率低 <b>不代表结论错，代表它不能单独当结论</b>。
+      没有读到的那部分报道，讲的往往是「大盘今天跌了多少」——
+      恰好是这个词表结构上看不见的东西。所以下面还有一票叫「当天大盘涨跌」，
+      它直接从行情接口读真实涨跌幅，不经过词表。
+    </div>
+  </div>`;
+
+  el.innerHTML = judgeCard + `
+  ${consBlock('a_share','A股：今天媒体在说什么','按「有方向的媒体家数」排序，不是按提到次数')}
+  ${covBlock}
+  ${consBlock('gold','黄金：今天媒体在说什么','同一个主题不同写法已合并')}
+  ${valBlock}
+  <div class="panel">
+    <div class="ph"><div class="pt">热度：今天多热，以及热到什么程度</div>
+      <div class="ps">绝对值没有参照系，所以给的是<b>在过去多少个交易日里的分位</b></div></div>
+    <div class="tblwrap"><table><thead><tr>
+      <th>指标</th><th class="num">今天</th><th class="num">历史分位</th>
+    </tr></thead><tbody>
+      ${pctRow('top_heat','热股榜首热度','万')}
+      ${pctRow('toutiao_fin','头条热榜财经条目数')}
+      ${pctRow('guba_posts','股吧散户帖数')}
+      ${pctRow('hit_a','「A股」搜索命中量')}
+      ${pctRow('bear_guba','股吧看空占比')}
+      ${pctRow('bull_guba','股吧看多占比')}
+    </tbody></table></div>
+    <div class="ps" style="margin-top:9px;line-height:1.8">
+      ${(S.history_days||0) < (S.min_sample||20)
+        ? `⚠ 现在只积累了 <b>${S.history_days||0}</b> 天，满 <b>${S.min_sample||20}</b> 天才会给分位。
+           样本太少算出来的百分位看着确定、其实是噪声。这段时间只看绝对值的变化方向。`
+        : `分位 = 今天这个数在过去 ${S.history_days} 个交易日里的位置。
+           <b>这个分位本身也需要更长历史才算稳</b>，现在样本仍然偏短。`}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ph"><div class="pt">散户在说什么</div>
+      <div class="ps">关键词粗判，不是语义理解。用来感知温度，不用来当信号</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:11px">
+      ${moodBar(g,'股吧（散户原话）')}
+      ${moodBar(f,'头条（自媒体标题）')}
+    </div>
+    <div class="ps" style="margin-top:11px;line-height:1.8">
+      ⚠ 词表是人工定的，判断只看标题里有没有「涨/跌/加仓/清仓」这类词。
+      <b>大量标题其实没有态度</b>（「功亏一篑」这种），所以「看空占比」的分母要看清是全部帖子还是只有明确态度的那些。
+    </div>
+  </div>
+  ${plateBlock(pl.industry,'行业热度 → 能买什么')}
+  ${plateBlock(pl.concept,'概念热度 → 能买什么')}
+  ${hotBlock}
+  <div class="panel">
+    <div class="ph"><div class="pt">原始素材（可自行复核）</div>
+      <div class="ps">上面所有归纳都是从这些标题算出来的。觉得结论不对，先看这里</div></div>
+    <div class="cons2" style="gap:18px">
+      <div>
+        <div class="k" style="font-size:11px;color:var(--tx3);margin-bottom:6px">A股新闻（${((S.news||{}).a_share||[]).length} 篇）</div>
+        ${((S.news||{}).a_share||[]).map(n=>`<div style="font-size:11.5px;line-height:1.7;padding:3px 0;border-bottom:1px solid #F5F5F4">
+          <span class="mut">${(n.date||'').slice(5,16)}</span>　<span class="mut">${n.src||''}</span><br>${n.title}</div>`).join('')}
+      </div>
+      <div>
+        <div class="k" style="font-size:11px;color:var(--tx3);margin-bottom:6px">股吧帖子（${((S.guba||[]).length)} 条）</div>
+        ${(S.guba||[]).map(n=>`<div style="font-size:11.5px;line-height:1.7;padding:3px 0;border-bottom:1px solid #F5F5F4">${n.title}</div>`).join('')}
+      </div>
+    </div>
+  </div>
+  <div class="panel"><div class="ph"><div class="pt">口径（这段很重要，别跳过）</div></div>
+    <div class="ps" style="line-height:1.9">
+      <b>这一栏是什么</b>：媒体标题、股吧帖子、热门榜单的统计归纳。它回答「今天大家在说什么」。<br>
+      <b>这一栏不是什么</b>：不是预测，不是建议，不是「多数人认为对所以对」。<br>
+      <b>为什么单独放一栏</b>：上面五栏都是已有出处的事实（交易所份额、行情价格），
+      出错可以拿原始数据核对。这一栏是<b>归纳</b>，出错的方式是「数据都对但结论归纳错了」，
+      所以它必须和事实分开摆，避免混着读。<br>
+      <b>已知抓不到的</b>：抖音财经博主的原话。实测抖音搜索需登录、视频详情 403、
+      热榜 147 条采样里财经命中 0 条。所以这里没有「陈小群今天说了什么」，
+      只有「媒体今天在报什么」。<br>
+      <b>数据来源</b>：东方财富全站搜索（媒体标题）· 同花顺热榜（个股/行业/概念热度）·
+      蛋卷基金（指数估值分位）· 东方财富股吧（散户帖子）· 今日头条（自媒体标题、热榜）。
+    </div>
+  </div>`;
 })();
 
 // ---------- tab ----------

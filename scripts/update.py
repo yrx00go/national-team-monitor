@@ -109,6 +109,24 @@ def main():
     if not run('fetch_history.py', '--shares-only', optional=True):
         fails.append('fetch_history.py --shares-only（份额回补未完成）')
 
+    # 市场共识层（媒体 + 股吧 + 热度 + 估值分位 + 当天大盘）。
+    #
+    # ⚠ 必须排在 compute_demo.py 之前 —— 它写 data/sentiment.json，
+    #   而 compute_demo 要把这个文件读进 demo.json 的 sentiment 字段。
+    #   排到后面就是「今天抓的共识，明天才上页面」，
+    #   而且因为日期字段会显示昨天的日期，看起来又像「今天没更新」，
+    #   排查时极容易怀疑到抓取脚本头上而不是顺序上。
+    #
+    # ⚠ 它不抢东财 push2his 的配额：走的是 search-api（另一个服务）、
+    #   dq.10jqka、danjuanfunds、guba、toutiao、qt.gtimg.cn，全部不同域名。
+    #   所以放在 fetch_history --shares-only 之后不会加剧那边的限流。
+    #
+    # ⚠ 标 optional 的理由和上面几条不同：这一层是「别人在怎么说」，
+    #   拿不到不影响事实层（份额/价格/流入）的正确性，页面会显示
+    #   「还没有抓过这一层的数据」。宁可少一栏，不能用旧共识冒充今天。
+    if not run('fetch_sentiment.py', optional=True):
+        fails.append('fetch_sentiment.py（市场共识未更新，共识栏会停在旧日期）')
+
     # 放在最后：它要读上面所有抓取步骤写下的 fetch_status.json
     if not run('compute_demo.py', optional=True):
         fails.append('compute_demo.py（数据未重算，页面会用上一次的结果）')
