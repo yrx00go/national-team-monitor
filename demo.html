@@ -880,15 +880,42 @@ const LVC={'很低':'#1D4ED8','偏低':'#2563EB','正常':'#57534E','偏高':'#E
            '在加':'#DC2626','在退':'#16A34A'};
 
 // ── 第一组：资金流（今天 / 5日 / 20日 / 场子多热）──
+// ⚠⚠ 标题里不写「当日」，写具体日期（2026-11-13 改）。
+//   「当日」是个相对词：读的人不知道它指哪一天，而这个站的三个日期本来就不同 ——
+//     份额 T+1 披露、成交额当晚就有、两融 T+1 晚间才出。
+//   所以「当日」到底指 11-12 还是 11-13，光看卡片是判不出来的。
+//   更要命的是：卡片上另外三格（5日 / 20日 / 两市成交额）各自对应不同日期，
+//   一旦有人以为「当日」＝「今天」，就会把 11-12 的流入当成今天早上的消息。
+//   → 数字对应哪一天，就写在卡片上。
+const mdShort=s=>{const p=String(s||'').split('-');
+  return p.length===3?`${+p[1]}.${+p[2]}`:'';};
+// 拿不到日期时退回「当日」而不是留空 —— 留空会变成一张没有时间坐标的卡片，
+// 那比用相对词更糟（至少「当日」还提示了「不是历史值」）。
+const DAY_TAG=mdShort(D.latest_date)||'当日';
+
+// 涨的是「哪几天的合计」——就写出来。只在能算的时候算，拿不到就退回相对词。
+// ⚠ 区间取 flow 序列本身的日子，不用 latest_date 往前推自然日：
+//   往前推 5 个自然日会跨周末，得到「11-08~11-12」这种实际只有 3 个交易日的区间，
+//   写在卡片上就是错的。**区间必须数交易日，不能数日历天。**
+function spanTag(n){
+  const ds=D.days||[], L=D.combo.flow||[];
+  if(ds.length<n||L.length<n) return `近 ${n} 日累计`;
+  const a=mdShort(ds[ds.length-n]), b=mdShort(ds[ds.length-1]);
+  return (a&&b) ? `${a}–${b} 累计` : `近 ${n} 日累计`;
+}
+
 const kpisFlow=[
-  {k:'当日估算净流入',v:sgn(lastFlow),u:'亿',
+  {k:`${DAY_TAG} 估算净流入`,v:sgn(lastFlow),u:'亿',
    // 百分比 = 当日 ÷ 60 日常态水位。这是「和自己比」，不是「和别的标的比」。
    d:abMeta?`<span style="color:${abMeta.c};font-weight:600">${AB.ratio.toFixed(2)}× 常态 · ${abMeta.t}</span>`:D.latest_date,
    tag:abMeta?abMeta:null},
-  {k:'近 5 日累计',v:sgn(sumN(D.combo.flow,5)),u:'亿'},
-  {k:'近 20 日累计',v:sgn(sumN(D.combo.flow,20)),u:'亿'},
+  {k:spanTag(5),v:sgn(sumN(D.combo.flow,5)),u:'亿'},
+  {k:spanTag(20),v:sgn(sumN(D.combo.flow,20)),u:'亿'},
   vLast?{k:'两市成交额',v:Math.round(vLast.v).toLocaleString(),u:'亿',
-   d:`5日均 ${Math.round(vLast.m5).toLocaleString()} · 一年分位 ${vLast.p.toFixed(0)}%`}:null,
+   // ⚠ 这一格用的是「成交量自己的最新一天」，不一定是 latest_date ——
+   //   成交额当晚就有、份额要 T+1。所以这一格必须显示自己的日期，
+   //   否则会和左边两格看起来同一天，实际差一两天。
+   d:`${mdShort(vLast.d)||'当日'} · 5日均 ${Math.round(vLast.m5).toLocaleString()} · 一年分位 ${vLast.p.toFixed(0)}%`}:null,
 ].filter(Boolean);
 
 // ── 第二组：杠杆三问（多重 / 多热 / 在加还是在退）──
