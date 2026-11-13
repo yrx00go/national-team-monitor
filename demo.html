@@ -735,17 +735,36 @@ document.getElementById('upd').textContent=D.updated_at;
   // ⚠ 文案纪律：只有【真的有问题】时才说「落后 N 天」。
   //   状态 ok 但 lag=1 是周末/休市，天经地义；写成「落后 1 天」会让人以为坏了，
   //   于是下次真坏了也没人多看一眼 —— 这正是「狼来了」的标准死法。
+  //
+  // ⚠⚠ 2026-11-13：lag 的含义变了，文案必须跟着改。
+  //   后端算 lag 的基准从「日历今天」换成了「数据该到哪一天」
+  //   （_td.expect_asof：今天未收盘/非交易日 → 退到上一个交易日），
+  //   单位也从自然日换成了【交易日】。
+  //
+  //   所以现在 lag==0 的真正含义是：
+  //     **「这份数据已经到了此刻能拿到的最新一天」** —— 它不再分「今天」
+  //     和「最近交易日」了。原来那两句话（当日 / 最近交易日）是在解释
+  //     「为什么落后 1 天还显示正常」，现在没有这个矛盾了，留着反而是噪音。
+  //
+  //   用户的原话：「这个也不算落后，现在是 11.13 号的上午，
+  //   我们本来也是 11.13 号晚上才更新当天的内容」。他说得对 ——
+  //   上午看 11-12 的数据，本来就不该叫落后。
   function line(r){
     let st;
     if(r.last){
       if(r.state==='ok'){
-        // 正常的不报天数，只报「当天」还是「最近交易日」
-        st = r.lag==null ? r.last : (r.lag<=0 ? r.last+' · 当日' : r.last+' · 最近交易日');
+        // ⚠ 只写日期，不加「当日 / 最近交易日」的注解。
+        //   lag==0 已经表示「已是最新」，再加注解等于让人去猜「当日
+        //   到底是今天还是昨天」—— 那正是上一轮 KPI 卡片刚修掉的病。
+        st = r.last + ' · 已是最新';
       }else if(r.days_silent!=null && r.days_silent>2){
         // 脚本根本没跑：这时候说「落后几天」是次要的，说「几天没抓了」才是要点
         st = r.last+' · 已 '+r.days_silent+' 天未抓取';
       }else{
-        st = r.last + (r.lag==null?'':(r.lag<=0?' · 当日':' · 落后 '+r.lag+' 天'));
+        // ⚠ 单位是「交易日」不是「天」。写「落后 1 天」会让人以为是漏了一天行情，
+        //   实际可能是跨了个周末；写「落后 1 个交易日」才是准确的那个意思。
+        st = r.last + (r.lag==null?'':(r.lag<=0?' · 已是最新'
+                                       :' · 落后 '+r.lag+' 个交易日'));
       }
     }else{
       st='无日期';
@@ -769,7 +788,28 @@ document.getElementById('upd').textContent=D.updated_at;
   // 汇总文字：正常时只说一句，异常时必须说清几项、最严重的是哪项。
   if(!bad.length){
     title.textContent='数据体检 · 全部正常';
-    sum.textContent=rows.length+' 项数据均按时更新';
+    // ⚠⚠ 2026-11-13：这里补一句「今天的数据晚上才更新」。
+    //
+    //   起因：用户上午 09:52 看到「2026-11-12 · 落后 1 天」就以为坏了。
+    //   换成「已是最新」之后，新的疑问会变成「那为什么日期不是今天？」
+    //   —— 这个疑问不该让他自己去推。
+    //
+    //   而这个站的数据确实分两拨：
+    //     · 收盘后当晚拿到 → 当日行情（价格 / 成交额 / 指数）
+    //     · T+1 才披露     → 份额 / 两融
+    //   所以「今天的日期」在上午本来就该是空的，说明白比让人猜强。
+    //
+    //   为什么用 D.latest_date 而不是自己算时钟：
+    //   要回答的是「数据最新到哪天、那天是不是今天」。
+    //   ⚠ 不能用 D.updated_at —— 那是【页面生成时间】，
+    //     11-13 凌晨 01:46 那次 CI 生成页面时数据只到 11-12，
+    //     updated_at 的日期是 11-13、latest_date 是 11-12，两者会打架。
+    //     拿 updated_at 判断会得出「今天已更新」的假结论。
+    const _fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')
+                     +'-'+String(d.getDate()).padStart(2,'0');
+    const _isToday = (D.latest_date||'') === _fmt(new Date());
+    sum.textContent = rows.length+' 项数据均按时更新'
+      + (_isToday ? '' : '（今日行情晚上更新）');
   }else{
     const worst=bad[0];
     title.textContent='数据体检 · '+bad.length+' 项需要注意';
@@ -779,9 +819,9 @@ document.getElementById('upd').textContent=D.updated_at;
     if(worst.state==='stale'){
       why = (worst.days_silent!=null && worst.days_silent>2)
         ? '（'+worst.days_silent+' 天未抓取）'
-        : (worst.lag!=null ? '（源站 '+worst.lag+' 天无新数据）' : '');
+        : (worst.lag!=null ? '（源站 '+worst.lag+' 个交易日无新数据）' : '');
     }else if(worst.lag!=null && worst.lag>0){
-      why='（落后 '+worst.lag+' 天）';
+      why='（落后 '+worst.lag+' 个交易日）';
     }
     const sumTxt=worst.name+' '+TXT[worst.state]+why;
     sum.textContent=sumTxt;

@@ -1065,26 +1065,32 @@ def _derive_health(shares, prices_qfq, prices_bfq, sh_idx, turn_raw,
 
     out = []
 
+    # ⚠⚠ 反推也要用同一个基准日（2026-11-13 加）。
+    #   原来这里也是 `today - last` 的自然日差，于是走了这条兜底路径时
+    #   同样会在 11-13 上午把 11-12 的数据报成「落后 1 天」——
+    #   **同一个错写两遍，改一处忘一处**，而且这条路径只在没上报记录时才走，
+    #   更难被发现。现在两条路径共用 _td.expect_asof() 一个口径。
+    try:
+        _asof = _td.expect_asof()[0]
+    except Exception:
+        _asof = today
+
     def add(key, name, last, got=None, want=None):
-        lag = None
-        if last:
-            try:
-                lag = (datetime.strptime(today[:10], '%Y-%m-%d')
-                       - datetime.strptime(last[:10], '%Y-%m-%d')).days
-            except Exception:
-                lag = None
+        # lag = 落后几个【交易日】，不是自然日（周末不算落后）
+        lag = _fh._gap(last, _asof) if last else None
         state = 'ok'
         # 「日期新」不等于「数据齐」。抓 6 只和抓 10 只都可能是今天的日期，
         # 但前者净流入只覆盖 60% 的标的 —— 不报出来，读的人会以为组合是全部 10 只。
-        if got is not None and want and got < want:
+        #
+        # ⚠ 但「这次没抓全」也不等于「数据缺」。判据是 lag：
+        #   lag==0（已是最新）时 got<want 说明那几只本来就没新数据可抓，
+        #   报 partial 就是狼来了 —— 和 summarize 里同一条规则，别只改一边。
+        if got is not None and want and got < want and lag != 0:
             state = 'partial'
         # ⚠ 这里用 SRC_STALE_DAYS（10 天），不用 LAG_OK。
-        #   反推场景下 today 是【真实今天】，而 LAG_OK 只管「源站天生滞后几天」
-        #   （两融 T+1、上交所 T+1）。拿它判会把每个周末都报成「停更」：
-        #   周六看周五的数据 lag=1，两融 LAG_OK=1 就卡在边界上，
-        #   再隔一天变 lag=2 > 1 → 红着。**一份周末必红的仪表盘会被当成噪音关掉。**
-        #   反推时我们本来就不知道「今天有没有抓」，只能问「数据本身多久没动」，
+        #   反推场景下不知道「今天有没有抓」，只能问「数据本身多久没动」，
         #   那就该用休市容忍度（A 股最长休市是春节约 9 天）。
+        #   拿 LAG_OK 判会把每个周末都报成「停更」。
         if lag is not None and lag > _fh.SRC_STALE_DAYS:
             state = 'stale'
         out.append({'key': key, 'name': name, 'state': state, 'last': last,

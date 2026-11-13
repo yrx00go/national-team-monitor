@@ -42,6 +42,11 @@ import json, os
 from collections import Counter
 from datetime import datetime, timedelta
 
+try:
+    import _td        # 全站唯一时间口径（北京时钟 + 交易日历 + 定稿判定）
+except Exception:     # 单独 import 本模块做实验时可能拿不到，别把体检拖挂
+    _td = None
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FP = os.path.join(BASE, 'data', 'fetch_status.json')
 
@@ -69,6 +74,27 @@ LAG_OK = {
 # A 股最长休市是春节（约 9 天），所以取 10 —— 超过 10 天没新数据，基本不可能是假期。
 SRC_STALE_DAYS = 10
 REPORT_STALE_SLACK = 2   # 脚本连续几天没报到这一项，才算这一项没人管
+
+
+def _gap(d_from, d_to):
+    """d_from → d_to 落后几个【交易日】。
+
+    优先用 _td.trading_gap（真正的交易日历）；拿不到日历时退回自然日差。
+    ⚠ 留这个薄封装而不是各处直接调 _td，是为了让「没有 _td 也能跑」这条
+      退化路径只有一处 —— 测试里单独 import 本模块时 _td 可能取不到。
+    """
+    if not d_from or not d_to:
+        return None
+    if _td is not None:
+        try:
+            return _td.trading_gap(str(d_from)[:10], str(d_to)[:10])
+        except Exception:
+            pass
+    try:
+        return max(0, (datetime.strptime(str(d_to)[:10], '%Y-%m-%d')
+                       - datetime.strptime(str(d_from)[:10], '%Y-%m-%d')).days)
+    except Exception:
+        return None
 
 
 def majority_last(series):
@@ -165,7 +191,7 @@ def report(key, name, state, last=None, got=None, want=None, note=''):
         print(f'  ⚠ 状态上报失败（不影响本次抓取）：{type(e).__name__}: {e}')
 
 
-def summarize(today=None):
+def summarize(today=None, asof=None):
     """把 fetch_status.json 压成 compute_demo 要内联进页面的结构。
 
     返回 [{key, name, state, last, lag, got, want, note, days_bad, days_silent}]，
@@ -185,19 +211,56 @@ def summarize(today=None):
       ② days_silent = 今天 - 最后一次上报日期  → 脚本根本没跑
          这是 ⑤ 号 bug（prices.json 不在更新链里）的唯一可行判据：
          它不报错、不产生失败记录，只能从「这项多久没被上报过」看出来。
-      ③ source_lag = 今天 - last 超过 SRC_STALE_DAYS → 源站真停了
+      ③ source_lag = 基准日 - last 超过 SRC_STALE_DAYS → 源站真停了
          如果脚本今天报到了、且它自己说「今日无新数据」（非交易日/休市），
          那是权威答案，不算停更。周末和春节休市不能天天报警 ——
          一份天天误报的仪表盘，等于没有仪表盘。
 
     days_bad = 连续几天不是 ok（从最近往前数），区分「今天偶尔没抓到」和
     「已经三天没更新了」。这两件事的判断完全不同，混在一起就等于没报。
+
+    ⚠⚠⚠ 2026-11-13 再改一次，起因是**两种天数被混用了**：
+
+      用户 11-13 上午 09:52 截图，两行显示「2026-11-12 · 落后 1 天」，
+      他说：「这个也不算落后，现在是 11.13 号的上午，
+      我们本来也是 11.13 号晚上才更新当天的内容」。
+
+      他是对的。原来 lag 用的是【日历今天】，于是 11-13 上午去量 11-12 的
+      数据，必然量出「落后 1 天」—— 而 11-13 的收盘价那时候根本不存在。
+
+      **根因不是算错了，是两个概念共用了一个变量：**
+        today  → 用来算「脚本多久没跑」是对的，拿真实日历比才有意义
+        asof   → 用来算「数据落后几天」，必须是「数据本该已经到了的最近一天」
+
+      所以现在拆成两个参数：
+        today : 真实今天（days_silent 用）—— 不传就取北京时间今天
+        asof  : 基准日（lag 用）—— 不传就调 _td.expect_asof() 自动推
+
+      「今天未收盘」和「今天已收盘」直接决定基准日是哪天，这个判断
+      全站只在 _td.expect_asof() 里做一次，别处不许自己算。
     """
-    today = today or datetime.now().strftime('%Y-%m-%d')
+    today = today or (datetime.now().strftime('%Y-%m-%d'))
     try:
         d_today = datetime.strptime(today[:10], '%Y-%m-%d')
     except Exception:
         d_today = datetime.now()
+
+    # ── 基准日：lag 的尺子 ──────────────────────────────────────────
+    # ⚠ 没传就自动推。自动推的逻辑在 _td.expect_asof()，那里有完整推导：
+    #   「今天已收盘 → 今天」「未收盘/非交易日 → 上一个交易日」。
+    #   刻意【不】在这里再写一遍，否则又是两份口径，改一处忘一处。
+    if asof is None:
+        if _td is not None:
+            try:
+                asof = _td.expect_asof()[0]
+            except Exception:
+                asof = today
+        else:
+            asof = today
+    try:
+        d_asof = datetime.strptime(str(asof)[:10], '%Y-%m-%d')
+    except Exception:
+        d_asof = d_today
 
     db = _load()
     out = []
@@ -214,16 +277,19 @@ def summarize(today=None):
                 break
             bad += 1
 
-        # ① 数据本身落后几天
+        # ① 数据本身落后几个交易日 —— ⚠⚠ 不是自然日
+        #   「上周五的数据，这周一来看」自然日差 3 天、交易日只差 1 天。
+        #   报「落后 3 天」会让人以为漏了三个交易日 —— 数字对、含义错。
         lag = None
         if cur.get('last'):
             try:
-                d0 = datetime.strptime(cur['last'][:10], '%Y-%m-%d')
-                lag = (d_today - d0).days
+                lag = _gap(cur['last'], asof)
             except Exception:
                 lag = None
 
         # ② 这一项多久没被上报过（判「脚本没跑」）
+        # ⚠ 这里必须用【真实日历天】，不是交易日：
+        #   它回答的是「我们多久没碰过这项」，周末没跑也是没跑。
         days_silent = None
         if cur.get('at'):
             try:
@@ -234,6 +300,34 @@ def summarize(today=None):
 
         state = cur.get('state') or 'ok'
         note = cur.get('note') or ''
+        raw_state = state
+
+        # ── ③ 本次抓取失败，但数据其实没落后 → 不该报错 ──────────────
+        #
+        # ⚠⚠⚠ 2026-11-13 加。这是用户这次指出的那个误报的**后半截**，
+        #   前半截（lag 基准错）改完只是让它少一个「落后 1 天」，
+        #   但 ❌ 和 ! 这两个图标还在，栏目标题还是「2 项需要注意」。
+        #
+        #   现场是 11-13 凌晨 01:44 那次 CI：
+        #     东财拒绝 + 腾讯快照也不可用 → 报 fail
+        #     前复权 159919 一只没抓到      → 报 partial
+        #   可数据本来就停在 11-12，而 11-13 的收盘价要等 11-13 晚上才有。
+        #   **那次失败根本没有「该抓而没抓到」的东西 —— 它跑得太早了。**
+        #
+        #   所以判据不是「这次抓成功了吗」，而是「数据落后了吗」：
+        #     lag == 0  → 数据已是此刻能拿到的最新 → 本次失败无关痛痒 → 降为 ok
+        #     lag  > 0  → 真的落后了 → 保留 fail/partial，照实报
+        #
+        #   这样不会掩盖真问题：东财连挂五天 → last 追不上 asof → lag>0
+        #   → 照样红。**只有「本来就没得抓」才不再报警。**
+        if state in ('fail', 'partial') and lag == 0:
+            state = 'ok'
+            if raw_state == 'fail':
+                note = (f'本次未抓取成功（数据已是最新 {cur.get("last")}，无需更新）'
+                        + ('；' + note if note else ''))
+            else:
+                note = (f'本次 {cur.get("got")}/{cur.get("want")} 只更新（数据已是最新）'
+                        + ('；' + note if note else ''))
 
         # ①② 降级判定。注意顺序：先看抓取当场的结果，再看「没人管」。
         if state == 'ok':
@@ -245,7 +339,7 @@ def summarize(today=None):
             elif lag is not None and lag > SRC_STALE_DAYS:
                 # 脚本在跑、但它拿到的最新数据是十几天前的 —— 源站真停了
                 state = 'stale'
-                note = (note + f'；源站已 {lag} 天无新数据').strip('；')
+                note = (note + f'；源站已 {lag} 个交易日无新数据').strip('；')
             # ⚠ 这里刻意【不】用 LAG_OK 判 stale：
             #   LAG_OK 表示「这个源天然滞后几天」（如两融 T+1），
             #   数据停在 T-1 是完全正常的，拿它判 stale 会在每个交易日误报。
