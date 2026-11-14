@@ -1182,6 +1182,32 @@ def main():
     judgment = pick_judgment(cons.get('a_share') or [], mood, vals, pct, idx_chg)
     print(f'  ✓ 判断：{judgment["stance"]}　{judgment["line"][:40]}')
 
+    # ── 市场预判层（对未来的一致性，不是对今天的描述）──
+    # ⚠ 这是 OO 2026-11-14 明确要的东西：
+    #   「我不需要给我结论市场在说今天的涨跌，
+    #     我需要给我市场对未来的预判的一致性。」
+    #   它和上面的 consensus 是**两种语料**，不是同一个东西换个写法：
+    #   consensus 读的是「今天大家在说什么」（收评/午评/盘中播报），
+    #   forecast 读的是「大家预测接下来会怎么走」（研报/策略会/机构研判）。
+    #
+    # ⚠ 它失败不影响主流程。少一栏比整页失败好，但必须在页面上写出缺。
+    forecast = {}
+    try:
+        import forecast as _F
+        for key, label, _ in TOPICS:
+            try:
+                r = _F.collect(key)
+                r['headline'] = _F.headline(r)
+                r['caveats'] = _F.caveats(r)
+                forecast[key] = r
+                print(f'  ✓ [{label}] 预判 {r["n_kept"]} 篇'
+                      f'（窗口 {r["window_from"]}~{r["window_to"]}）'
+                      f'　{r["lean_txt"]}')
+            except Exception as e:
+                print(f'  ⚠ [{label}] 预判抓取失败：{type(e).__name__}: {e}')
+    except Exception as e:
+        print(f'  ⚠ 预判层整个不可用：{type(e).__name__}: {e}')
+
     # ── 体检上报 ──
     for key, label, kws in TOPICS:
         arts = news.get(key) or []
@@ -1227,6 +1253,12 @@ def main():
         #   近六成报道没被词表读到，那一票的结论是建立在四成样本上的。
         #   不写这个数，读者会以为 5 家媒体就是全部意见。
         'topic_cov': _topic_coverage(news),
+        # 市场预判层：对「接下来会怎么走」的一致性。
+        # ⚠ 和 consensus 并列而不是替换 —— 两者回答的是不同问题：
+        #   consensus = 今天媒体在说什么（已经发生）
+        #   forecast  = 机构预测接下来会怎样（还没发生）
+        #   前者可以验证，后者只能统计。混在一起会让后者的「预测性」伪装成事实。
+        'forecast': forecast,
     }
 
     os.makedirs(DATA, exist_ok=True)

@@ -2285,27 +2285,104 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   </div>`;
 
   // ── 热股 ──
-  const hotBlock = !(S.hot_stocks||[]).length?'':`
-  <div class="panel">
-    <div class="ph"><div class="pt">A股人气榜 Top 20</div>
-      <div class="ps">热度 = 该股被讨论的量。带「为什么」的是同花顺的 AI 归因，只有约 1/4 的票有</div></div>
-    <div class="tblwrap"><table><thead><tr>
-      <th class="num">#</th><th>名称</th><th class="num">涨幅</th><th class="num">热度</th>
-      <th>概念</th><th>连板</th><th>为什么热</th>
-    </tr></thead><tbody>
-    ${S.hot_stocks.map(s=>`<tr>
-      <td class="num mut">${s.rank}</td>
-      <td><b>${s.name}</b> <span class="cd">${s.code}</span></td>
-      <td class="num" style="color:${(s.chg||0)>0?'var(--up)':((s.chg||0)<0?'var(--down)':'var(--tx3)')}">
-        ${s.chg==null?'—':(s.chg>0?'+':'')+s.chg.toFixed(2)+'%'}</td>
-      <td class="num mut">${s.heat==null?'—':(s.heat/10000).toFixed(0)+'万'}</td>
-      <td class="mut" style="font-size:11.5px">${(s.tags||[]).slice(0,2).join(' / ')||'—'}</td>
-      <td class="mut" style="font-size:11.5px">${s.mark||'—'}</td>
-      <td class="mut" style="font-size:11px;max-width:340px;line-height:1.6">${
-        s.why?`<details><summary style="cursor:pointer">展开</summary>${s.why.slice(0,300)}…</details>`:'—'}</td>
-    </tr>`).join('')}
-    </tbody></table></div>
-  </div>`;
+  const hotBlock = '';   // ⚠ 2026-11-14 OO 明确：「不看热度个股，这一列去掉」。保留空变量避免下面引用报错。
+
+  // ══════════════ 市场预判层（这一栏才是 OO 要的）══════════════
+  // ⚠ 和下面「今天媒体在说什么」是**两种语料**，不是同一件事换个说法：
+  //   共识层 = 「今天大家在说什么」（收评/午评/盘中播报，已经发生）
+  //   预判层 = 「大家预测接下来会怎么走」（研报/策略会/机构研判，还没发生）
+  //   实测证据：描述层 56 篇里 33 篇（59%）是无效的指数播报，
+  //   对预判毫无用处 —— 数量最多、最容易抓的东西，恰好最没用。
+  const FC=S.forecast||{};
+  const fcBlock=(key)=>{
+    const r=FC[key];
+    const lab=({a_share:'A股',gold:'黄金'})[key]||key;
+    if(!r){
+      return `<div class="panel">
+        <div class="ph"><div class="pt">${lab}：接下来会怎么走</div>
+          <div class="ps">市场对未来走势的预判一致性</div></div>
+        <div class="ps" style="color:var(--tx3)">这一栏今天没取到 ——
+          <b>不是「没人预判」，是我们没抓到</b>。别看空了当没有。</div>
+      </div>`;
+    }
+    // 方向配色：偏多用红、偏空用绿（A股惯例）
+    const col={strong_up:'var(--up)',up:'var(--up)',mixed:'var(--tx2)',
+               down:'var(--down)',strong_down:'var(--down)'}[r.lean]||'var(--tx2)';
+    const dn=r.n_dir||0;
+    const upW=dn?Math.round((r.a_up||0)/dn*100):0;
+    const dnW=dn?100-upW:0;
+    return `<div class="panel">
+      <div class="ph"><div class="pt">${lab}：接下来会怎么走</div>
+        <div class="ps">读的是<b>预判</b>，不是今天的涨跌。窗口
+          <b>${r.window_from||'?'} ~ ${r.window_to||'?'}（${r.window_days||'?'} 天）</b></div></div>
+
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="font-size:17px;font-weight:700;color:${col}">${r.lean_txt||'—'}</span>
+        <span class="mut" style="font-size:12px">
+          ${r.n_art||0} 篇预判稿 · 有方向的 ${dn} 篇
+          · ${r.n_org||0} 家机构（点名 ${r.n_named||0}）
+        </span>
+      </div>
+
+      ${dn?`<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin-bottom:7px">
+        <div style="width:${upW}%;background:var(--up)"></div>
+        <div style="width:${dnW}%;background:var(--down)"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx3);margin-bottom:12px">
+        <span><b style="color:var(--up)">${r.a_up||0} 篇偏多</b></span>
+        <span><b style="color:var(--down)">${r.a_down||0} 篇偏空</b></span>
+      </div>`:''}
+
+      <div style="font-size:13px;line-height:1.85;margin-bottom:12px">${r.headline||''}</div>
+
+      <div class="tblwrap"><table><thead><tr>
+        <th>抽样漏斗</th><th class="num">条数</th><th>说明</th>
+      </tr></thead><tbody>
+        <tr><td>搜索命中</td><td class="num">${r.n_raw||0}</td>
+          <td class="mut" style="font-size:11.5px">原始结果，含大量重复</td></tr>
+        <tr><td>去重后</td><td class="num">${r.n_dedup||0}</td>
+          <td class="mut" style="font-size:11.5px">多个关键词搜到同一篇已合并</td></tr>
+        <tr><td>窗口内 + 通过筛选</td><td class="num"><b>${r.n_kept||0}</b></td>
+          <td class="mut" style="font-size:11.5px">剔掉播报/ETF广告/个股新闻/<b>不是这个标的的</b>之后
+            ${Object.entries(r.dropped||{}).length
+              ? '（剔除：'+Object.entries(r.dropped||{}).sort((a,b)=>b[1]-a[1])
+                  .slice(0,4).map(([k,v])=>k+' '+v).join('、')+'…）':''}</td></tr>
+      </tbody></table></div>
+
+      ${(r.up_orgs||[]).length||(r.down_orgs||[]).length?`
+      <div style="margin-top:11px;font-size:11.5px;line-height:1.85">
+        ${(r.up_orgs||[]).length?`<div><b style="color:var(--up)">偏多</b>：
+          ${(r.up_orgs||[]).join('、')}</div>`:''}
+        ${(r.down_orgs||[]).length?`<div><b style="color:var(--down)">偏空</b>：
+          ${(r.down_orgs||[]).join('、')}</div>`:''}
+        ${(r.flat_orgs||[]).length?`<div><b class="mut">没给方向</b>：
+          ${(r.flat_orgs||[]).join('、')}</div>`:''}
+      </div>`:''}
+
+      <details style="margin-top:11px">
+        <summary style="cursor:pointer;font-size:12px;color:var(--tx2)">
+          口径：这个数不能怎么读（${(r.caveats||[]).length} 条，必看）</summary>
+        <div style="font-size:11.5px;line-height:1.85;margin-top:8px">
+          ${(r.caveats||[]).map(c=>`<div style="margin-bottom:7px">· ${c}</div>`).join('')}
+        </div>
+      </details>
+
+      ${(r.examples||[]).length?`
+      <details style="margin-top:9px">
+        <summary style="cursor:pointer;font-size:12px;color:var(--tx2)">
+          原文 ${(r.examples||[]).length} 条（自己复核方向判得对不对）</summary>
+        <div style="margin-top:8px">
+          ${(r.examples||[]).map(a=>{
+            const t=(a.title||'').replace(/<\/?em>/g,'');
+            return `<div style="font-size:11.5px;line-height:1.7;padding:4px 0;border-bottom:1px solid #F5F5F4">
+              <span class="mut">${(a.date||'').slice(5)}</span>
+              <span class="mut">${a.src||''}</span><br>${t}</div>`;
+          }).join('')}
+        </div>
+      </details>`:''}
+    </div>`;
+  };
+
 
   // ── 情绪 ──
   const g=MO.guba||{}, f=MO.feed||{};
@@ -2377,9 +2454,11 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   </div>`;
 
   el.innerHTML = judgeCard + `
-  ${consBlock('a_share','A股：今天媒体在说什么','按「有方向的媒体家数」排序，不是按提到次数')}
+  ${fcBlock('a_share')}
+  ${fcBlock('gold')}
+  ${consBlock('a_share','A股：今天媒体在说什么（描述层）','按「有方向的媒体家数」排序，不是按提到次数')}
   ${covBlock}
-  ${consBlock('gold','黄金：今天媒体在说什么','同一个主题不同写法已合并')}
+  ${consBlock('gold','黄金：今天媒体在说什么（描述层）','同一个主题不同写法已合并')}
   ${valBlock}
   <div class="panel">
     <div class="ph"><div class="pt">热度：今天多热，以及热到什么程度</div>
@@ -2434,16 +2513,26 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   </div>
   <div class="panel"><div class="ph"><div class="pt">口径（这段很重要，别跳过）</div></div>
     <div class="ps" style="line-height:1.9">
-      <b>这一栏是什么</b>：媒体标题、股吧帖子、热门榜单的统计归纳。它回答「今天大家在说什么」。<br>
-      <b>这一栏不是什么</b>：不是预测，不是建议，不是「多数人认为对所以对」。<br>
-      <b>为什么单独放一栏</b>：上面五栏都是已有出处的事实（交易所份额、行情价格），
-      出错可以拿原始数据核对。这一栏是<b>归纳</b>，出错的方式是「数据都对但结论归纳错了」，
-      所以它必须和事实分开摆，避免混着读。<br>
+      <b>这一栏有两层，别混着读</b>：<br>
+      ① <b>「接下来会怎么走」= 预判层</b>。读的是券商研报、策略会、机构研判里
+      对<b>未来</b>的判断。它回答「有多少机构认为接下来会涨」。<br>
+      ② <b>「今天媒体在说什么」= 描述层</b>。读的是收评、午评、盘中播报。
+      它回答「今天大家在说什么」，说的是<b>已经发生的事</b>。<br>
+      <b>为什么必须分开</b>：这两层的语料完全不同。实测描述层的 56 篇里
+      33 篇（59%）是「创业板指跌3%」这类指数播报 —— 数量最多、最容易抓，
+      但对预判<b>毫无用处</b>。把它们混在一起统计，等于用事后描述冒充事前判断。<br>
+      <b>预判层不是什么</b>：不是预测，不是建议，不是「多数机构认为对所以对」。
+      它只说「有多少人在这么说」，不说「这么说会不会成真」——
+      后者没有任何数据能支持。<br>
+      <b>A股预判有结构性偏多</b>：几乎没有机构会公开发一篇「看空A股」的报告。
+      实测用「券商 看空 A股」去搜，返回的前 10 条全是看多文章。
+      所以「偏多」这个读数本身信息量很低，要看的是<b>比例有没有变化</b>。<br>
       <b>已知抓不到的</b>：抖音财经博主的原话。实测抖音搜索需登录、视频详情 403、
       热榜 147 条采样里财经命中 0 条。所以这里没有「陈小群今天说了什么」，
-      只有「媒体今天在报什么」。<br>
-      <b>数据来源</b>：东方财富全站搜索（媒体标题）· 同花顺热榜（个股/行业/概念热度）·
-      蛋卷基金（指数估值分位）· 东方财富股吧（散户帖子）· 今日头条（自媒体标题、热榜）。
+      只有「机构研报在说什么」。<br>
+      <b>数据来源</b>：东方财富全站搜索（媒体标题 + 研报）· 同花顺（行业/概念热度）·
+      蛋卷基金（指数估值分位）· 东方财富股吧（散户帖子）· 今日头条（自媒体标题、热榜）·
+      腾讯行情（创业板指当日涨跌）。
     </div>
   </div>`;
 })();
