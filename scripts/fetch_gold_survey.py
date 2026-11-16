@@ -314,7 +314,19 @@ def main():
     print(f'候选（标题像调查）{len(cands)} 篇，其中 {len(prev)} 天已有')
 
     # ② 逐篇抓正文、解析。已有且非全量的跳过，省请求。
-    rows, fails = {}, []
+    #
+    # ⚠⚠ 起点必须是 `dict(prev)`，**不能是空 dict**。
+    #   2026-11-16 线上踩到的就是这个：
+    #     那天中金网列表页一条候选都没返回（限流 / 当天没新文章），
+    #     cands 为空 → rows 为空 → 落盘把已有的 4 条历史**全部清掉**，
+    #     而且 exit=0、errors=[]，日志只有一行「0 条周度」，
+    #     页面照常构建成功 —— 线上共识图的黄金两条线整个消失，
+    #     却没有任何地方标红。
+    #
+    #   这个 bug 的本质是：**把「这次没抓到新数据」误当成「以前的数据也不存在了」。**
+    #   抓取成功与否，都不该影响已经存下来的历史。
+    #   只有显式 --full 才允许从零重建。
+    rows, fails = ({} if full else dict(prev)), []
     for d in sorted(cands):
         c = cands[d]
         if not full and d in prev and prev[d].get('analyst'):
@@ -362,6 +374,22 @@ def main():
     # ③ 落盘。按日期正序，前端好画
     out_rows = [rows[k] for k in sorted(rows)]
     days = [r['date'] for r in out_rows]
+
+    # ⚠⚠ 落盘前的最后一道闸：历史条数**只许增不许减**。
+    #   上面已经用 dict(prev) 兜住起点了，但这里再拦一次，理由是两个：
+    #   ① 万一以后有人改回 `rows={}`（这类「优化」很容易被写回来），
+    #      这条断言会当场把它打红，而不是等线上图空了才发现；
+    #   ② 如果某天真的解析器退化、把某条解析不出来了，
+    #      也要让它在日志里显形，而不是静默少一条。
+    #   --full 是唯一的例外：它明说了「从零重建」。
+    if not full and len(out_rows) < len(prev) and not fails:
+        missing = sorted(set(prev) - set(rows))
+        print(f'\n⚠ 拒绝写盘：历史 {len(prev)} 条 → 本次只有 {len(out_rows)} 条')
+        print(f'  丢掉的日期：{", ".join(missing)}')
+        print('  抓取失败不该导致已有历史消失。'
+              '若确实要重建，请显式加 --full。')
+        return 1
+
     payload = {
         'at': time.strftime('%Y-%m-%d %H:%M'),
         'source': '中金网「金市直播」转载 Kitco News 黄金周度调查',

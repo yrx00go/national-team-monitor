@@ -1533,9 +1533,50 @@ def main():
             }
             print(f'  黄金调查：{out["gold_survey"]["n"]} 条周度 '
                   f'{out["gold_survey"]["from"]} ~ {out["gold_survey"]["to"]}')
+
+            # ── 体检：黄金调查 ──
+            #
+            # ⚠⚠ 这一项必须单独记，因为**它的失败形态是「空数组」而不是「异常」**。
+            #   2026-11-16 线上踩过：CI 那天中金网返回 0 条，
+            #   gold_survey.rows=[]，脚本 exit=0、日志只有一行「0 条周度」，
+            #   页面照常构建成功 —— 于是线上共识图黄金两条线整个消失，
+            #   却没有任何地方标红。**静默的失败比报错更贵。**
+            #
+            # ⚠ 但「今天是 0 条」不等于抓取挂了：Kitco 是**周频**，
+            #   一周只有一篇。所以判据不是「今天有没有新增」，
+            #   而是「整个文件是不是空的」+「最新一条离今天多远」。
+            _gn = out['gold_survey']['n'] or 0
+            _gto = (out['gold_survey']['to'] or '')[:10]
+            _glag = _fh._gap(_gto, today_real) if _gto else None
+            if _gn == 0:
+                _gstate = 'fail'
+                _gnote = '一条都没有：中金网限流或改版，先手动跑 fetch_gold_survey.py'
+            elif _glag is not None and _glag > 21:
+                # 周频 + 最大间隔约 3 周。超过 3 周没更新说明抓取长期在失败。
+                _gstate = 'stale'
+                _gnote = f'最新停在 {_gto}，周频源已 {_glag} 天无新记录'
+            else:
+                _gstate = 'ok'
+                _gnote = f'{_gn} 条周度，最新 {_gto}（周频，不是每天都有）'
+            health.append({
+                'key': 'gold_survey', 'name': '黄金共识（Kitco 周度调查）',
+                'state': _gstate,
+                'last': _gto or None,
+                'lag': _glag,
+                'got': _gn, 'want': None,
+                'note': _gnote,
+                'days_bad': 0, 'days_silent': 0,
+            })
         else:
             out['gold_survey'] = None
             print('  ⚠ 没有 data/gold_survey.json（先跑 fetch_gold_survey.py）')
+            health.append({
+                'key': 'gold_survey', 'name': '黄金共识（Kitco 周度调查）',
+                'state': 'fail', 'last': None, 'lag': None,
+                'got': 0, 'want': None,
+                'note': '文件不存在，黄金共识无数据',
+                'days_bad': 0, 'days_silent': 0,
+            })
     except Exception as e:
         out['gold_survey'] = None
         print(f'  ⚠ 黄金调查读取失败：{type(e).__name__}: {e}')
@@ -1554,9 +1595,48 @@ def main():
             }
             print(f'  共识存档：{out["consensus_hist"]["n"]} 天 '
                   f'{out["consensus_hist"]["from"]} ~ {out["consensus_hist"]["to"]}')
+
+            # ── 体检：共识存档 ──
+            #
+            # ⚠ 这一项的意义和上面不同：黄金调查是「源站今天给不给」，
+            #   存档是「我们自己有没有在攒」。源的失败是外部的，
+            #   存档断了是我们自己的损失——而且**不可追回**
+            #   （所有源回溯都有硬上限，今天不存以后也没得补）。
+            #
+            #   所以判据看的是「最新一条离今天多远」：正常每天 +1，
+            #   连着空几天就说明 snapshot_consensus.py 没在跑或被跳过了。
+            _cn = out['consensus_hist']['n'] or 0
+            _cto = (out['consensus_hist']['to'] or '')[:10]
+            _clag = _fh._gap(_cto, today_real) if _cto else None
+            if _cn == 0:
+                _cstate = 'fail'
+                _cnote = '存档是空的：今天的共识没有被保存下来，且无法补回'
+            elif _clag is not None and _clag > 5:
+                # 允许 5 天：长假 + 周末可能连续没有数据源产生新记录
+                _cstate = 'stale'
+                _cnote = f'最新只到 {_cto}，已 {_clag} 天没写新快照'
+            else:
+                _cstate = 'ok'
+                _cnote = f'{_cn} 天记录，最新 {_cto}'
+            health.append({
+                'key': 'consensus_hist', 'name': '共识存档（从今天起累积）',
+                'state': _cstate,
+                'last': _cto or None,
+                'lag': _clag,
+                'got': _cn, 'want': None,
+                'note': _cnote,
+                'days_bad': 0, 'days_silent': 0,
+            })
         else:
             out['consensus_hist'] = None
             print('  ⚠ 没有 data/consensus_history.json（先跑 snapshot_consensus.py）')
+            health.append({
+                'key': 'consensus_hist', 'name': '共识存档（从今天起累积）',
+                'state': 'fail', 'last': None, 'lag': None,
+                'got': 0, 'want': None,
+                'note': '存档文件不存在，共识历史会从零开始',
+                'days_bad': 0, 'days_silent': 0,
+            })
     except Exception as e:
         out['consensus_hist'] = None
         print(f'  ⚠ 共识存档读取失败：{type(e).__name__}: {e}')

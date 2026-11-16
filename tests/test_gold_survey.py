@@ -310,5 +310,54 @@ class TestConsensusHistory(unittest.TestCase):
                     self.assertIn(k, s, f'{r["date"]} {side} 缺 {k}')
 
 
+class TestIncrementalKeepsHistory(unittest.TestCase):
+    """★ 增量抓取绝不能因为「这次没抓到」就把历史清掉。
+
+    2026-11-16 线上真实事故：
+      CI 那天中金网列表页一条候选都没返回（限流 / 当天没新文章），
+      脚本 rows 从空 dict 起算 → 落盘把已有 4 条历史全部清掉，
+      而且 exit=0、errors=[]，日志只有一行「0 条周度」，
+      页面照常构建成功 —— 线上共识图黄金两条线整个消失，
+      却没有任何地方标红。
+
+    本质是：**把「这次没抓到新数据」误当成「以前的数据也不存在了」。**
+    抓取成功与否，都不该影响已经存下来的历史。
+    """
+
+    def _src(self):
+        p = os.path.join(BASE, 'scripts', 'fetch_gold_survey.py')
+        return open(p, encoding='utf-8').read()
+
+    def test_起点不是空dict(self):
+        """rows 必须从 prev 起算，不是从 {} 起算。
+
+        ⚠ 这条是静态检查（读源码）。听起来不优雅，但这个 bug 的形态是
+          「一行初始化写错了」，只有源码能证明它，跑一次正常抓取是证明不了的
+          —— 因为正常抓取时 cands 非空，两种写法结果一样。
+        """
+        s = self._src()
+        self.assertIn('dict(prev)', s,
+                      'rows 的起点必须是 dict(prev)，否则抓取失败会清空历史')
+
+    def test_写盘前有减量保护(self):
+        """落盘前必须检查「条数只许增不许减」。"""
+        s = self._src()
+        self.assertIn('拒绝写盘', s,
+                      '缺少减量保护：解析退化时会静默少一条')
+
+    def test_当前数据没被清空(self):
+        """回归检查：现在磁盘上的 gold_survey 必须还有数据。
+
+        ⚠ 如果这条红了，说明某个时点的抓取把历史清掉了，
+          去 git log 找上一个 n>0 的版本恢复，不是重跑抓取。
+        """
+        p = os.path.join(BASE, 'data', 'gold_survey.json')
+        if not os.path.exists(p):
+            self.skipTest('没有 gold_survey.json')
+        g = json.load(open(p, encoding='utf-8'))
+        self.assertGreater(g.get('n') or 0, 0,
+                           'gold_survey 是空的：历史被某次抓取清掉了')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
