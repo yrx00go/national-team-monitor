@@ -1472,6 +1472,95 @@ def main():
         out['sentiment'] = None
         print(f'  ⚠ 市场共识读取失败（不影响事实层）：{type(e).__name__}: {e}')
 
+    # ── K 线 + 共识曲线（2026-11-16 新增）──
+    #
+    # ⚠⚠ 这两块**必须分开放**，不能拼成一条序列。
+    #
+    #   K 线：2001 根，2018-08 起，日频，来自 fetch_kline.py（不复权）。
+    #   共识：黄金调查 4 条（周频，45 天）、A股机构/散户各 1 天。
+    #
+    #   两种量级差 500 倍。如果为了「看起来是一条线」把共识往前补齐，
+    #   就要编 1990 多天的假数据 —— 那比不画糟得多，因为它看起来很像真的。
+    #   所以前端必须拿到两份独立的数组，自己按时间锚对齐，
+    #   并且**明确标注共识的实际覆盖区间**。
+    try:
+        _kp = os.path.join(DATA, 'kline.json')
+        if os.path.exists(_kp):
+            _kj = json.load(open(_kp, encoding='utf-8'))
+            out['kline'] = {
+                'at': _kj.get('at'),
+                'fq': _kj.get('fq'),
+                'from': _kj.get('from'),
+                'to': _kj.get('to'),
+                'days': _kj.get('days'),
+                'series': _kj.get('series') or {},
+            }
+            _s = out['kline']['series']
+            _desc = '、'.join(f'{v["name"]} {v["n"]}根' for v in _s.values())
+            print(f'  K 线：{out["kline"]["days"]} 天 '
+                  f'{out["kline"]["from"]} ~ {out["kline"]["to"]}（{_desc}）')
+            # 体检也记一笔：K 线停了就说明 fetch_kline.py 挂了
+            _kd = (_kj.get('to') or '')[:10]
+            health.append({
+                'key': 'kline', 'name': 'K 线（上证 / 黄金ETF）',
+                'state': 'ok' if _kd == today_real else ('stale' if _kd else 'fail'),
+                'last': _kd or None,
+                'lag': _fh._gap(_kd, today_real) if _kd else None,
+                'got': _kj.get('days'), 'want': None,
+                'note': (f'不复权 {(_kj.get("days") or 0)} 根'
+                         if _kd == today_real else f'停在 {_kd}，需重跑 fetch_kline.py'),
+                'days_bad': 0, 'days_silent': 0,
+            })
+        else:
+            out['kline'] = None
+            print('  ⚠ 没有 data/kline.json（先跑 fetch_kline.py）')
+    except Exception as e:
+        out['kline'] = None
+        print(f'  ⚠ K 线读取失败：{type(e).__name__}: {e}')
+
+    try:
+        _gp = os.path.join(DATA, 'gold_survey.json')
+        if os.path.exists(_gp):
+            _gj = json.load(open(_gp, encoding='utf-8'))
+            out['gold_survey'] = {
+                'at': _gj.get('at'),
+                'freq': _gj.get('freq'),
+                'n': _gj.get('n'),
+                'from': _gj.get('from'),
+                'to': _gj.get('to'),
+                'note': _gj.get('note'),
+                'rows': _gj.get('rows') or [],
+            }
+            print(f'  黄金调查：{out["gold_survey"]["n"]} 条周度 '
+                  f'{out["gold_survey"]["from"]} ~ {out["gold_survey"]["to"]}')
+        else:
+            out['gold_survey'] = None
+            print('  ⚠ 没有 data/gold_survey.json（先跑 fetch_gold_survey.py）')
+    except Exception as e:
+        out['gold_survey'] = None
+        print(f'  ⚠ 黄金调查读取失败：{type(e).__name__}: {e}')
+
+    try:
+        _cp = os.path.join(DATA, 'consensus_history.json')
+        if os.path.exists(_cp):
+            _cj = json.load(open(_cp, encoding='utf-8'))
+            out['consensus_hist'] = {
+                'at': _cj.get('at'),
+                'n': _cj.get('n'),
+                'from': _cj.get('from'),
+                'to': _cj.get('to'),
+                'note': _cj.get('note'),
+                'rows': _cj.get('rows') or [],
+            }
+            print(f'  共识存档：{out["consensus_hist"]["n"]} 天 '
+                  f'{out["consensus_hist"]["from"]} ~ {out["consensus_hist"]["to"]}')
+        else:
+            out['consensus_hist'] = None
+            print('  ⚠ 没有 data/consensus_history.json（先跑 snapshot_consensus.py）')
+    except Exception as e:
+        out['consensus_hist'] = None
+        print(f'  ⚠ 共识存档读取失败：{type(e).__name__}: {e}')
+
     _bad = [h for h in health if h['state'] != 'ok']
     if _bad:
         print(f'\n  数据体检：{len(health)} 项，{len(_bad)} 项有问题')

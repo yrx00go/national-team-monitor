@@ -143,6 +143,43 @@ def main():
     if not run('retail.py', optional=True):
         fails.append('retail.py（散户声音未更新，那一块会显示旧日期或空）')
 
+    # K 线 OHLC（上证指数 + 黄金 ETF）。
+    #
+    # ⚠ 必须排在 compute_demo.py 之前 —— 同 sentiment 的理由。
+    #
+    # ⚠ 它走 web.ifzq.gtimg.cn（腾讯），不抢东财 push2his 的配额，
+    #   所以放在这一串东财脚本之后不会加剧那边的限流。
+    #   实测这个接口比东财宽容得多（连打 6 次全通），但仍过 _net 节流。
+    if not run('fetch_kline.py', optional=True):
+        fails.append('fetch_kline.py（K 线未更新，蜡烛图会停在旧日期）')
+
+    # 黄金共识：Kitco 周度调查（机构 + 散户分开统计），经中金网转载。
+    #
+    # ⚠ 为什么不是「数中金网名家点金的标题方向」：
+    #   那批稿子是**日内交易策略**，同一篇正文里同时给多单和空单
+    #   （「3869-70 轻仓多，损3852」+「3905-10 空单，止损3933」），
+    #   标题落哪个方向取决于当天行情走到哪。更硬的证据是
+    #   许安丰 11-15 与 11-16 两篇正文一字不差，只改了标题日期。
+    #   用它算出来的 up 占比与金价涨跌 corr=+0.346（仅 14 个交易日），
+    #   撑不住一条曲线。详见 fetch_gold_survey.py 文件头。
+    #
+    # ⚠ 频率是**每周 1 条**。45 天语料里只有 4 条调查。
+    #   这是源头事实，不是抓取失败 —— 所以它更新「成功但没有新数据」
+    #   是常态，不能每次报警。只有真出错（返回码非 0）才记 fails。
+    if not run('fetch_gold_survey.py', optional=True):
+        fails.append('fetch_gold_survey.py（黄金调查未更新）')
+
+    # 每日共识快照存档。**顺序必须在上面全部抓完之后** ——
+    # 它读的是 gold_survey.json / sentiment.json 的最终结果。
+    #
+    # ⚠ 这一步是整个「从今天开始记录」的落点：
+    #   所有源的共识回溯深度都有硬上限（东财 ~30 天、股吧 ~3 天、
+    #   中金网 ~45 天）。今天不存，三个月后回头还是只有这 45 天。
+    #   图只是它的一个视图，这个文件才是长期资产。
+    if not run('snapshot_consensus.py', optional=True):
+        fails.append('snapshot_consensus.py（今日共识快照未写入，'
+                     '历史会出现缺口）')
+
     # 放在最后：它要读上面所有抓取步骤写下的 fetch_status.json
     if not run('compute_demo.py', optional=True):
         fails.append('compute_demo.py（数据未重算，页面会用上一次的结果）')
