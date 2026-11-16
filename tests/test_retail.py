@@ -310,6 +310,32 @@ chk('⑩ 散户块无涨跌断言（剥否定式后查）', leak, [])
 chk_true('⑪ 写了「它不能拿来干什么」', '它不能拿来干什么' in seg)
 chk_true('⑫ 写了「会系统性偏空」这个偏差', '系统性偏空' in seg)
 
+
+# ══════════════════════════════════════════════════════════════════
+section('14. build_demo.py 不许再读 holders.json（个股季报已删）')
+
+bd = io.open(os.path.join(BASE, 'scripts', 'build_demo.py'), encoding='utf-8').read()
+# ⚠ 必须剥掉注释再查。build_demo.py 里的注释**解释了为什么不再读 holders.json**
+#   和为什么删掉 __STOCK__ —— 不剥注释，这两条断言会匹配到那句解释，
+#   恒假。这个坑本轮已经踩过一次（检查 const dn=r.n_dir 是否残留时，
+#   命中的也是注释里那句「原来这里写的是 const dn=r.n_dir」）。
+#    剥两层：先剥三引号 docstring，再剥 # 注释。
+#    只剥 # 是不够的 —— 文件头的 docstring 里也写着 holders.json，
+#    那是「这个脚本做什么」的说明，不是代码。
+bd_code = re.sub(r'"""[\s\S]*?"""', '', bd)
+bd_code = re.sub(r'#.*$', '', bd_code, flags=re.M)
+# 模板里已经没有 __STOCK__ 占位符了。脚本还去 read holders.json
+# 并 replace 一个不存在的占位符 —— 不会报错，但也没做任何事，
+# 而且 holders.json 哪天不生成就直接 FileNotFoundError 卡住整个构建。
+chk_true('① 不再读 holders.json（剥 docstring+注释后）', 'holders.json' not in bd_code)
+chk_true('② 不再 replace __STOCK__（剥 docstring+注释后）', '__STOCK__' not in bd_code)
+chk_true('③ 也不再遍历 hold', "hold['holders']" not in bd_code)
+chk_true('④ 占位符自检只查 DEMO 和 DIVI',
+         "('__DEMO__', '__DIVI__')" in bd_code)
+
+# 模板里确实没有这个占位符了（双重确认）
+chk('⑤ 模板里确实无 __STOCK__', html.count('__STOCK__'), 0)
+
 # ══════════════════════════════════════════════════════════════════
 print(f'\n{"="*54}')
 print(f'  通过 {n_ok} 项，失败 {n_bad} 项')

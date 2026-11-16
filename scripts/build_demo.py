@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""构建 demo.html：内联 demo.json + holders.json + dividend.json
+"""构建 demo.html：内联 demo.json + dividend.json
 
 用法：
     python3 scripts/build_demo.py            # 默认：Chart.js 走 CDN（文件小 205 KB）
@@ -21,10 +21,10 @@ OFFLINE = '--offline' in sys.argv
 
 tpl = open(os.path.join(BASE, 'demo.html'), encoding='utf-8').read()
 demo = json.load(open(os.path.join(DATA, 'demo.json'), encoding='utf-8'))
-# 个股：直接内联原始数据，让前端自由选两期对比
-# （预先把「差异最大的一对」算死会隐藏信息：汇金投资四期都是 8 只，
-#   任何一对都看不出变化，硬算只会得到一张全是"不变"的表）
-hold = json.load(open(os.path.join(DATA, 'holders.json'), encoding='utf-8'))
+# ⚠ 2026-11-16：个股季报整块已删（OO：「个股季报：不要这个了」），
+#   所以这里不再读 holders.json。占位符 __STOCK__ 也一并从模板里删掉了 ——
+#   留着 read + replace 的话，文件不在了就直接 FileNotFoundError，
+#   而页面里根本没有地方用它。
 divi = json.load(open(os.path.join(DATA, 'dividend.json'), encoding='utf-8'))
 
 # 压体积
@@ -33,11 +33,7 @@ for r in demo['rows']:
 for r in divi['rows']:
     r['price'] = [None if p is None else round(p, 3) for p in r['price']]
     r['dps'] = [None if p is None else round(p, 4) for p in r['dps']]
-for h in hold['holders']:
-    h.pop('latest', None)   # 前端自己从 by_period 取最新期
-
 html = (tpl.replace('__DEMO__', json.dumps(demo, ensure_ascii=False, separators=(',', ':')))
-           .replace('__STOCK__', json.dumps(hold, ensure_ascii=False, separators=(',', ':')))
            .replace('__DIVI__', json.dumps(divi, ensure_ascii=False, separators=(',', ':'))))
 
 
@@ -68,6 +64,8 @@ if OFFLINE:
 out = os.path.join(BASE, 'demo_site.html')
 open(out, 'w', encoding='utf-8').write(html)
 print(f'写入 {out}  ({len(html)/1024:.0f} KB){"  [离线版]" if OFFLINE else "  [CDN 版]"}')
-for k in ('__DEMO__', '__STOCK__', '__DIVI__'):
+# ⚠ 这里别再把 '__STOCK__' 加回来 —— 模板里已经没有这个占位符了，
+#   assert 会一直通过（因为本来就不存在），等于给自己一个假的安心。
+for k in ('__DEMO__', '__DIVI__'):
     assert k not in html, f'{k} 未替换'
 print('占位符已全部替换')
