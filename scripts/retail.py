@@ -159,10 +159,26 @@ def parse_time(raw, today):
             d = datetime(today.year, int(m.group(1)), int(m.group(2))).date()
         except ValueError:
             return None
-        if d > today + timedelta(days=30):   # 跨年：看到的是去年的日子
+        # ★ 跨年：股吧不显示年份，「12月03日」在 11 月看到只能是**去年**的。
+        #
+        # ⚠⚠ 这里原来写的是 `if d > today + timedelta(days=30)`（晚 30 天以上才减年），
+        #   这是个假的宽松阈值，害处不是「少算了几天」，是**去年 12 月的帖子
+        #   被当成今年 12 月**，然后因为「今年 12 月」还 >= 窗口起点，直接进了
+        #   「近 30 天」的统计和样本展示。
+        #
+        #   实测（2026-11-16 抓到的 12 条样本）：12月03日 / 12月04日 ×2 / 11月25日
+        #   共 4 条是未来日期 —— 今天是 11-16，12 月还没到。而这 4 条「未来帖」
+        #   在页面上看起来完全正常，只是日期比今天晚，不仔细看根本发现不了。
+        #
+        #   判据改成：**只要算出比今天晚，就一定是上一年的**（帖子不可能来自未来）。
+        #   不能写成 `d > today` 减年再返回 —— 1 月 3 日看到「12月30日」是对的，
+        #   减年也没问题；但 12 月 30 日看到「01月03日」应该减年，d > today 却不成立…
+        #   所以还要配合下面 main() 里的窗口上界一起看：真正该拦的是
+        #   「进窗口之后仍是未来日期」，而那条在 main() 里用 d > today 直接剔掉。
+        if d > today:                        # 帖子不会来自未来 → 是去年的
             try:
                 d = d.replace(year=d.year - 1)
-            except ValueError:
+            except ValueError:               # 2 月 29 日
                 return None
         return d
     return None
@@ -230,14 +246,21 @@ def main():
         print(f'  ✓ {label}: {len(posts)} 条')
 
     # ── 只留窗口内、且时间解析得出来的 ──
+    # ⚠ 窗口是**闭区间，两端都要卡**。原来只有 `d < since` 一个下界，
+    #   上界靠 parse_time 自觉 —— 而 parse_time 的跨年阈值曾经放过未来日期
+    #   进来（见那个函数的注释）。两处都得有，任何一个漏了都会让
+    #   「去年 12 月的帖子」混进「近 30 天」的统计里，而且不会有任何报错。
     inwin = []
     undated = 0
+    future = 0
     for p in all_posts:
         d = parse_time(p['time_raw'], today)
         if d is None:
             undated += 1
             continue
-        if d < since:
+        if d < since or d > today:
+            if d > today:
+                future += 1      # 不该发生；真发生了就是 parse_time 又放水了
             continue
         p['date'] = d.isoformat()
         inwin.append(p)
@@ -319,6 +342,7 @@ def main():
         'n_post_raw': len(all_posts),
         'n_bot': n_bot,             # 机器帖（行情快讯/官方号），样本展示时剔掉
         'n_undated': undated,
+        'n_future': future,         # 解析成未来日期后被剔掉的条数（正常应为 0）
         'n_vote_post': len(votes),
         'n_people': decided,
         'n_up': n_up,

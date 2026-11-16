@@ -9,9 +9,11 @@
 """
 import importlib.util
 import io
+import json
 import os
 import re
 import sys
+from datetime import datetime
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 spec = importlib.util.spec_from_file_location('retail', os.path.join(BASE, 'scripts', 'retail.py'))
@@ -343,6 +345,93 @@ chk_true('④ 占位符自检只查 DEMO 和 DIVI',
 
 # 模板里确实没有这个占位符了（双重确认）
 chk('⑤ 模板里确实无 __STOCK__', html.count('__STOCK__'), 0)
+
+# ══════════════════════════════════════════════════════════════════
+print('\n15. 时间解析：跨年 / 未来日期（2026-11-16 修的真 bug）')
+# ══════════════════════════════════════════════════════════════════
+#
+# ⚠ 这一节对应的 bug 是**我自己在验证线上产物时才发现的**，而且
+#   用户根本看不出来：线上页面散户样本里混着 4 条日期比今天还晚的帖子
+#   （12月03日 / 12月04日 ×2 / 11月25日，当天是 11-16），
+#   它们被当成「今年的」算进了「近 30 天」，还进了样本展示。
+#
+#   根因：跨年阈值写成了 `d > today + timedelta(days=30)`。
+#   11-16 看到「12月03日」，算出来是今年 12-03，比今天只晚 17 天，
+#   没到 30 天 → 不减年 → 变成「未来的帖子」，而且 >= 窗口起点，进统计。
+#
+#   判据应该是：**帖子不可能来自未来，所以只要算出比今天晚就是去年**。
+#   另外窗口还缺上界（只有 d < since），两处都得补。
+
+_spec = importlib.util.spec_from_file_location(
+    'retail_mod', os.path.join(BASE, 'scripts', 'retail.py'))
+_rm = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_rm)
+
+_T = datetime(2026, 11, 16).date()      # 取一个固定的「今天」，不依赖跑测试的日期
+
+
+def _pt(raw, today=_T):
+    d = _rm.parse_time(raw, today)
+    return d.isoformat() if d else None
+
+
+# ── ① 去年 12 月/11 月的帖子，必须落到去年 ──
+chk('① 11-16 看到「12月03日」→ 去年', _pt('12月03日'), '2025-12-03')
+chk('② 11-16 看到「11月25日」→ 去年', _pt('11月25日'), '2025-11-25')
+chk('③ 11-16 看到「12月31日」→ 去年', _pt('12月31日'), '2025-12-31')
+
+# ── ② 窗口内的正常日期不许被误减年 ──
+chk('④ 11-16 看到「11月13日」→ 今年', _pt('11月13日'), '2026-11-13')
+chk('⑤ 11-16 看到「今天09:43」→ 今天', _pt('今天09:43'), '2026-11-16')
+chk('⑥ 11-16 看到「3分钟前」→ 今天', _pt('3分钟前'), '2026-11-16')
+chk('⑦ 11-16 看到「昨天14:00」→ 昨天', _pt('昨天14:00'), '2026-11-15')
+chk('⑧ 带年份的直接解析', _pt('2026-11-14 09:43'), '2026-11-14')
+
+# ── ③ 跨年边界：1 月看到 12 月 → 去年；看到 1 月 → 今年 ──
+_T2 = datetime(2027, 1, 3).date()
+chk('⑨ 01-03 看到「12月30日」→ 去年', _pt('12月30日', _T2), '2026-12-30')
+chk('⑩ 01-03 看到「01月01日」→ 今年', _pt('01月01日', _T2), '2027-01-01')
+
+# ── ④ 2/29 落在平年 → None，不许抛异常 ──
+chk('⑪ 03-01 看到「02月29日」（平年）→ None',
+    _pt('02月29日', datetime(2027, 3, 1).date()), None)
+
+# ── ⑤ 源码层面的两条口径（防回归）──
+_src = open(os.path.join(BASE, 'scripts', 'retail.py'), encoding='utf-8').read()
+_src_code = re.sub(r'"""[\s\S]*?"""', '', _src)
+_src_code = re.sub(r'#.*$', '', _src_code, flags=re.M)
+chk_true('⑫ 不再用「晚 30 天才减年」的阈值', 'timedelta(days=30)' not in _src_code)
+chk_true('⑬ 跨年判据是 d > today', 'if d > today' in _src_code)
+chk_true('⑭ 窗口同时卡上界（d > today 剔掉）', 'd < since or d > today' in _src_code)
+chk_true('⑮ 产出里记录被剔掉的未来帖条数', "'n_future': future" in _src_code)
+
+# ── ⑥ 真实产物里不许有未来日期 ──
+#    这条是「线上到底对不对」的最终判据：页面上的样本日期不能晚于 asof。
+_sj_path = os.path.join(BASE, 'data', 'sentiment.json')
+if os.path.exists(_sj_path):
+    _rt = (json.load(open(_sj_path, encoding='utf-8')) or {}).get('retail') or {}
+    _to = _rt.get('window_to')
+    if _to:
+        _tto = datetime.strptime(_to, '%Y-%m-%d').date()
+        _bad = []
+        for _s in (_rt.get('samples') or []):
+            _m = re.match(r'(\d{1,2})月(\d{1,2})日', _s.get('time', ''))
+            if not _m:
+                continue
+            try:
+                _d = datetime(_tto.year, int(_m.group(1)), int(_m.group(2))).date()
+            except ValueError:
+                continue
+            if _d > _tto:
+                _bad.append(_s.get('time'))
+        chk('⑯ 真实产物样本里没有晚于 window_to 的日期', _bad, [])
+        # n_future 应该是 0 —— 非 0 说明 parse_time 又放水了
+        chk('⑰ 真实产物 n_future == 0', _rt.get('n_future', 0), 0)
+    else:
+        chk_true('⑯ 真实产物带 window_to', False)
+        chk_true('⑰ 真实产物带 n_future', False)
+else:
+    chk_true('⑯ 有 data/sentiment.json', False)
 
 # ══════════════════════════════════════════════════════════════════
 print(f'\n{"="*54}')
