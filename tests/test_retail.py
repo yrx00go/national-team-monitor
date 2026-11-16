@@ -242,9 +242,21 @@ up = io.open(os.path.join(BASE, 'scripts', 'update.py'), encoding='utf-8').read(
 # ★ retail.py 是「读-改-写」sentiment.json，而 fetch_sentiment.py 每次
 #   整个重写该文件。顺序反了 → 昨天抓的散户数据被今天重写的文件抹掉，
 #   而且不报错。
-i_sent = at(up, "run('fetch_sentiment.py'")
-i_retail = at(up, "run('retail.py'")
-i_compute = at(up, "run('compute_demo.py'")
+#
+# ⚠⚠ 2026-11-16 修：这里原来是在**整个 update.py** 里找第一次出现的位置，
+#   但那天新增了一个 run_shares_only_tail() 函数（补份额专用，也调 compute_demo），
+#   它定义在 main() 之前 → i_compute 指到了那个函数里，
+#   于是「retail 在 compute 之前」被判成 False，测试红了，但代码其实是对的。
+#
+#   教训：**顺序断言必须限定在被测的那段代码里**，不能全文件搜索 ——
+#   只要有人往文件前面加一个辅助函数，这个测试就会假红（或更糟：假绿）。
+#   现在先切出 main() 的函数体，只在里面比位置。
+_m = re.search(r'^def main\(\):(.*?)(?=^def |\Z)', up, re.S | re.M)
+up_main = _m.group(1) if _m else up
+
+i_sent = at(up_main, "run('fetch_sentiment.py'")
+i_retail = at(up_main, "run('retail.py'")
+i_compute = at(up_main, "run('compute_demo.py'")
 # 先确认三个锚点都找到了 —— 否则 -1 < -1 这种比较会假通过
 chk_true('① 三个调用点都能在 update.py 里找到',
          i_sent >= 0 and i_retail >= 0 and i_compute >= 0)
