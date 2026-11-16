@@ -1417,7 +1417,6 @@ def main():
                 'valuations': _sj.get('valuations') or [],
                 'consensus': _sj.get('consensus') or {},
                 'mood': _sj.get('mood') or {},
-                'hot_stocks': (_sj.get('hot_stocks') or [])[:20],
                 'plates': _sj.get('plates') or {},
                 'news': {k: (v or [])[:8] for k, v in (_sj.get('news') or {}).items()},
                 'toutiao_hot_fin': _sj.get('toutiao_hot_fin') or [],
@@ -1439,6 +1438,10 @@ def main():
                 #   而「没取到」和「抓到了但样本不足」在页面上完全不同 ——
                 #   前者是故障，后者是诚实的结论。
                 'forecast': _sj.get('forecast') or {},
+                # 官方政策层（新华社/人民日报）。同样必须透传 ——
+                # 不传，页面显示「没取到」，而「没取到」和
+                # 「抓到了但这 7 天确实没有政策稿」是两回事。
+                'policy': _sj.get('policy') or {},
             }
             # 这一层也要进体检 —— 否则它挂了没人知道，
             # 页面会一直显示昨天的共识，看起来像今天的。

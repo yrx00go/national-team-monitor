@@ -1182,6 +1182,23 @@ def main():
     judgment = pick_judgment(cons.get('a_share') or [], mood, vals, pct, idx_chg)
     print(f'  ✓ 判断：{judgment["stance"]}　{judgment["line"][:40]}')
 
+    # ── 官方政策层（新华社 / 人民日报）──
+    # OO 2026-11-14：「新华社和人民日报的内容单独拎出来总结政策。」
+    # ⚠ 和预判层的区别：预判层是**财经媒体的解读**（「机构：A股有望…」），
+    #   政策层是**官方的发布**（「国常会：完善资本市场稳市机制」）。
+    #   解读要判断对错，发布只要知道说了什么。这两件事不能混在一张表里。
+    # ⚠ 这一层刻意**不判方向** —— 从「说了什么」到「会怎么样」隔着整条传导链。
+    policy = {}
+    try:
+        import policy as _P
+        policy = _P.collect()
+        policy['caveats'] = _P.caveats(policy)
+        print(f'  ✓ 政策 {policy["n_kept"]} 篇'
+              f'（新华社 {policy["n_xinhua"]} / 人民日报 {policy["n_people"]}）'
+              f'　窗口 {policy["window_from"]}~{policy["window_to"]}')
+    except Exception as e:
+        print(f'  ⚠ 政策层不可用：{type(e).__name__}: {e}')
+
     # ── 市场预判层（对未来的一致性，不是对今天的描述）──
     # ⚠ 这是 OO 2026-11-14 明确要的东西：
     #   「我不需要给我结论市场在说今天的涨跌，
@@ -1259,6 +1276,11 @@ def main():
         #   forecast  = 机构预测接下来会怎样（还没发生）
         #   前者可以验证，后者只能统计。混在一起会让后者的「预测性」伪装成事实。
         'forecast': forecast,
+        # 官方政策层：新华社/人民日报的国内政策稿。
+        # ⚠ 单独一栏，不混进 forecast：前者是「官方发布了什么」（事实），
+        #   后者是「机构预测会怎样」（观点）。混在一起会把官方的确定性
+        #   传染给机构的预测性。
+        'policy': policy,
     }
 
     os.makedirs(DATA, exist_ok=True)

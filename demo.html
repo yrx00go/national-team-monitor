@@ -2127,12 +2127,24 @@ D.rows.concat(D.thin||[]).forEach(r=>{
 })();
 
 // ---------- 市场共识 ----------
-// ⚠ 这一栏的写法和其他栏有本质区别，改之前先读这段：
-//   别的栏是「读事实」：份额涨了就是涨了，出错可以拿交易所原始数据核对。
-//   这一栏是「读别人说的话」：媒体标题、股吧帖子、热度榜。
-//   它的误差不是「抓错了」，而是「抓对了但归纳错了」——
-//   所以每一条都带原始样例（examples），每块都写明它不能拿来干什么。
-//   把归纳结果的置信度写出来，比把归纳做得更漂亮重要。
+// ⚠ 改这段之前先读这里。2026-11-14 OO 定稿后，这一栏只剩两层：
+//   预判层 = 「大家预测接下来会怎么走」（研报/策略会/机构研判）
+//   政策层 = 「官方发布了什么」（新华社/人民日报的国内政策稿）
+//
+// ★ 为什么描述层被整个删掉
+//   「今天媒体在说什么」读的是收评/午评/盘中播报 —— 说的是**已经发生的事**。
+//   实测那批稿子 56 篇里 33 篇（59%）是「创业板指跌3%」这类指数播报。
+//   它回答不了「接下来会怎么走」，只会让人误以为自己在看判断。
+//   OO 原话：「市场方向不要了」「描述层整个删掉」。
+//
+// ★ 为什么预判层和政策层必须并排、不能合并
+//   预判层是**观点**（「机构：A股有望…」）→ 要判断对错、要给倾向。
+//   政策层是**事实**（「国常会：完善资本市场稳市机制」）→ 只要知道说了什么。
+//   混在一张表里，「机构认为会稳市」和「国常会定了稳市」会被读成同样强度，
+//   而它们差着一整个决策层级。
+//
+// ★ 这一栏的误差不是「抓错了」，是「抓对了但归纳错了」
+//   所以每块都写明它不能拿来干什么。把置信度写出来，比把归纳做得更漂亮重要。
 (function(){
   const S=D.sentiment;
   const el=document.getElementById('consBody');
@@ -2143,16 +2155,8 @@ D.rows.concat(D.thin||[]).forEach(r=>{
       <span class="mut">这一栏和上面五栏不同：它读的是「别人在怎么说」，不是已发生的事实。</span></div></div>`;
     return;
   }
-  const J=S.judgment||{};
   const V=S.valuations||[];
-  const P=S.percentile||{};
-  const H=S.heat||{};
-  const MO=S.mood||{};
   const pl=S.plates||{};
-
-  // 立场配色：偏强用涨色、偏弱用跌色、分化用中性灰
-  const stanceColor={'一致偏强':'var(--up)','偏强':'var(--up)',
-    '一致偏弱':'var(--down)','偏弱':'var(--down)','分化':'#B45309','样本不足':'var(--tx3)'}[J.stance]||'var(--tx2)';
 
   const fmtPct=(v,d=1)=>v==null?'—':(+v).toFixed(d)+'%';
 
@@ -2167,77 +2171,20 @@ D.rows.concat(D.thin||[]).forEach(r=>{
       </span><b style="color:${c};font-variant-numeric:tabular-nums">${p.toFixed(0)}%</b></span>`;
   };
 
-  // ── 一句话判断 ──
-  const judgeCard = !J.stance ? '' : `
-  <div class="panel">
-    <div class="ph">
-      <div class="pt">今天的判断：<span style="color:${stanceColor}">${J.stance}</span></div>
-      <div class="ps">${S.date||''}</div>
-    </div>
-    <div style="font-size:13.5px;line-height:1.85;margin-bottom:14px">${J.line||''}</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:14px">
-      ${(J.votes||[]).map(v=>{
-        const c=v.v>0?'var(--up)':(v.v<0?'var(--down)':'var(--tx3)');
-        const lab=v.v>0?'偏强':(v.v<0?'偏弱':'中性');
-        return `<div class="kpi"><div class="k">${v.name}</div>
-          <div class="v" style="font-size:15px;color:${c}">${lab}</div>
-          <div class="d">${v.why||''}</div></div>`;
-      }).join('')}
-    </div>
-    ${(J.missing||[]).length?`
-    <div style="background:#FEF3C7;border-left:3px solid #B45309;padding:8px 11px;border-radius:4px;
-                font-size:12px;line-height:1.75;margin-bottom:14px">
-      <b>今天缺了这几票</b>：${(J.missing||[]).join('；')}<br>
-      <span class="mut">缺票会改变结论。上面那句判断是<b>在少 ${(J.missing||[]).length} 票的情况下</b>得出的，
-      不是完整的四维一致。</span>
-    </div>`:''}
-    <div class="cons2" style="gap:14px">
-      <div><div class="k" style="font-size:11px;color:var(--tx3);margin-bottom:6px">支撑这个判断的</div>
-        <ul style="margin:0;padding-left:16px;line-height:1.9;font-size:12.5px">
-          ${(J.evidence||[]).map(e=>`<li>${e}</li>`).join('')||'<li class="mut">无</li>'}</ul></div>
-      <div><div class="k" style="font-size:11px;color:var(--tx3);margin-bottom:6px">反过来想的</div>
-        <ul style="margin:0;padding-left:16px;line-height:1.9;font-size:12.5px">
-          ${(J.anti||[]).map(e=>`<li>${e}</li>`).join('')||'<li class="mut">无</li>'}</ul></div>
-    </div>
-    ${J.note?`<div class="ps" style="margin-top:12px;line-height:1.8;padding-top:10px;border-top:1px solid var(--line)">${J.note}</div>`:''}
-  </div>`;
+  // ══════════ 已删除：一句话四票判断（judgeCard）══════════
+  // 2026-11-14 OO：「描述层整个删掉」。
+  // 那张卡片的四票里，两票（媒体方向、散户情绪）读的是**当天已发生的事**，
+  // 只有一票是估值。把它合成「今天的判断：偏强」，
+  // 等于用三个描述性读数冒充一个判断 —— 而且它和下面预判层的结论会打架，
+  // 同一个页面上出现两个方向，读者不知道该信哪个。
+  // 现在方向只在一个地方出现：预判层。
 
-  // ── 媒体在说什么 ──
-  const consBlock=(key,title,note)=>{
-    const rows=(S.consensus||{})[key]||[];
-    if(!rows.length) return `<div class="panel"><div class="ph"><div class="pt">${title}</div></div>
-      <div class="ps">今天没抽到。可能是新闻太少，或都不含可识别的主题词。</div></div>`;
-    const dl={'up':'在涨','down':'在跌','mix':'分歧','flat':'没方向'};
-    const dc={'up':'var(--up)','down':'var(--down)','mix':'#B45309','flat':'var(--tx3)'};
-    // ⚠ 四列分开摆，不合成一个数。
-    //   之前只显示「5 家」+「在跌」，读者会读成「5 家媒体说在跌」，
-    //   实际是「5 家提到，其中 3 家说跌、2 家说涨」（或 4 家没方向）。
-    //   一个数字承载不了两个口径 —— 那是让人误读，不是简化。
-    return `<div class="panel">
-      <div class="ph"><div class="pt">${title}</div><div class="ps">${note}</div></div>
-      <div class="tblwrap"><table><thead><tr>
-        <th>主题</th><th>方向</th><th class="num">提到</th>
-        <th class="num">说涨</th><th class="num">说跌</th><th class="num">没方向</th>
-        <th>原始标题（可复核）</th>
-      </tr></thead><tbody>
-      ${rows.map(c=>`<tr>
-        <td><b>${c.text}</b></td>
-        <td style="color:${dc[c.dir]||'var(--tx2)'};font-weight:600">${dl[c.dir]||'—'}</td>
-        <td class="num mut">${c.sources} 家</td>
-        <td class="num" style="color:${c.n_up?'var(--up)':'var(--tx3)'}">${c.n_up||0}</td>
-        <td class="num" style="color:${c.n_down?'var(--down)':'var(--tx3)'}">${c.n_down||0}</td>
-        <td class="num mut">${c.n_flat||0}</td>
-        <td class="mut" style="font-size:11.5px;line-height:1.65">
-          ${(c.examples||[]).map(e=>`<div>· ${e}</div>`).join('')||'—'}</td>
-      </tr>`).join('')}
-      </tbody></table></div>
-      <div class="ps" style="margin-top:9px;line-height:1.8">这是<b>媒体选题的重合度</b>，不是市场真相。
-        同一件事 5 家都报，说明编辑们认为它重要，不说明它正确。<br>
-        ⚠ <b>「提到」不等于「表态」</b>：说涨 + 说跌 + 没方向 = 提到。
-        同一家媒体若同时发过看涨和看跌的稿子，按篇数多的那边算一次，所以不会出现「分项加起来超过提到」。
-      </div>
-    </div>`;
-  };
+  // ══════════ 已删除：今天媒体在说什么（consBlock × 2）══════════
+  // 实测证据：描述层 56 篇里 33 篇（59%）是「创业板指跌3%」这类指数播报。
+  // 数量最多、最容易抓，对预判毫无用处 —— 它说的是已经发生的事。
+  // 配套的「主题词表覆盖率」（covBlock）也一并删除：
+  // 那块存在的唯一目的是给描述层的结论标注置信度，源头没了它就没有意义。
+
 
   // ── 估值分位 ──
   const valBlock = !V.length?'':`
@@ -2384,31 +2331,18 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   };
 
 
-  // ── 情绪 ──
-  const g=MO.guba||{}, f=MO.feed||{};
-  // ⚠ m.n 为 0 时不能直接 return '' 把卡片吞掉。
-  //   2026-11-13 实测股吧被限流，那一格整块消失，页面看起来像「今天没有散户情绪」，
-  //   实际是「我们没抓到」。**消失的信息比明确写出的缺失更危险** ——
-  //   读者不会察觉少了一块，只会把剩下的当成全部。
-  const moodBar=(m,label)=>{
-    if(!m || !m.n){
-      return `<div class="kpi" style="margin:0">
-        <div class="k">${label}</div>
-        <div class="v" style="font-size:15px;color:var(--tx3)">没取到</div>
-        <div class="d">今天没抓到帖子（限流或改版），不是「散户没表态」</div></div>`;
-    }
-    const dec=(m.bull||0)+(m.bear||0);
-    return `<div class="kpi" style="margin:0">
-      <div class="k">${label}</div>
-      <div class="v" style="font-size:16px">
-        <span style="color:var(--up)">${m.bull}</span>
-        <span class="mut" style="font-size:12px"> / </span>
-        <span style="color:var(--down)">${m.bear}</span>
-        <small style="margin-left:6px">看多 / 看空</small></div>
-      <div class="d">共 ${m.n} 条，其中 ${m.n-dec} 条没有明确态度</div></div>`;
-  };
+  // ══════════ 已删除：散户在说什么（moodBar × 2）══════════
+  // 那块卡片的核心读数是「看多 / 看空」两栏，属于描述层的方向 ——
+  // OO：「市场方向不要了」。而且它的口径本来就最弱：只看标题里有没有
+  // 「涨/跌/加仓/清仓」，大量标题其实没态度（「功亏一篑」这种）。
+  // 现在方向只在预判层出现一处，页面不会自相矛盾。
+  // 帖子量本身还留着 —— 在下面热度表的「股吧散户帖数」那一行，
+  // 它回答的是「今天多热」，不是「散户看什么方向」。
+
 
   // ── 热度与分位 ──
+  // ⚠ P 只给「热度」用，不再给判断卡用。
+  const P=S.percentile||{};
   const pctRow=(key,label,unit)=>{
     const p=P[key]||{};
     if(p.val==null) return '';
@@ -2420,45 +2354,121 @@ D.rows.concat(D.thin||[]).forEach(r=>{
         : pctBar(pc)}</td></tr>`;
   };
 
-  // ── 词表覆盖度：第一票的置信度 ──
-  // ⚠ 这一块必须存在。2026-11-13 实测：A股 56 篇里只有 23 篇（41%）
-  //   被主题词表识别，其余 33 篇几乎全是「创业板指跌3%」这类指数级涨跌 ——
-  //   词表按板块组织，指数名一个都没收。
-  //   所以「5 家媒体说算力硬件在跌」这个结论，是在四成样本上得出的。
-  //   不写这个数，读者会把它当成当天媒体的全部意见。
-  const cov=S.topic_cov||{};
-  const covBlock = !Object.keys(cov).length ? '' : `
-  <div class="panel">
-    <div class="ph"><div class="pt">主题词表读到了多少报道</div>
-      <div class="ps">这是上面「媒体在说什么」那张表的<b>覆盖率</b>，也就是它的置信度</div></div>
-    <div class="tblwrap"><table><thead><tr>
-      <th>话题</th><th class="num">报道总数</th><th class="num">读到主题</th>
-      <th class="num">覆盖率</th><th>没读到的是什么</th>
-    </tr></thead><tbody>
-      ${Object.entries(cov).map(([k,v])=>`<tr>
-        <td>${({a_share:'A股',gold:'黄金'})[k]||k}</td>
-        <td class="num">${v.n} 篇</td>
-        <td class="num">${v.hit} 篇</td>
-        <td class="num">${v.pct==null?'—':pctBar(v.pct)}</td>
-        <td class="mut" style="font-size:11.5px;line-height:1.65">${
-          k==='a_share'?'多是指数级播报（「创业板指跌3%」「沪指跌0.56%」），词表只收板块名，不收指数名'
-          :'基本全覆盖'}</td>
-      </tr>`).join('')}
-    </tbody></table></div>
-    <div class="ps" style="margin-top:9px;line-height:1.8">
-      ⚠ 覆盖率低 <b>不代表结论错，代表它不能单独当结论</b>。
-      没有读到的那部分报道，讲的往往是「大盘今天跌了多少」——
-      恰好是这个词表结构上看不见的东西。所以下面还有一票叫「当天大盘涨跌」，
-      它直接从行情接口读真实涨跌幅，不经过词表。
-    </div>
-  </div>`;
+  // ══════════════ 官方政策层（新华社 / 人民日报）══════════════
+  // OO 2026-11-14：「新华社和人民日报的内容单独拎出来总结政策。」
+  //
+  // ⚠ 这一栏和预判层是**两种语料**，最忌讳混着读：
+  //   预判层 = 财经媒体的**解读**（「机构：A股有望…」）→ 有观点，要判方向
+  //   政策层 = 官方的**发布**（「国常会：完善资本市场稳市机制」）→ 是事实，不判方向
+  //   混在一张表里，「机构认为会稳市」和「国常会定了稳市」会被读成同样强度，
+  //   而它们差着一整个决策层级。
+  //
+  // ★ 这一栏刻意**一个涨跌字都不出现**。
+  //   从「说了什么」到「会怎么样」中间隔着整条传导链，
+  //   那段推断没有任何数据支持，写上去就是编。
+  const PO=S.policy||{};
+  const policyBlock = (()=>{
+    if(!PO || PO.n_kept==null){
+      // ⚠ 和预判层同一个规矩：没取到要说「没取到」，不能说「今天没有政策」。
+      return `<div class="panel">
+        <div class="ph"><div class="pt">官方政策：新华社 / 人民日报</div>
+          <div class="ps">官方发布的国内政策，单独归类。不判方向</div></div>
+        <div class="ps" style="color:var(--tx3);line-height:1.9">
+          这一栏还没抓到数据 —— <b>不是「这几天没政策」，是我们没取到</b>。<br>
+          跑一次 <code>python3 scripts/fetch_sentiment.py</code> 就有了。</div>
+      </div>`;
+    }
+    const topics=PO.topics||[];
+    const byDay=PO.by_day||{};
 
-  el.innerHTML = judgeCard + `
+    // 按日节奏：政策有明显节奏，开会日一天十几条、平时一天零条。
+    // ⚠ 必须把「0 条的那天」也画出来，否则看不出节奏，
+    //   只会以为「漏抓了」。所以按窗口天数补齐所有日期。
+    const dayChips=(()=>{
+      const all=[];
+      const to=PO.window_to||''; const n=PO.window_days||0;
+      if(to && n){
+        const d0=new Date(to+'T00:00:00');
+        for(let i=0;i<n;i++){
+          const d=new Date(d0.getTime()-i*864e5);
+          const k=d.toISOString().slice(0,10);
+          all.push([k, byDay[k]||0]);
+        }
+      }
+      if(!all.length) return '';
+      const mx=Math.max(1,...all.map(x=>x[1]));
+      return `<div style="display:flex;gap:5px;align-items:flex-end;margin:4px 0 12px;flex-wrap:wrap">
+        ${all.map(([k,v])=>{
+          const h=v?Math.max(14,Math.round(v/mx*34)):5;
+          return `<div style="text-align:center;min-width:38px">
+            <div style="height:34px;display:flex;align-items:flex-end;justify-content:center">
+              <div style="width:20px;height:${h}px;border-radius:3px 3px 0 0;
+                background:${v?'var(--tx2)':'#E7E5E4'}"></div></div>
+            <div style="font-size:10.5px;color:${v?'var(--tx2)':'var(--tx3)'};margin-top:3px">
+              ${k.slice(5)}</div>
+            <div style="font-size:10.5px;color:var(--tx3)">${v||'—'}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    })();
+
+    return `<div class="panel">
+      <div class="ph">
+        <div class="pt">官方政策：新华社 / 人民日报这 ${PO.window_days||'?'} 天说了什么</div>
+        <div class="ps">窗口 <b>${PO.window_from||'?'} ~ ${PO.window_to||'?'}</b>
+          · 命中 ${PO.n_kept||0} 条国内政策
+          （新华社 ${PO.n_xinhua||0} / 人民日报 ${PO.n_people||0}）</div>
+      </div>
+
+      ${dayChips}
+
+      ${!topics.length?`<div class="ps" style="line-height:1.9">
+        这个窗口里一条国内政策都没抓到。<br>
+        <b>这未必是异常</b> —— 政策有节奏，不开会的日子本来就少，
+        而且我们只收新华社/人民日报自己的发布（不含财经媒体转述）。</div>`:''}
+
+      ${topics.map(t=>`
+      <div style="margin-bottom:${t===topics[topics.length-1]?0:16}px">
+        <div style="display:flex;align-items:baseline;gap:8px;padding-bottom:6px;
+                    border-bottom:1px solid var(--line);margin-bottom:7px">
+          <b style="font-size:13px">${t.name}</b>
+          <span class="mut" style="font-size:11.5px">${t.n} 条</span>
+        </div>
+        ${t.items.map(a=>`
+          <div style="display:flex;gap:9px;padding:5px 0;font-size:12.5px;line-height:1.7;
+                      border-bottom:1px solid #F7F6F5">
+            <span class="mut" style="font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums;
+                  padding-top:1px">${(a.date||'').slice(5)}</span>
+            <span class="mut" style="font-size:11px;white-space:nowrap;padding-top:1px">${a.src||''}</span>
+            <span style="flex:1">${a.url
+              ? `<a href="${a.url}" target="_blank" rel="noopener"
+                    style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--line)">${a.title}</a>`
+              : a.title}</span>
+          </div>`).join('')}
+      </div>`).join('')}
+
+      <details style="margin-top:13px">
+        <summary style="cursor:pointer;font-size:12px;color:var(--tx2)">
+          口径：这一层不能怎么读（${(PO.caveats||[]).length} 条，必看）</summary>
+        <div style="font-size:11.5px;line-height:1.85;margin-top:8px">
+          ${(PO.caveats||[]).map(c=>`<div style="margin-bottom:7px">· ${c}</div>`).join('')}
+        </div>
+      </details>
+    </div>`;
+  })();
+
+
+  // ══════════ 渲染顺序（2026-11-14 OO 定稿）══════════
+  // ① 预判层：市场对未来的判断（唯一给方向的地方）
+  // ② 政策层：官方发布了什么（不判方向）
+  // ③ 贵不贵：估值分位
+  // ④ 温度：热度、散户（只感知温度，不当信号）
+  // ⑤ 原始素材 + 口径
+  // ⚠ 描述层（「今天媒体在说什么」）已整块删除，理由见文件顶部注释。
+  el.innerHTML = `
   ${fcBlock('a_share')}
   ${fcBlock('gold')}
-  ${consBlock('a_share','A股：今天媒体在说什么（描述层）','按「有方向的媒体家数」排序，不是按提到次数')}
-  ${covBlock}
-  ${consBlock('gold','黄金：今天媒体在说什么（描述层）','同一个主题不同写法已合并')}
+  ${policyBlock}
   ${valBlock}
   <div class="panel">
     <div class="ph"><div class="pt">热度：今天多热，以及热到什么程度</div>
@@ -2481,18 +2491,6 @@ D.rows.concat(D.thin||[]).forEach(r=>{
            <b>这个分位本身也需要更长历史才算稳</b>，现在样本仍然偏短。`}
     </div>
   </div>
-  <div class="panel">
-    <div class="ph"><div class="pt">散户在说什么</div>
-      <div class="ps">关键词粗判，不是语义理解。用来感知温度，不用来当信号</div></div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:11px">
-      ${moodBar(g,'股吧（散户原话）')}
-      ${moodBar(f,'头条（自媒体标题）')}
-    </div>
-    <div class="ps" style="margin-top:11px;line-height:1.8">
-      ⚠ 词表是人工定的，判断只看标题里有没有「涨/跌/加仓/清仓」这类词。
-      <b>大量标题其实没有态度</b>（「功亏一篑」这种），所以「看空占比」的分母要看清是全部帖子还是只有明确态度的那些。
-    </div>
-  </div>
   ${plateBlock(pl.industry,'行业热度 → 能买什么')}
   ${plateBlock(pl.concept,'概念热度 → 能买什么')}
   ${hotBlock}
@@ -2513,25 +2511,45 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   </div>
   <div class="panel"><div class="ph"><div class="pt">口径（这段很重要，别跳过）</div></div>
     <div class="ps" style="line-height:1.9">
-      <b>这一栏有两层，别混着读</b>：<br>
-      ① <b>「接下来会怎么走」= 预判层</b>。读的是券商研报、策略会、机构研判里
-      对<b>未来</b>的判断。它回答「有多少机构认为接下来会涨」。<br>
-      ② <b>「今天媒体在说什么」= 描述层</b>。读的是收评、午评、盘中播报。
-      它回答「今天大家在说什么」，说的是<b>已经发生的事</b>。<br>
-      <b>为什么必须分开</b>：这两层的语料完全不同。实测描述层的 56 篇里
-      33 篇（59%）是「创业板指跌3%」这类指数播报 —— 数量最多、最容易抓，
-      但对预判<b>毫无用处</b>。把它们混在一起统计，等于用事后描述冒充事前判断。<br>
-      <b>预判层不是什么</b>：不是预测，不是建议，不是「多数机构认为对所以对」。
-      它只说「有多少人在这么说」，不说「这么说会不会成真」——
-      后者没有任何数据能支持。<br>
-      <b>A股预判有结构性偏多</b>：几乎没有机构会公开发一篇「看空A股」的报告。
+      <b>这一栏只剩两层，顺序不能倒过来读</b>：<br>
+      ① <b>「接下来会怎么走」= 预判层</b>。读券商研报、策略会、机构研判里对<b>未来</b>的判断，
+      回答「有多少机构认为接下来会涨」。<b>全站唯一给方向的地方</b>。
+      它给的是比例，不是概率 —— 「39 篇偏多 / 3 篇偏空」说的是「说话的人里怎么说」，
+      不是「涨的概率是 93%」。<br>
+      ② <b>「官方政策」= 政策层</b>。只收新华社/人民日报自己的国内政策稿，
+      按主题归类，回答「官方这几天把力气花在哪」。
+      <b>这一层刻意一个涨跌字都不出现</b> —— 从「说了什么」到「会怎么样」隔着整条传导链，
+      那段推断没有任何数据支持，写上去就是编。<br><br>
+
+      <b>为什么这里没有「今天媒体在说什么」那一栏</b>：那种语料读的是收评、午评、盘中播报，
+      说的是<b>已经发生的事</b>。实测 56 篇里 33 篇（59%）是「创业板指跌3%」这类指数播报 ——
+      数量最多、最容易抓，对预判<b>毫无用处</b>。
+      它和预判层并排摆着，还会各自给出方向，读者不知道该信哪个。
+      与其解释「这两块方向为什么不一样」，不如不要那一块。<br><br>
+
+      <b>预判层的结构性缺陷，必须知道</b>：
+      几乎没有机构会公开发一篇「看空A股」的报告 ——
       实测用「券商 看空 A股」去搜，返回的前 10 条全是看多文章。
-      所以「偏多」这个读数本身信息量很低，要看的是<b>比例有没有变化</b>。<br>
+      所以 A 股那栏<b>长期偏多</b>，这个读数本身信息量很低；
+      真正有用的是<b>比例有没有变</b>，而不是「现在是偏多」。<br>
+      <b>黄金那栏常年样本不足</b>：30 天窗口也只攒到十几篇有方向的稿子，
+      不够 15 篇就直接写「样本不足」，不给倾向词 ——
+      分母撑不起结论时给个词，等于用噪声冒充判断。<br><br>
+
+      <b>政策层的结构性缺陷</b>：新华社是通稿社，什么都发。
+      实测官媒稿 112 篇里只有 27 篇是国内政策，其余是国际新闻（泽连斯基、南非农业部长）、
+      社会新闻（茶博会）、纪检稿（原董事长被开除党籍）。
+      所以这一层<b>不是「新华社说了什么」，是「新华社里的政策稿说了什么」</b>。<br>
+      另外政策有节奏 —— 开会日一天十几条、平时一天零条。
+      「某天 0 条」是正常的，不代表漏抓；上面那排柱子把 0 条的日子也画出来了，就是这个原因。<br><br>
+
       <b>已知抓不到的</b>：抖音财经博主的原话。实测抖音搜索需登录、视频详情 403、
       热榜 147 条采样里财经命中 0 条。所以这里没有「陈小群今天说了什么」，
-      只有「机构研报在说什么」。<br>
-      <b>数据来源</b>：东方财富全站搜索（媒体标题 + 研报）· 同花顺（行业/概念热度）·
-      蛋卷基金（指数估值分位）· 东方财富股吧（散户帖子）· 今日头条（自媒体标题、热榜）·
+      只有「机构研报在说什么」和「官方发布了什么」。
+      官方站自己的接口也全部不可用（新华网 403、人民网搜索返回空壳页面），
+      政策层是从东财搜索里按来源过滤出来的。<br>
+      <b>数据来源</b>：东方财富全站搜索（媒体标题 + 研报 + 官媒稿）· 同花顺（行业/概念热度）·
+      蛋卷基金（指数估值分位）· 东方财富股吧（散户帖子）· 今日头条（热门词）·
       腾讯行情（创业板指当日涨跌）。
     </div>
   </div>`;
