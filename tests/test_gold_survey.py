@@ -265,6 +265,50 @@ class TestConsensusHistory(unittest.TestCase):
         # 黄金有、A股 没有的那几天必须真实存在（否则说明在对齐）
         self.assertTrue(gold - arow, '黄金与 A股 完全同步，疑似被强行对齐')
 
+    def test_存档必须能独立画出黄金曲线(self):
+        """★ 这条防的是一个只在 CI 上出现、本地永远复现不了的 bug。
+
+        CI 每天现抓中金网，经常返回 0 条（限流 / 当日无新调查），
+        于是构建出的 gold_survey.rows=[]；
+        而 consensus_history.json 从 git 检出、完好无损。
+        前端原来只读 gold_survey → **线上图上黄金两条线整个消失**，
+        只剩 A股 两个孤点，黄底说明还写着「只覆盖 1 个调查日」。
+
+        结论：存档必须**自给自足** —— 即使当天一条都没抓到，
+        也能从存档里画出全部历史黄金点。
+        所以这里断言：存档里的黄金记录条数，必须与 gold_survey.json 里的
+        条数相当（允许存档更多，因为它只增不减）。
+        """
+        p = os.path.join(BASE, 'data', 'gold_survey.json')
+        n_live = 0
+        if os.path.exists(p):
+            n_live = len(json.load(open(p, encoding='utf-8')).get('rows') or [])
+        n_arch = sum(1 for r in self.h['rows'] if r.get('gold_survey'))
+
+        self.assertGreater(n_arch, 0, '存档里一条黄金记录都没有')
+        # 存档不应少于当日抓取结果 —— 少了说明某次写盘把历史覆盖掉了
+        self.assertGreaterEqual(
+            n_arch, n_live,
+            f'存档黄金 {n_arch} 条 < gold_survey {n_live} 条：历史被覆盖了')
+
+    def test_存档里的黄金字段够画图(self):
+        """画图只要 lean_a / lean_r 两个数，但必须能算出来。
+
+        ⚠ 存档里存的是原始三段（up/down/flat），lean 由它们现算。
+          如果某天只存了 lean 没存三段，以后再想换算法（比如改成
+          只算 up+down 之外的口径）就回不去了 —— 原始计数才是资产。
+        """
+        for r in self.h['rows']:
+            gs = r.get('gold_survey')
+            if not gs:
+                continue
+            for side in ('analyst', 'retail'):
+                s = gs.get(side)
+                if not s:
+                    continue
+                for k in ('up', 'down', 'flat'):
+                    self.assertIn(k, s, f'{r["date"]} {side} 缺 {k}')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

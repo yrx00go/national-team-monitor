@@ -2806,9 +2806,37 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   //   **两种频率放在一张图上，必须用不同的点样式区分，否则读者会以为一样密。**
   const CV=(()=>{
     const G=D.gold_survey, H=D.consensus_hist;
-    // 黄金：优先用 gold_survey（有机构+散户两套），没有就退到存档
-    const goldRows=(G&&G.rows)||[];
     const histRows=(H&&H.rows)||[];
+    const liveGold=(G&&G.rows)||[];
+
+    // ── 黄金数据从哪来：**两处合并，以存档为准** ──
+    //
+    // ⚠⚠ 这里踩过一个只在 CI 上出现的坑（本地永远看不到）：
+    //   本地跑过 --backfill，gold_survey.json 有 4 条；
+    //   但 CI 每天现抓，中金网经常只返回 0 条（限流/当日无新调查）。
+    //   于是 CI 构建出的 gold_survey.rows = []，
+    //   **而 consensus_history.json 从 git 检出、完好无损有 4 天**。
+    //   前端只读 gold_survey → 线上图上黄金两条线整个消失，
+    //   只剩 A股 两个孤点，黄底说明还写着「只覆盖 1 个调查日」。
+    //
+    //   结论：存档才是长期资产，当日抓取只是它的一个输入。
+    //   读图必须以存档为主，当日抓取只用来补存档里还没有的那一天。
+    //   ——「图只是存档的一个视图」，这句话得在代码里真的成立，
+    //     否则一旦抓取失败，图就把已有的历史一起丢掉。
+    const archivedGold=histRows.filter(r=>r.gold_survey).map(r=>{
+      const g=r.gold_survey;
+      return {
+        date:r.date,
+        analyst:g.analyst, retail:g.retail,
+        lean_a:g.lean_analyst, lean_r:g.lean_retail,
+        url:g.url,
+      };
+    });
+    const seen=new Set(archivedGold.map(r=>r.date));
+    // 当日抓到的、存档里还没有的 → 补进来（同一天以存档为准，不覆盖）
+    const goldRows=archivedGold.concat(liveGold.filter(r=>!seen.has(r.date)))
+                             .sort((a,b)=>a.date<b.date?-1:1);
+
     if(!goldRows.length && !histRows.length) return null;
 
     // 统一成 [{d, a: 机构lean, r: 散户lean, an, rn}]，lean ∈ [-100,100]
@@ -3023,8 +3051,20 @@ D.rows.concat(D.thin||[]).forEach(r=>{
     if(u==null||d==null||(u+d)===0) return null;
     return Math.round((u-d)/(u+d)*1000)/10;
   };
-  const gRows=(G&&G.rows)||[];
   const hRows=(H&&H.rows)||[];
+
+  // ⚠⚠ 黄金数据必须**以存档为主**，不能只读 gold_survey。
+  //   和上面 CV 里同一处坑，两处必须一致 —— 否则表里有 5 行、图里只有 1 个点，
+  //   读者会以为「图坏了」，而实际是两条读数据的路走岔了。
+  //   CI 每天现抓中金网，经常返回 0 条；存档从 git 检出来是完好的。
+  const archived=hRows.filter(r=>r.gold_survey).map(r=>{
+    const g=r.gold_survey;
+    return {date:r.date, analyst:g.analyst, retail:g.retail,
+            lean_a:g.lean_analyst, lean_r:g.lean_retail, url:g.url};
+  });
+  const seen=new Set(archived.map(r=>r.date));
+  const gRows=archived.concat(((G&&G.rows)||[]).filter(r=>!seen.has(r.date)))
+                        .sort((a,b)=>a.date<b.date?-1:1);
 
   const gPts=gRows.map(r=>({
     d:r.date,
