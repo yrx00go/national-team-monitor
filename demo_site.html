@@ -145,6 +145,9 @@ nav button.on{color:var(--tx);border-bottom-color:var(--tx);font-weight:600}
 .cv-gap{font-size:11.5px;color:var(--tx2);background:#FFFBEB;border:1px solid #FDE68A;
   border-radius:7px;padding:8px 11px;margin-bottom:10px;line-height:1.65}
 .cv-gap b{color:#92400E}
+/* 叠加图下面的读法说明。和图表留一点距离，别贴在一起。 */
+.cv-note{margin-top:7px;line-height:1.85;font-size:11.5px}
+.cv-note b{color:var(--tx)}
 
 /* 三把尺子并排：窄屏自动堆成一列。
    ⚠ 每个格子内部再套一个固定高度的 .chartbox —— Chart.js 的
@@ -399,40 +402,12 @@ tr.grp span{font-weight:400;color:#64748B}
   <!-- 杠杆三问单独一行：它回答的不是「钱进来多少」，而是「进来的钱里有多少是借的」。 -->
   <div class="kpis k3" id="kpisLev"></div>
 
-  <!-- ══════════ K 线（上证 / 黄金ETF）══════════
-       ⚠⚠ 这一块和下面所有图的性质不同，看之前先读这三句：
-         ① 这是**不复权**日线。前复权会按后来分红整体缩放历史，
-            K 线的相对高低、影线长短都被改掉 —— 而 K 线看的就是形状。
-            除权那天前复权还会画出一根假的巨阴线。
-         ② 蜡烛是**自己画的**，不是 Chart.js 的 financial 插件。
-            理由：那个插件要从 CDN 再拉一个包，而本页是离线版
-            （「加到手机主屏、断网也能看」）。多一个外部依赖，
-            就多一种「文字全在、图全空」的死法。
-         ③ 共识曲线**不在这张图上铺满**。共识只有 4~5 天数据，
-            K 线有 2001 天 —— 差 400 倍。硬铺满就等于编造 1990 天历史。
-            所以它单独在「市场共识」页签里画，横轴各用各的，
-            但**共享同一段时间说**：见下面的「共识曲线」面板。 -->
-  <div class="panel" id="klPanel">
-    <div class="ph">
-      <div class="pt">K 线：上证指数 / 黄金ETF华安</div>
-      <div class="ps" id="klDate">—</div>
-      <div class="legend">
-        <span><i class="ln" style="background:#DC2626"></i>收阳（收 ≥ 开）</span>
-        <span><i class="ln" style="background:#16A34A"></i>收阴（收 &lt; 开）</span>
-        <span class="mut">不复权日线 · 悬停看当日开高低收</span>
-      </div>
-      <div class="kl-sw" id="klSw"></div>
-    </div>
-    <div class="chartbox" style="height:340px"><canvas id="cKline"></canvas></div>
-    <div id="tsKline"></div>
-    <div class="ps" style="margin-top:7px">
-      读法：一根蜡烛 = 一个交易日。粗身子是<b>开</b>与<b>收</b>之间的区间，
-      细上下影是当日的<b>最高</b>和<b>最低</b>。红色是收盘高于开盘，绿色相反
-      （A 股习惯，和欧美相反）。
-      <b>不复权</b>的意思是：分红除权那天图上会出现一个真实的价格缺口，
-      这不是数据错误 —— 前复权会把这个缺口抹平，同时把所有历史价格一起改掉。
-    </div>
-  </div>
+  <!-- ⚠ 2026-11-16 OO 定：这里**不放 K 线**。
+       「监控组合的 K 线不需要存在」——原话。
+       理由站得住：组合页回答的是「钱进出了多少、杠杆多高」，
+       K 线回答的是「价格怎么走的」，两者不是同一个问题；
+       放了 K 线反而让人以为这张图是在讲这只 ETF 的行情。
+       价格走势挪到「市场共识」页，和情绪叠在一起看（那才是它该待的地方）。 -->
 
   <div class="panel">
     <div class="ph">
@@ -629,6 +604,15 @@ tr.grp span{font-weight:400;color:#64748B}
      所以这里每一块都标了「这是什么 / 它不能拿来干什么」，
      因为没有出处的数字最容易被当成结论用。 -->
 <div class="pane" id="pane-consensus">
+  <!-- 走势 + 情绪叠加图：两张（A股 / 黄金）。
+       ⚠ 容器在这里、图在 JS 里建，而且是**懒建**：
+         pane 默认 display:none，在隐藏容器里 new Chart 会拿到
+         clientWidth=0，Chart.js 按 0 宽算比例尺，图挤在左上角，
+         切过去也不会自己修好。所以由 showPane 触发首次构建。 -->
+  <div id="cvGap" class="cv-gap"></div>
+  <div id="cvCharts"></div>
+  <div id="tsCv"></div>
+
   <div id="consBody"></div>
 </div>
 
@@ -763,6 +747,11 @@ function reYearAxis(chart,labels,a,b){
 }
 
 // 把一张图接到某个时间窗上。win 决定它听哪条滑条：VIEW（组合）或 SVIEW（单只）。
+//
+// ⚠ 这里刻意没有「右端多留几格」的参数。
+//   试过 `max = W.b + 1` 的做法，**完全不生效**：category 轴会把 max clamp 到
+//   labels.length-1，超出的部分被静默忽略 —— 代码看着留了余量，圆点照样被切一半。
+//   要靠 x 轴自己的 `offset:true`（见 buildPanel 里 scales.x 的注释）。
 function bindZoom(chart,labels,win){
   const W=win||VIEW;
   let cur=null;
@@ -1258,61 +1247,140 @@ function buildTimeSlider(host,labels,onChange,target){
   window.tsCombo=buildTimeSlider(document.getElementById('tsCombo'),D.days);
 })();
 
+
+// 走势 + 情绪叠加图（两张：A股 / 黄金）
 // ══════════════════════════════════════════════════════════════
-//  K 线（蜡烛图）—— 自己画，不引 Chart.js financial 插件
-// ══════════════════════════════════════════════════════════════
-// ⚠⚠ 为什么自己画：
-//   Chart.js 的蜡烛图在 chartjs-chart-financial 里，那是**另一个包**，
-//   本页只内联了 chart.umd.js。要加就得再内联 30KB，而且它依赖
-//   chartjs-adapter-date-fns 做**时间轴**。本页所有图都是 category 轴
-//   （用索引当 x，shared 时间窗按索引拖），换时间轴会把这套机制全部推翻。
-//   自己用 plugin 画：约 90 行、零依赖、x 轴沿用现有 category 机制、
-//   和滑条/时间窗天然兼容。这不是省事，是避坑。
+// 2026-11-16 OO 定：「一张上面放A股大盘走势 + 机构多空情绪 + 散户多空情绪；
+//                    一张放黄金走势 + 黄金多空情绪 + 散户多空情绪」
 //
-// ⚠⚠ 为什么用线性轴画价格、而不是堆一根根 canvas 柱子：
-//   Chart.js 的 bar 是按「类别」居中的，2000 个类别挤在 1400px 里每个不到
-//   0.7px，柱宽会算成 0 或 1px 并出现缝隙。直接在 afterDatasetsDraw 里
-//   按像素画线，能精确控制到 sub-pixel，缩放后也不会糊。
+// ⚠⚠ 之前我拒绝过叠加，理由是「共识只有 5 天、K 线 2001 天，差 400 倍，
+//   叠在一起就得编 1996 天历史」。那个理由**在「一条横轴画两条等长序列」时成立**，
+//   但这里不是那种画法，所以顾虑不适用：
+//     · 走势用**左轴**（点位 / ETF 价格），日频，2001 个点
+//     · 情绪用**右轴**（−100 ~ +100 偏向值），周频，只有真做过调查的那天有点
+//     · 两条轴各算各的范围，不做任何缩放对齐
+//     · 情绪没有数据的日子就是 null，靠 spanGaps:false 断开，
+//       绝不插值、绝不铺满
+//   —— 图上是「一条 K 线 + 几个孤立的点」，中间空着的地方就是空着，看得见。
+//      这不是编数据，这是「两种不同频率的观测放在同一段时间轴上」。
+//      真会编数据的做法是「把上周的调查复制到中间每一天」——
+//      那种线看着连续、读起来全是假的。这里没这么做。
+//
+// ⚠ 双轴的代价必须说清（组合页那张图踩过）：
+//   两根轴的零点不重合，所以每根线必须在 legend 和轴标题里写死「读哪一侧」。
+//   靠标注消歧，不靠对齐消歧。
+//   这里特意让左轴（价格）自动缩放、右轴（情绪）固定 −100~+100：
+//   情绪的 0 是「多空打平」，有意义，必须钉在固定位置才能跨时间比高低；
+//   价格的 0 没有含义（上证没有「零点位」），固定它等于浪费全部绘图高度。
 (function(){
-  const K=D.kline;
-  if(!K||!K.series){ return; }
-  // ⚠⚠ 不能用 Object.keys(K.series) 定顺序。
-  //   JS 会把「规范整数串」的键按数值升序排到最前面：
-  //   '518880' 是整数串、'000001' 因为前导零不是 ——
-  //   结果键序变成 ['518880','000001']，默认标的就成了黄金。
-  //   **这个错不报错**，只是默认看错了标的，而且按钮顺序和源的顺序不一致，
-  //   排查时很难想到是「JS 键序」而不是「Python 写反了」。
-  //   所以按后端给的 order 显式排序。
-  const codes=Object.keys(K.series)
-    .sort((a,b)=>(K.series[a].order??99)-(K.series[b].order??99));
-  if(!codes.length){ return; }
+  const K=D.kline, H=D.consensus_hist, G=D.gold_survey;
+  const host=document.getElementById('cvCharts');
+  const gapBox=document.getElementById('cvGap');
+  if(!host) return;
 
-  // 默认看上证；顺序按 series 的插入序（fetch_kline.py 里 000001 在前）
-  let cur=codes[0];
+  const lean=x=>{
+    if(!x) return null;
+    const u=x.up, d=x.down;
+    if(u==null||d==null||(u+d)===0) return null;
+    return Math.round((u-d)/(u+d)*1000)/10;
+  };
 
-  const swBox=document.getElementById('klSw');
-  const btnByCode={};
-  swBox.innerHTML=codes.map(c=>{
-    const s=K.series[c];
-    return `<button data-c="${c}">${s.name}</button>`;
-  }).join('');
-  swBox.querySelectorAll('button').forEach(b=>{
-    btnByCode[b.dataset.c]=b;
-    b.onclick=()=>select(b.dataset.c);
+  // ── 把情绪按**日期**归集（不按索引）──
+  // 情绪是几天一份的快照，K 线是每天一根。用日期当键，
+  // 画的时候再去 K 线的日期轴上找位置。
+  const goldBy={}, aInstBy={}, aRetBy={};
+  ((H&&H.rows)||[]).forEach(r=>{
+    if(r.gold_survey){
+      const g=r.gold_survey;
+      goldBy[r.date]={
+        a:g.lean_analyst!=null?g.lean_analyst:lean(g.analyst),
+        r:g.lean_retail!=null?g.lean_retail:lean(g.retail),
+        an:g.analyst, rn:g.retail,
+      };
+    }
+    if(r.a_inst)   aInstBy[r.date]=r.a_inst;
+    if(r.a_retail) aRetBy[r.date]=r.a_retail;
   });
 
-  const cvs=document.getElementById('cKline');
+  // ── 顶部覆盖范围提示 ──
+  // ⚠ 这句话是这张图最容易被跳过、但最不能少的。
+  //   看过图的人很容易记住「有一条从 10-04 到 11-16 的线」，
+  //   而事实上只有 5 个观测点。必须写在图**上面**，不能塞进注释。
+  (function(){
+    if(!gapBox) return;
+    const allD=[];
+    ((H&&H.rows)||[]).forEach(r=>{
+      if(r.gold_survey||r.a_inst||r.a_retail) allD.push(r.date);
+    });
+    if(!allD.length){
+      gapBox.innerHTML='还没有任何情绪记录。跑 '
+        +'<code>python3 scripts/snapshot_consensus.py</code> 开始攒。';
+      return;
+    }
+    allD.sort();
+    const first=allD[0], last=allD[allD.length-1];
+    const span=Math.round((new Date(last+'T00:00:00')
+                          -new Date(first+'T00:00:00'))/864e5)+1;
+    const gN=Object.keys(goldBy).length;
+    const aN=Object.keys(aInstBy).length;
+    gapBox.innerHTML=
+      `<b>先说清楚这点情绪数据有多薄：</b>`
+      +`黄金 <b>${gN}</b> 个调查日（周频）· A股 <b>${aN}</b> 个快照日（日频）`
+      +`—— 合计跨 <b>${span}</b> 天（${first} ~ ${last}）。`
+      +`蜡烛那边是 <b>2001 个交易日</b>。`
+      +`<b>情绪点少不代表图坏了</b>：记录是 2026-11-16 才开始的，`
+      +`缺口只能靠往后攒 —— 所有源的回溯上限都在 45 天内，补不出来。`
+      +`<b>本图不做任何插值</b>：没有调查的日子<b>没有点</b>，`
+      +`线只是把相邻两次真实观测接起来，没有编出任何中间值。`;
+  })();
 
-  // ── 蜡烛绘制插件 ──
-  // 用 afterDatasetsDraw 而不是 beforeDraw：让 Chart.js 先把坐标算好，
-  // 我们只读 scale.getPixelForValue()，不自己做任何布局计算。
+  if(!K||!K.series){
+    host.innerHTML='<div class="ps">没有 K 线数据（先跑 '
+      +'<code>python3 scripts/fetch_kline.py</code>）。</div>';
+    return;
+  }
+
+  // ── 情绪日期 → 交易日索引 ──
   //
-  // ⚠ 关键约束：**只画当前可见窗口内的蜡烛**。
-  //   全量 2001 根时若逐根画，每根 <1px，画出来是一团红绿噪点，
-  //   而且每帧 2001 次 fillRect 在手机上会掉帧。
-  //   所以先按 x 轴当前 min/max 算出可视索引区间，只画那一段；
-  //   并且当每根宽度 <2px 时，改画「高低影线 + 收盘点」的线状，
-  //   不再画身子 —— 这是 K 线图在极度压缩时的标准退化画法。
+  // ⚠⚠ 必须映射到「该日或之前最近的交易日」。
+  //   Kitco 调查在周末发布（10-04 是周日、11-15 是周日），
+  //   而 K 线只有交易日。直接按日期字符串比对，周日永远匹配不到，
+  //   点会**静默消失** —— 不报错，只是图上少一个点，
+  //   看起来像「那周没调查」。
+  //   映射到「≤该日的最近交易日」是唯一诚实的做法：
+  //   周日发布的调查，它对应的市场位置就是周五收盘。
+  //   ⚠ 不用「之后的交易日」—— 那是把未来的价格贴给过去判断。
+  function nearestTradeIdx(labels, d){
+    let lo=0, hi=labels.length-1, best=-1;
+    while(lo<=hi){
+      const mid=(lo+hi)>>1;
+      if(labels[mid]<=d){ best=mid; lo=mid+1; } else { hi=mid-1; }
+    }
+    return best;
+  }
+
+  // 把 {日期: 记录} 摊成和 labels 等长的数组，只有命中那天有值
+  function spread(labels, map, pick){
+    const out=new Array(labels.length).fill(null);
+    const hit={};
+    Object.keys(map).sort().forEach(d=>{
+      const v=pick(map[d]);
+      if(v==null) return;
+      const i=nearestTradeIdx(labels,d);
+      if(i<0) return;
+      // ⚠ 两条情绪记录映射到同一个交易日时（周末连发），后来的覆盖前者。
+      //   记一笔方便排查：一个交易日出现两个点会让虚线来回折。
+      out[i]=v;
+      hit[i]=(hit[i]?hit[i]+' / ':'')+d;
+    });
+    return {arr:out, hit};
+  }
+
+  // ── 蜡烛插件（从原组合页 K 线搬过来，逻辑不变）──
+  // ⚠ 只画当前可见窗口内的蜡烛。全量 2001 根时逐根画，每根 <1px，
+  //   画出来是一团红绿噪点；每帧 2001 次 fillRect 手机也会掉帧。
+  //   每根宽度 <2.2px 时改画「高低影线 + 收盘点」的线状 ——
+  //   这是 K 线图在极度压缩时的标准退化画法。
   const candlePlugin={
     id:'candles',
     afterDatasetsDraw(chart){
@@ -1326,17 +1394,15 @@ function buildTimeSlider(host,labels,onChange,target){
       const hi=Math.min(s.rows.length-1, Math.ceil(xa.max));
       if(hi<lo) return;
 
-      // 每根可用宽度（像素）
       const span=Math.max(1, hi-lo);
       const pxPer=Math.abs(xa.getPixelForValue(hi)-xa.getPixelForValue(lo))/span;
-      const thin=pxPer<2.2;        // 太窄 → 退化画法
-
+      const thin=pxPer<2.2;
       const bodyW=Math.max(1, Math.min(11, pxPer*0.62));
 
       ctx.save();
       for(let i=lo;i<=hi;i++){
         const r=s.rows[i];
-        const up=r.c>=r.o;                       // 收 >= 开 → 阳（红）
+        const up=r.c>=r.o;
         const col=up?'#DC2626':'#16A34A';
         const xc=xa.getPixelForValue(i);
         const yH=ya.getPixelForValue(r.h);
@@ -1347,7 +1413,6 @@ function buildTimeSlider(host,labels,onChange,target){
         ctx.lineWidth=thin?1:Math.max(1,Math.min(1.6,pxPer*0.14));
 
         if(thin){
-          // 极窄：只画一个「高低 + 收盘」的竖线，收盘位置略加粗
           ctx.beginPath();
           ctx.moveTo(xc, yH);
           ctx.lineTo(xc, yL);
@@ -1359,27 +1424,23 @@ function buildTimeSlider(host,labels,onChange,target){
           continue;
         }
 
-        // 上下影线
         ctx.beginPath();
         ctx.moveTo(xc, yH);
         ctx.lineTo(xc, yL);
         ctx.stroke();
 
-        // 实体
         const yO=ya.getPixelForValue(r.o);
         const yC=ya.getPixelForValue(r.c);
         const top=Math.min(yO,yC), bot=Math.max(yO,yC);
         const hgt=Math.max(1, bot-top);
         if(up){
-          // 阳线：空心（A 股习惯阳线空心）。做空心的目的是让密集时
-          // 仍能看出边界，纯实心在窄身子里会糊成一片。
-          if(bodyW<=2.5){
-            ctx.fillRect(xc-bodyW/2, top, bodyW, hgt);
-          }else{
-            ctx.fillRect(xc-bodyW/2, top, bodyW, hgt);
+          // 阳线空心（A 股习惯）：密集时仍能看出边界，纯实心会糊成一片
+          ctx.fillRect(xc-bodyW/2, top, bodyW, hgt);
+          if(bodyW>2.5){
             ctx.save();
             ctx.globalCompositeOperation='destination-out';
-            ctx.fillRect(xc-bodyW/2+1, top+1, Math.max(1,bodyW-2), Math.max(1,hgt-2));
+            ctx.fillRect(xc-bodyW/2+1, top+1,
+                         Math.max(1,bodyW-2), Math.max(1,hgt-2));
             ctx.restore();
           }
         }else{
@@ -1390,117 +1451,296 @@ function buildTimeSlider(host,labels,onChange,target){
     }
   };
 
-  function buildSeries(code){
-    const s=K.series[code];
+  // ⚠⚠ 两张图**共用同一个时间窗**（CVVIEW）。
+  //   理由：这两个标的的交易日序列实测完全相同（都是 2001 天、
+  //   2018-08-14 ~ 2026-11-16），共用一个窗不会指错日期。
+  //   而且这个站的用法就是交叉验证 —— 「这段时间 A股 涨、黄金跌」这种判断，
+  //   只有两张图同步缩放才看得出来。各拖各的等于没法比。
+  const CVVIEW={a:0,b:0,n:0};
+  const built=[];
+
+  function buildPanel(cfg){
+    const s=K.series[cfg.code];
+    if(!s) return null;
     const rows=s.rows;
     const labels=rows.map(r=>r.d);
-    // 两条隐形的边界线把 y 轴范围定住。
-    // ⚠ 不能只给一条 close：Chart.js 只按数据点算范围，
-    //   最高价/最低价的影线会被裁到绘图区外。
-    //   所以用 high/low 各一条透明线，让轴自己包住整个价格区间。
     const highs=rows.map(r=>r.h);
     const lows=rows.map(r=>r.l);
-    return {labels,rows,highs,lows};
-  }
 
-  let curSub=null;
+    const instR=spread(labels,cfg.inst,cfg.instPick);
+    const retR =spread(labels,cfg.ret, cfg.retPick);
+    const hasInst=instR.arr.some(v=>v!=null);
+    const hasRet =retR.arr.some(v=>v!=null);
 
-  function select(code){
-    cur=code;
-    Object.keys(btnByCode).forEach(c=>{
-      btnByCode[c].classList.toggle('on', c===code);
-    });
-    const S=buildSeries(code);
-    const nm=K.series[code].name;
+    const wrap=document.createElement('div');
+    wrap.className='panel';
+    wrap.innerHTML=`
+      <div class="ph">
+        <div class="pt">${cfg.title}</div>
+        <div class="ps">${cfg.sub}</div>
+      </div>
+      <div class="legend">
+        <span><i class="ln" style="background:#DC2626"></i>收阳（收 ≥ 开）</span>
+        <span><i class="ln" style="background:#16A34A"></i>收阴（收 &lt; 开）</span>
+        ${hasInst?`<span><i class="ln" style="background:${cfg.instColor}"></i>${cfg.instLabel}（<b>右轴</b>）</span>`:''}
+        ${hasRet ?`<span><i class="ln" style="background:${cfg.retColor}"></i>${cfg.retLabel}（<b>右轴</b>）</span>`:''}
+        <span class="mut">左轴 ${cfg.priceName} · 右轴 −100 空 → +100 多</span>
+      </div>
+      <div class="chartbox" style="height:330px"><canvas id="${cfg.id}"></canvas></div>
+      <div class="ps cv-note">${cfg.note}</div>
+    `;
+    host.appendChild(wrap);
 
-    if(curSub){ unbind(curSub); curSub=null; }
-    if(charts.cKline){ charts.cKline.destroy(); }
+    const dsets=[
+      // 脚手架：撑开价格轴范围，不显示、不进 tooltip
+      // ⚠ 不能只给一条 close：Chart.js 只按数据点算范围，
+      //   最高/最低的影线会被裁到绘图区外。
+      {label:'_h',data:highs,borderWidth:0,pointRadius:0,pointHitRadius:0,
+       fill:false,tension:0,yAxisID:'y'},
+      {label:'_l',data:lows,borderWidth:0,pointRadius:0,pointHitRadius:0,
+       fill:false,tension:0,yAxisID:'y'},
+    ];
+    // ── 情绪线 ──
+    //
+    // ⚠⚠ 走过的两条弯路，都记在这儿免得再试：
+    //   ① 「等长数组 + null 占位 + spanGaps:false」→ **一条线段都画不出来**，
+    //      只剩孤立散点。因为 Chart.js 在 spanGaps:false 下把每段 null 当断点，
+    //      而两次调查之间隔 19 天 = 13 个 null，线段长度全是 0。
+    //   ② 「稀疏成对数组 [索引,值]」→ x 坐标算成 −27114，全跑到画布外。
+    //      category 轴不接受成对数组，它会按别的规则解析。
+    //
+    // 正确做法：**保持等长数组（null 占位），但把 spanGaps 设成 true**，
+    //   线会直接连接相邻的两个**非空**观测，中间的 null 被跳过。
+    //   ⚠ 这正是我们要的语义：
+    //     线 = 「相邻两次真实观测之间的变化」，点的 x 位置仍由 labels 决定，
+    //     所以两次调查隔 19 天，线就在图上横跨 19 天的距离。
+    //     **没有凭空造出任何中间值** —— 造值才叫插值，连线只是把两个已知点接起来。
+    //   如果不想要长缺口之间的连线（比如隔了半年），再在下面按间隔裁掉。
+    if(hasInst){
+      dsets.push({label:cfg.instLabel,data:instR.arr,yAxisID:'y1',
+        borderColor:cfg.instColor,backgroundColor:cfg.instColor,
+        borderWidth:1.9,pointRadius:5,pointStyle:'circle',
+        pointBackgroundColor:cfg.instColor,pointBorderColor:cfg.instColor,
+        pointBorderWidth:1.5,showLine:true,spanGaps:true,
+        tension:0,fill:false,borderDash:[]});
+    }
+    if(hasRet){
+      dsets.push({label:cfg.retLabel,data:retR.arr,yAxisID:'y1',
+        borderColor:cfg.retColor,backgroundColor:'#fff',
+        borderWidth:1.9,pointRadius:5,pointStyle:'rectRot',
+        pointBackgroundColor:'#fff',pointBorderColor:cfg.retColor,
+        pointBorderWidth:1.8,showLine:true,spanGaps:true,
+        tension:0,fill:false,borderDash:[5,3]});
+    }
 
-    charts.cKline=new Chart(cvs,{
+    const chart=new Chart(document.getElementById(cfg.id),{
       type:'line',
-      // ⚠⚠ 插件必须在**构造时**给，不能构造完再赋给 config.plugins。
-      //   踩过：先 new Chart(...) 再 charts.cKline.config.plugins=[candlePlugin]，
-      //   Chart.js 在构造时就把 plugins 收进 charts.plugins 了，
-      //   事后改 config 只是改了那张配置对象，**不会重新注册**。
-      //   结果：y 轴范围对了（数据进来了）、但图上什么都没有，
-      //   而且不报错 —— 最容易误判成「数据为空」。
+      // ⚠⚠ 插件必须在构造时给。事后改 config.plugins 不会重新注册，
+      //   症状是「y 轴范围对了但图上什么都没有」且不报错。
       plugins:[candlePlugin],
-      data:{labels:S.labels,datasets:[
-        // 这两条是「脚手架」，不显示、不参与 tooltip，只用来撑开 y 轴范围
-        {label:'_h',data:S.highs,borderWidth:0,pointRadius:0,
-         pointHitRadius:0,fill:false,tension:0,order:1},
-        {label:'_l',data:S.lows,borderWidth:0,pointRadius:0,
-         pointHitRadius:0,fill:false,tension:0,order:2},
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,animation:false,
-        layout:{padding:{bottom:8,right:14,top:2}},
+      data:{labels,datasets:dsets},
+      options:{
+        responsive:true,maintainAspectRatio:false,animation:false,
+        layout:{padding:{bottom:8,right:24,top:2}},
         interaction:{mode:'index',intersect:false},
-        plugins:{legend:{display:false},
+        plugins:{
+          legend:{display:false},
           tooltip:{
-            filter:item=>item.dataset.label!=='_h'&&item.dataset.label!=='_l',
+            filter:it=>it.dataset.label!=='_h'&&it.dataset.label!=='_l',
             callbacks:{
-              title:c=>c[0].label,
-              label:()=>null,
-              // ⚠ 四个价一起给。
-              //   只给收盘价的话，读者会以为当天就是「开=收」，
-              //   影线的长短、有没有长上影，全靠眼睛估 —— 那正是 K 线要看的东西。
+              // ⚠ 标题必须用**交易日索引**去查 labels。
+              //   raw 在等长数组形态下是标量（-33.3），不是数组；
+              //   而 dataset.label 在稀疏形态下才是日期 —— 两条路都不能只认一条。
+              //   最稳的是直接拿 dataIndex：等长数组形态下它就是交易日索引。
+              title:c=>{
+                const it=c[0];
+                if(!it) return '';
+                const raw=it.raw;
+                const ix=Array.isArray(raw)?raw[0]:it.dataIndex;
+                return (ix!=null&&labels[ix])?labels[ix]:(it.label||'');
+              },
+              label:c=>{
+                if(c.dataset.yAxisID!=='y1') return null;
+                const raw=c.raw;
+                const v=Array.isArray(raw)?raw[1]:c.parsed.y;
+                if(v==null) return null;
+                return `${c.dataset.label}：${v>0?'+':''}${Number(v).toFixed(1)}`;
+              },
               afterBody:c=>{
-                const k=c[0].dataIndex, r=S.rows[k];
+                // ⚠ 这里同样不能用 dataIndex —— 见上面 title 的注释。
+                const raw=c[0]&&c[0].raw;
+                const ix=Array.isArray(raw)?raw[0]:c[0].dataIndex;
+                const r=rows[ix];
                 if(!r) return '';
                 const up=r.c>=r.o;
                 const chg=(r.c/r.o-1)*100;
-                return [
+                const L=[
                   `开 ${fmt(r.o,2)}　高 ${fmt(r.h,2)}`,
                   `低 ${fmt(r.l,2)}　收 ${fmt(r.c,2)}`,
-                  `当日 ${sgn(chg,2)}%　（${up?'收阳':'收阴'}）`,
-                  `成交 ${r.v==null?'—':fmt(r.v/1e4,0)+' 万'}${code==='000001'?'手':'份'}`,
-                ].join('\n');
+                  `当日 ${sgn(chg,2)}%（${up?'收阳':'收阴'}）`,
+                ];
+                // 原始投票数也放进 tooltip：
+                // 偏向值是一个比值，比值背后有多少人、多少票，决定它有多可信。
+                //
+                // ⚠⚠ 不能用 r.d（交易日日期）直接去查 goldBy —— 会查空。
+                //   因为周末发布的调查被映射到「≤该日的最近交易日」：
+                //   10-04（周日）的点画在 09-30 的蜡烛上，goldBy 的 key 仍是 '2026-10-04'。
+                //   拿 '2026-09-30' 去查必然 undefined ——
+                //   症状是「点画出来了，但 tooltip 里没有原始票数」，不报错。
+                //   正解：spread() 已经把「每个索引对应哪些原始调查日」记在 hit 里，
+                //   用 hit[ix] 反查就永远对得上，不管有没有做周末映射。
+                const srcD=(instR.hit[ix]||retR.hit[ix]||'');
+                const d0=srcD.split(' / ')[0];
+                const gi=goldBy[d0], ai=aInstBy[d0], ar=aRetBy[d0];
+                if(gi){
+                  if(gi.an) L.push(`黄金机构 ${gi.an.up}/${gi.an.down}/${gi.an.flat}`);
+                  if(gi.rn) L.push(`黄金散户 ${gi.rn.up}/${gi.rn.down}/${gi.rn.flat}`);
+                }
+                if(ai) L.push(`A股机构 ${ai.up}/${ai.down}/${ai.flat}`);
+                if(ar) L.push(`A股散户 ${ar.up}多 / ${ar.down}空`);
+                return L.join('\n');
               }
             }
           }
         },
         scales:{
-          x:yearAxis(S.labels),
+          // ⚠ x 轴加 offset:true —— 别再用「把 max 加 1 格」的土办法，试过，无效。
+          //   category 轴的 max 会被 clamp 到 labels.length-1，写 2002 会被**静默忽略**，
+          //   症状是「代码看起来留了余量，圆点照样被右边框切一半」。
+          //   offset:true 让类别居中在各自格子里（不再骑在刻度线上），
+          //   两端自然各空出半格 —— 半个格子约 7px，够放半径 5px 的圆点。
+          //   全图只有这两张叠加图画点，offset 影响不到其他页。
+          x:Object.assign(yearAxis(labels),{offset:true}),
           y:{
-            position:'left',afterFit:s=>{s.width=64;},
-            title:{display:true,text:code==='000001'?'上证指数（点）':'ETF 价格（元）',
-                   font:{size:10},color:C_GRAY},
+            position:'left',afterFit:sc=>{sc.width=64;},
+            title:{display:true,text:cfg.priceName,font:{size:10},color:C_GRAY},
             ticks:{font:{size:10},color:C_GRAY,
-              callback:v=>code==='000001'?Number(v).toFixed(0):Number(v).toFixed(2)},
+              callback:v=>cfg.code==='000001'
+                ? Number(v).toFixed(0) : Number(v).toFixed(2)},
             grid:{color:'#F5F5F4',lineWidth:1},
+          },
+          y1:{
+            position:'right',
+            // ⚠ 固定 −100~+100，不自动缩放。
+            //   情绪的 0 是「多空打平」，有意义；
+            //   自动缩放会把「+5」这种接近中性的值画得像「明确偏多」，
+            //   因为轴被数据挤窄了。固定范围才能跨时间比高低。
+            min:-100,max:100,
+            afterFit:sc=>{sc.width=46;},
+            title:{display:true,text:'偏向值',font:{size:9.5},color:C_GRAY},
+            ticks:{font:{size:10},color:C_GRAY,stepSize:50,
+              callback:v=>(v>0?'+':'')+v},
+            grid:{
+              // 右轴不出网格线（会盖住蜡烛），只把零线画实 ——
+              // 那是全图唯一的语义线：线上偏多、线下偏空。
+              color:ctx=>ctx.tick.value===0?'#A8A29E':'transparent',
+              lineWidth:ctx=>ctx.tick.value===0?1.2:0,
+            },
           }
-        }}
+        }
+      }
     });
-    charts.cKline._kl={rows:S.rows};
-    charts.cKline.update('none');
-
-    // 时间窗：K 线**独立**一套（KVIEW），不复用组合页的 VIEW。
-    // ⚠ 理由：K 线是 2001 天，组合页那些图是按监控组合的份额起始日算的，
-    //   两套日期数组长度和起点都不同，共用一个索引窗会指到错日期。
-    curSub=bindZoom(charts.cKline,S.labels,KVIEW);
-    window.tsKline=buildTimeSlider(document.getElementById('tsKline'),
-                                   S.labels,null,KVIEW);
-
-    // 默认显示近 1 年 —— 全量 2001 天时蜡烛挤成一团，看不出形状。
-    // 默认值本身就是一次「怎么读」的表态：K 线是用来近看的。
-    const n=S.labels.length;
-    if(KVIEW._inited!==code){
-      const a=Math.max(0,n-244);
-      window.tsKline.setRange(a,n-1);
-      KVIEW._inited=code;
-    }
-
-    // ⚠ 这里只说「库里有多少」。当前窗口的数字在滑条右侧已经实时显示
-    //   （「2025-11-13 → 2026-11-16 244 个交易日」），两处都写会不同步：
-    //   那句话只在切换标的时更新一次，拖动滑条后就不会跟着变了。
-    //   而只写库里全量、不写当前窗口，读者会以为屏幕上的几百根蜡烛就是 8 年全部 ——
-    //   所以括注一句「可拖滑条」，把两者关系交代清楚，不重复数字。
-    document.getElementById('klDate').textContent=
-      `${nm} · 不复权日线 · 库内 ${n} 个交易日 ${S.labels[0]} ~ ${S.labels[n-1]}`
-      + '　·　默认只画近 1 年，拖动下方滑条或点「全部」看全量';
+    chart._kl={rows};
+    chart.update('none');
+    charts[cfg.id]=chart;
+    built.push({chart,labels});
+    return {chart,labels,instR,retR};
   }
 
-  select(cur);
+  // ── 默认视窗：覆盖「情绪数据区间 + 前后各留 2 个月走势上下文」 ──
+  //
+  // ⚠⚠ 不能一律「近 1 年」。踩过：默认近 244 个交易日时，
+  //   情绪数据全挤在最右边 40 天里（记录 10-04 才开始），
+  //   左边 200 个交易日整个空着 —— 图上看不出任何东西，
+  //   而且会让人误以为「这 8 个月调查过、只是没画出来」。
+  //   反过来也不能「只显示情绪区间」：那样左右两头都贴着边框，
+  //   看不到数据之前和之后价格怎么走的，也就失去了叠在 K 线上的意义。
+  //   所以取「情绪首末日期 ± 约 60 个交易日」，
+  //   上下限都夹在数据范围内，再保证至少 60 根蜡烛（太窄就看不出形状）。
+  function defaultWindow(labels, allDates){
+    const n=labels.length;
+    if(!allDates.length) return [Math.max(0,n-244), n-1];
+    const a=allDates[0], b=allDates[allDates.length-1];
+    const ia=Math.max(0, labels.findIndex(d=>d>=a));
+    let ib=n-1;
+    for(let i=n-1;i>=0;i--){ if(labels[i]<=b){ ib=i; break; } }
+    const PAD=60;
+    let lo=Math.max(0, ia-PAD), hi=Math.min(n-1, ib+PAD);
+    if(hi-lo<60){                      // 太窄 → 至少给 60 根
+      hi=Math.min(n-1, lo+60);
+      lo=Math.max(0, hi-60);
+    }
+    return [lo,hi];
+  }
+
+  // ── 懒初始化：容器可见后才建图 ──
+  // ⚠⚠ pane-consensus 默认 display:none。在隐藏容器里 new Chart，
+  //   clientWidth 是 0，Chart.js 按 0 宽算比例尺 —— 图不报错，
+  //   但坐标全挤在左上角，而且切过去**不会自己修好**
+  //   （resize 只改画布尺寸，不改已经算死的数据点位置）。
+  //   这个坑踩过一次就很难从「图为什么挤成一条」想到「因为容器是隐藏的」。
+  window.__initCvCharts=function(){
+    if(built.length) {
+      // 已经建过：只 resize（切回来时容器尺寸可能变了）
+      built.forEach(b=>b.chart.resize());
+      return;
+    }
+    if(!host.clientWidth) return;      // 还没可见 → 下次再说
+
+    const A=buildPanel({
+      key:'cvA', id:'cCvA', code:'000001',
+      title:'A股大盘走势 + 多空情绪',
+      sub:'上证指数日线（不复权）叠加「对未来的预判」——'
+         +'左轴读点位，右轴读偏向值',
+      priceName:'上证指数（点）',
+      inst:aInstBy, ret:aRetBy,
+      instPick:x=>lean({up:x.up,down:x.down}),
+      retPick: x=>lean({up:x.up,down:x.down}),
+      instColor:'#1D4ED8', retColor:'#60A5FA',
+      instLabel:'A股 · 机构', retLabel:'A股 · 散户',
+      note:'<b>为什么右边现在只有孤立的点</b>：A股 情绪本该是<b>每天一份</b>，'
+          +'但记录从 2026-11-16 才开始 —— 目前只有 1 天，<b>1 个点连不成线</b>，'
+          +'等第二天数据进来就会连起来。'
+          +'点少不是抓取失败，是「历史从今天起才存在」。'
+          +'<b>机构</b>读财经媒体里明确给方向的稿子（看多几条 / 看空几条），'
+          +'<b>散户</b>读股吧「我看多 / 我看空」的投票。'
+          +'两者都是<b>被统计的表达</b>，不是持仓，也不是预测。',
+    });
+
+    const Gp=buildPanel({
+      key:'cvG', id:'cCvG', code:'518880',
+      title:'黄金走势 + 多空情绪',
+      sub:'黄金ETF华安 日线（不复权）叠加 Kitco 周度调查 ——'
+         +'左轴读 ETF 价格，右轴读偏向值',
+      priceName:'ETF 价格（元）',
+      inst:goldBy, ret:goldBy,
+      instPick:g=>g.a, retPick:g=>g.r,
+      instColor:'#B45309', retColor:'#F59E0B',
+      instLabel:'黄金 · 机构', retLabel:'黄金 · 散户',
+      note:'<b>这段连线不是插值</b>：Kitco 每周做一次调查，只有发布那天有点，'
+          +'线只是把<b>相邻两次真实调查</b>接起来 —— 中间没有编任何值，'
+          +'线的长度就是两次调查的真实间隔（隔三周线就跨三周）。'
+          +'所以看的是<b>点</b>，线只帮你看出「变多还是变空」。'
+          +'<b>机构</b>= 华尔街分析师（12~13 人），'
+          +'<b>散户</b>= Main Street 在线投票（想投就投，不是抽样）。'
+          +'<b>周末发布的调查落在上周五那根蜡烛上</b> ——'
+          +'周日没有交易，那天的市场位置就是周五收盘。',
+    });
+
+    if(!A||!Gp) return;
+
+    // 两张图共用时间窗 + 一条滑条
+    bindZoom(A.chart,A.labels,CVVIEW);
+    bindZoom(Gp.chart,Gp.labels,CVVIEW);
+    const ts=buildTimeSlider(document.getElementById('tsCv'),
+                             A.labels,null,CVVIEW);
+
+    // 默认视窗：包住情绪区间 + 前后各 2 个月，理由见 defaultWindow 的注释
+    const allD=Object.keys(goldBy).concat(Object.keys(aInstBy),
+                                          Object.keys(aRetBy)).sort();
+    const [lo,hi]=defaultWindow(A.labels, allD);
+    ts.setRange(lo,hi);
+  };
 })();
 
 // ---------- 量能与杠杆面板 ----------
@@ -2921,17 +3161,9 @@ D.rows.concat(D.thin||[]).forEach(r=>{
 
     cvBlock=`<div class="panel">
       <div class="ph">
-        <div class="pt">共识曲线：机构与散户分别怎么想</div>
-        <div class="ps">源：Kitco 黄金周度调查（经中金网转载）·
-          机构 = 华尔街分析师投票，散户 = Main Street 在线投票</div>
-      </div>
-
-      <div class="cv-gap">
-        <b>先说清楚这张图的覆盖范围：</b>只覆盖 <b>${covered} 个调查日</b>
-        （${first} ~ ${last}，跨 ${spanDays} 天）。K 线那边是 <b>2001 个交易日</b>。
-        两者差 <b>${Math.round(2001/Math.max(1,covered))}</b> 倍 ——
-        <b>所以不叠加，也不铺满</b>。铺满就要编造没发生过的数据，
-        那种图看起来比没有更糟。缺口就让它空着。
+        <div class="pt">最近一次的读数</div>
+        <div class="ps">曲线在上面两张图里（走势 + 情绪叠加），这里只把最新一次摊开看：
+          偏向值、以及它背后的原始票数</div>
       </div>
 
       <div class="cv-kpis">
@@ -2941,16 +3173,6 @@ D.rows.concat(D.thin||[]).forEach(r=>{
           return a?kpi('A股 · 机构（最近）',a.aa,pplTxt(a.an)):'';})()}
         ${(()=>{const a=aPts.length?aPts[aPts.length-1]:null;
           return a?kpi('A股 · 散户（最近）',a.ar,pplTxt(a.rn)):'';})()}
-      </div>
-
-      <div class="chartbox" style="height:280px;margin-top:10px">
-        <canvas id="cConsensus"></canvas></div>
-
-      <div class="legend" style="margin-top:8px">
-        <span><i class="ln" style="background:#B45309"></i>黄金 · 机构（周频，实心点，有线）</span>
-        <span><i class="ln" style="background:#F59E0B"></i>黄金 · 散户（周频，空心点，虚线）</span>
-        <span><i class="ln" style="background:#1D4ED8"></i>A股 · 机构（日频，<b>只有点、不连线</b>）</span>
-        <span><i class="ln" style="background:#60A5FA"></i>A股 · 散户（日频，<b>只有点、不连线</b>）</span>
       </div>
 
       <div class="ps" style="margin-top:9px;line-height:1.85">
@@ -3047,242 +3269,6 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   `;
 })();
 
-// ---------- 共识曲线图 ----------
-// ⚠⚠ 必须「等容器可见了再画」。
-//   'pane-consensus' 默认 display:none，在隐藏容器里 new Chart 拿到的
-//   clientWidth 是 0，Chart.js 会按 0 宽度算比例尺 —— 图不报错，
-//   但坐标全挤在左上角，且切过去之后**不会自己修好**（resize 只改画布尺寸，
-//   不改已经算死的数据点位置）。
-//   踩过一次就很难从「图为什么挤成一条」想到「因为是隐藏容器」。
-//   所以：注册一个「首次可见才初始化」的懒函数，由 showPane 调用。
-(function(){
-  const G=D.gold_survey, H=D.consensus_hist;
-  if(!G&&!H) return;
-
-  const lean=x=>{
-    if(!x) return null;
-    const u=x.up, d=x.down;
-    if(u==null||d==null||(u+d)===0) return null;
-    return Math.round((u-d)/(u+d)*1000)/10;
-  };
-  const hRows=(H&&H.rows)||[];
-
-  // ⚠⚠ 黄金数据必须**以存档为主**，不能只读 gold_survey。
-  //   和上面 CV 里同一处坑，两处必须一致 —— 否则表里有 5 行、图里只有 1 个点，
-  //   读者会以为「图坏了」，而实际是两条读数据的路走岔了。
-  //   CI 每天现抓中金网，经常返回 0 条；存档从 git 检出来是完好的。
-  const archived=hRows.filter(r=>r.gold_survey).map(r=>{
-    const g=r.gold_survey;
-    return {date:r.date, analyst:g.analyst, retail:g.retail,
-            lean_a:g.lean_analyst, lean_r:g.lean_retail, url:g.url};
-  });
-  const seen=new Set(archived.map(r=>r.date));
-  const gRows=archived.concat(((G&&G.rows)||[]).filter(r=>!seen.has(r.date)))
-                        .sort((a,b)=>a.date<b.date?-1:1);
-
-  const gPts=gRows.map(r=>({
-    d:r.date,
-    a:r.lean_a!=null?r.lean_a:lean(r.analyst),
-    r:r.lean_r!=null?r.lean_r:lean(r.retail),
-  }));
-  const aPts=hRows.filter(x=>x.a_inst||x.a_retail).map(r=>({
-    d:r.date,
-    a:lean(r.a_inst),
-    r:lean(r.a_retail),
-  }));
-
-  const dates=[...new Set([...gPts.map(x=>x.d),...aPts.map(x=>x.d)])].sort();
-  if(!dates.length) return;
-
-  // ── x 轴按**真实日期间隔**排，不用类目轴 ──
-  //
-  // ⚠⚠ category 轴会把每个 label 等距排开。
-  //   实证：10-04→10-19 隔 15 天、11-15→11-16 隔 1 天，
-  //   在类目轴上两者画得一样宽 —— 图上看起来「调查很密集、时间过得很快」，
-  //   而事实是中间空了两三周。
-  //   这张图存在的意义就是让人看见「我们只有这么点时间」，
-  //   把时间轴压平等于把要表达的那件事擦掉。
-  //   所以转成「距首日的天数」用线性轴。
-  const D0=new Date(dates[0]+'T00:00:00').getTime();
-  const dayOf=d=>Math.round((new Date(d+'T00:00:00').getTime()-D0)/864e5);
-  const dayDates=dates.map(dayOf);
-  const lastDay=dayDates[dayDates.length-1];
-
-  // 对齐到线性 x：{x:天数, y:偏向值}，没数据 → y=null
-  // ⚠ y 必须是 null 不能是 0：0 表示「多空打平」，是真实观测值。
-  const at=(pts,key)=>dates.map((d,i)=>{
-    const f=pts.find(x=>x.d===d);
-    const v=f?f[key]:null;
-    return {x:dayDates[i], y:(v==null?null:v)};
-  });
-
-  // 天数 → 日期，供刻度和 tooltip 用
-  //
-  // ⚠⚠ 不能用 toISOString()。它返回的是 **UTC** 日期。
-  //   D0 是本地 00:00（东八区），转成 UTC 就退回前一天 16:00，
-  //   slice(0,10) 出来整整差一天 —— 图上标 10-03，实际调查日是 10-04。
-  //   这个 bug 不抛错、不警告，只是所有标签集体前移一天，
-  //   最容易被误判成「抓取的数据日期错了」，然后去改后端。
-  //   必须用本地日期字段自己拼。
-  const dOf=v=>{
-    const dt=new Date(D0+Math.round(v)*864e5);
-    const p=n=>String(n).padStart(2,'0');
-    return `${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`;
-  };
-
-  // 刻度文本表：x 值（距首日天数）→ 标签字符串。
-  // ⚠ afterBuildTicks 里算完合并结果写进来，ticks.callback 再读出来。
-  //   直接在 tick 对象上挂 label 不行 —— 会被 callback 覆盖掉。
-  const tickLabel=new Map();
-
-  // ── 数据集 ──
-  //
-  // ⚠⚠ A股 那两条**不画线，只画点**。理由：
-  //   现在只有 1 个数据点。Chart.js 的 line 数据集即使只有一个非空值，
-  //   也会把这个点按「水平直线」拉伸到整个 x 轴 ——
-  //   图上看起来像「A股 机构在整段时间里一直是 +87」，
-  //   而事实是「我们只有 11-16 这一天的一条记录」。
-  //   一条横线和一个孤点，传达的是完全相反的两件事。
-  //   所以 A股 用 scatter（showLine:false），黄金才用 line。
-  //
-  // ⚠ 黄金 的线也要 spanGaps:false：中间没调查的那几周必须断开。
-  const gLine=(label,key,color,dash,fillDot)=>({
-    label,data:at(gPts,key),
-    borderColor:color,backgroundColor:color,
-    borderWidth:1.8,pointRadius:5,
-    pointStyle:fillDot?'circle':'rectRot',
-    pointBackgroundColor:fillDot?color:'#fff',
-    pointBorderColor:color,pointBorderWidth:1.6,
-    spanGaps:false, tension:0, fill:false, showLine:true,
-    borderDash:dash||[],
-  });
-  const gDot=(label,key,color,fillDot)=>({
-    label,data:at(aPts,key),
-    borderColor:color,backgroundColor:fillDot?color:'#fff',
-    borderWidth:1.8,pointRadius:5.5,
-    pointStyle:fillDot?'circle':'rectRot',
-    pointBorderColor:color,pointBorderWidth:1.8,
-    showLine:false,          // ← 关键：不连线
-    spanGaps:false, fill:false,
-  });
-
-  const dsets=[
-    gLine('黄金·机构',  'a','#B45309',[],true),
-    gLine('黄金·散户',  'r','#F59E0B',[5,3],false),
-    gDot ('A股·机构',   'a','#1D4ED8',true),
-    gDot ('A股·散户',   'r','#60A5FA',false),
-  ];
-
-  // 懒初始化：只画一次，且只在容器已经可见时画。
-  window.__initConsensusChart=function(){
-    if(window.__cvReady) return;
-    const cvs=document.getElementById('cConsensus');
-    if(!cvs) return;
-    const box=cvs.parentElement;
-    if(!box||box.clientWidth<40) return;   // 还没可见 → 下次再说
-    window.__cvReady=true;
-
-    charts.cConsensus=new Chart(cvs,{
-      type:'line',
-      data:{datasets:dsets},
-      options:{
-        responsive:true,maintainAspectRatio:false,animation:false,
-        layout:{padding:{bottom:6,right:22,top:2}},
-        interaction:{mode:'nearest',intersect:true},
-        plugins:{
-          legend:{display:false},
-          tooltip:{callbacks:{
-            title:c=>{
-              const x=c[0].parsed.x;
-              return x==null?'':dOf(x);
-            },
-            label:c=>{
-              if(c.parsed.y==null) return null;
-              const v=c.parsed.y;
-              return `${c.dataset.label}：${v>0?'+':''}${v.toFixed(1)}`;
-            },
-            afterBody:c=>{
-              const d=dOf(c[0].parsed.x);
-              const g=gPts.find(x=>x.d===d), a=aPts.find(x=>x.d===d);
-              const t=[];
-              if(g) t.push('黄金：Kitco 周度调查');
-              if(a) t.push('A股：当日共识快照');
-              if(!g&&!a) t.push('这天没有调查');
-              return t.join('\n');
-            }
-          }}},
-        scales:{
-          x:{
-            type:'linear',
-            // ⚠ max 要比最后一天多几天，否则最后一个点正好压在右边框上，
-            //   圆点被裁掉一半 —— 图上看起来像「11-16 只有一个残缺的标记」。
-            min:-1, max:lastDay+2,
-            grid:{display:false},
-            // 刻度用「距首日的天数」换算回日期标签。
-            //
-            // ⚠ 只标**真有调查**的那几个日期。让 Chart.js 自己均分，
-            //   会给出 0/7/14/21… 这样的整数天，落在没有数据的日子上，
-            //   看起来像「那天调查过」—— 那就把「哪里是空的」这件事抹掉了。
-            //
-            // ⚠⚠ 相邻日期的标签会重叠（11-15 和 11-16 只差 1 天）。
-            //   Chart.js 的 autoSkip 对 afterBuildTicks 手动设的 ticks 不生效，
-            //   所以自己判。
-            //
-            //   踩过两次：
-            //   ① 「挤不下就跳过这个标签」→ 11-16 被丢了。而 11-16 恰恰是
-            //      A股 唯一有数据的一天，最不能丢的就是它。
-            //      跳过任何一个调查日都在制造新空白，和这张图的目的相反。
-            //   ② 「挤不下就并成 11-15·16」→ 能显示了，但那个复合标签
-            //      看着像个新日期，而且 afterBuildTicks 执行时
-            //      chartArea 还没算好（拿到的宽是 0），只能回退到 600px 估算，
-            //      于是把本来放得下的也合并了。
-            //
-            //   现在改成按**天数间隔**判（不依赖像素，语义也清楚）：
-            //   相隔不到 2 天的，后一个只标「日」两位数字。
-            //   11-16 于是显示成「16」，紧挨着 11-15，读作「15 号和 16 号」。
-            //
-            //   ⚠ 周频调查（现在唯一有历史的那条线）下，两个日期最短也隔 1 天，
-            //     缩成「16」才读得通；如果以后某天连着好几天都有调查，
-            //     这段仍然成立 —— 判断条件是间隔天数，不是「有没有挤到」。
-            //   同时关掉 autoSkip：ticks 是我们自己排的，一个都不许丢。
-            afterBuildTicks:axis=>{
-              const out=[]; let prevX=-1e9;
-              dayDates.forEach(v=>{
-                const full=dOf(v);
-                if(v-prevX<2 && out.length){
-                  out.push({value:v, label:full.slice(8)});   // 只留日
-                }else{
-                  out.push({value:v, label:full.slice(5)});   // MM-DD
-                }
-                prevX=v;
-              });
-              out.forEach(t=>tickLabel.set(t.value,t.label));
-              axis.ticks=out;
-            },
-            ticks:{font:{size:10},color:C_GRAY,maxRotation:0,
-              // ⚠ ticks 是我们自己排的，不许 Chart.js 再按宽度跳：
-              //   它一跳就会把 11-16 那个「16」吞掉，而那是 A股 唯一有数据的一天。
-              autoSkip:false,
-              // ⚠ callback 会覆盖 afterBuildTicks 里设的 label，
-              //   所以这里从表里取，取不到才回退到原始换算。
-              callback:v=>tickLabel.get(v)||dOf(v).slice(5)},
-          },
-          y:{
-            min:-100,max:100,
-            afterFit:s=>{s.width=46;},
-            title:{display:true,text:'偏向值（−100 空 → +100 多）',
-                   font:{size:9.5},color:C_GRAY},
-            ticks:{font:{size:10},color:C_GRAY,stepSize:50,
-              callback:v=>(v>0?'+':'')+v},
-            // 零线实色：这是「多空分界」，是这张图唯一的语义线
-            grid:{color:ctx=>ctx.tick.value===0?'#A8A29E':'#F5F5F4',
-                  lineWidth:ctx=>ctx.tick.value===0?1.2:1},
-          }
-        }
-      }
-    });
-  };
-})();
 
 // ---------- tab ----------
 function showPane(name){
@@ -3292,8 +3278,10 @@ function showPane(name){
   document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
   b.classList.add('on');
   document.getElementById('pane-'+name).classList.add('on');
-  // ⚠ 先让容器可见，再初始化只在可见时才能算对尺寸的图
-  if(typeof window.__initConsensusChart==='function') window.__initConsensusChart();
+  // ⚠ 先让容器可见，再初始化「只在可见时才能算对尺寸」的图。
+  //   顺序不能反：pane 还是 display:none 时 clientWidth=0，
+  //   Chart.js 会按 0 宽算比例尺，图挤在左上角且切回来不会自己修好。
+  if(typeof window.__initCvCharts==='function') window.__initCvCharts();
   Object.values(charts).forEach(c=>c.resize&&c.resize());
 }
 document.querySelectorAll('nav button').forEach(b=>{
