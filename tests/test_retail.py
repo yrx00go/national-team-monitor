@@ -277,8 +277,18 @@ html = io.open(os.path.join(BASE, 'demo.html'), encoding='utf-8').read()
 
 chk_true('① 有 retailBlock', 'retailBlock' in html)
 chk_true('② 读的是 S.retail', 'S.retail' in html)
-chk_true('③ 渲染顺序在 fcBlock 之后',
-         html.index("${retailBlock}") > html.index("${fcBlock('a_share')}"))
+
+# ⚠⚠ 不要用 html.index() —— 它在锚点被删掉时抛 ValueError，
+#   整个测试**崩溃**而不是「这一条挂掉」。
+#   后果是后面所有断言（包括 ⑯ ⑰ ⑱ ⑲ ⑳ ㉑ 那几条专门查「三块已删」的）
+#   一条都不执行，而输出看起来像是「只崩了个无关的」。
+#   实测：把 ${retailBlock} 从渲染模板里删掉，测试崩在 ③，
+#   ㉑「共识栏模板里确实渲染了 retailBlock」永远没跑到 —— 等于这条断言不存在。
+#   （同类的错在第 15 节已经修过一次，第 13 节这里漏了。）
+_i_rb = at(html, '${retailBlock}')
+_i_fc0 = at(html, "${fcBlock('a_share')}")
+chk_true('③ 两个锚点都能找到', _i_rb >= 0 and _i_fc0 >= 0)
+chk_true('③b 渲染顺序在 fcBlock 之后', _i_rb >= 0 and _i_fc0 >= 0 and _i_rb > _i_fc0)
 
 # ★ bar() 必须在 fcBlock 外面
 #   原来它定义在 fcBlock 内部，是局部变量。散户块在外面调用会
@@ -321,6 +331,33 @@ chk_true('⑫ 写了「会系统性偏空」这个偏差', '系统性偏空' in 
 chk_true('⑬ 顶部注释写的是三层', '这一栏是三层' in html)
 chk_true('⑭ 顶部注释列了散户层', '散户层 = ' in html)
 chk('⑮ 顶部注释不再说「只剩两层」', '这一栏只剩两层' not in html, True)
+
+# ★★ 「三块已删」必须在【市场共识栏的渲染模板】里查，不能对整份 HTML 查
+#
+#   ⚠ 这是我在验证线上产物时踩的坑：我写了
+#        c('已删「口径（这段很重要」', '口径（这段很重要' not in h)
+#      结果这一项挂了 —— 但它是**误报**。
+#
+#      因为「口径（这段很重要，别跳过）」这个标题还出现在【股息率页签】里，
+#      讲的是「股息率 = 年化每股分红 ÷ 股价」为什么不能按除权日求和，
+#      和用户要求删的那个（市场共识栏底部的「口径」）**是同名不同块**。
+#
+#   教训：删掉一个块之后，用「整个文件里还有没有这个词」来验证是错的。
+#         同一个词可能同时属于两个页签。**断言必须限定在被改动的那个渲染模板里。**
+#         （这和「一个词同时属于两个主题时就不是可用的分类词」是同一类错。）
+_cs = at(html, "${fcBlock('a_share')}")
+_cs_end = html.find('`;', _cs) if _cs >= 0 else -1
+chk_true('⑯ 能找到市场共识栏的渲染模板', _cs >= 0 and _cs_end > _cs)
+cs_tpl = html[_cs:_cs_end] if (_cs >= 0 and _cs_end > _cs) else ''
+
+chk_true('⑰ 共识栏里没有「行业热度 → 能买什么」', '行业热度 → 能买什么' not in cs_tpl)
+chk_true('⑱ 共识栏里没有「概念热度 → 能买什么」', '概念热度 → 能买什么' not in cs_tpl)
+chk_true('⑲ 共识栏里没有「口径（这段很重要」', '口径（这段很重要' not in cs_tpl)
+# 但股息率页签那个「口径」要留着 —— 它是另一件事，删了会让股息率算法没法解释
+chk_true('⑳ 股息率页签的「口径」还在（同名不同块，不能一起删）',
+         '股息率 = 年化每股分红 ÷ 股价' in html)
+# 散户块必须真的在这个模板里（不是定义了却没渲染）
+chk_true('㉑ 共识栏模板里确实渲染了 retailBlock', '${retailBlock}' in cs_tpl)
 # ══════════════════════════════════════════════════════════════════
 section('14. build_demo.py 不许再读 holders.json（个股季报已删）')
 
