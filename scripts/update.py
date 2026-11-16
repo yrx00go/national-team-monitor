@@ -10,10 +10,17 @@
        · 非交易日（上交所无当日数据）→ 正常，退出码 0
        · 抓取失败（网络/限速）→ 退出码 1，让 Actions 报警
      把这两种混为一谈，是定时任务最常见的坑：非交易日天天报警，报警就没人看了。
+  4. 【两个时间点，别指望一次抓全】2026-11-16 起改成一天跑两次：
+       · 18:00 CST —— 收盘后 3 小时，出「价格 / 指数 / 量能 / 情绪 / K线」。
+         此时上交所份额还没发布，所以跳过它（--after-close）。
+       · 21:30 CST —— 份额发布后补一次，把「份额 / 净流入 / 杠杆」补齐。
+     为什么要分两次而不是「18:00 一次抓全」：份额是收盘后 20 点以后才发布的，
+     18:00 抓必定是空 —— 这不是抓取失败，是源头还没有。实测见 main() 里的注释。
 
 用法：
-    python3 scripts/update.py            # 更新最近 4 天
-    python3 scripts/update.py --full     # 连带重算全部衍生数据 + 重建 HTML
+    python3 scripts/update.py                   # 更新最近 4 天
+    python3 scripts/update.py --full            # 连带重算全部衍生数据 + 重建 HTML
+    python3 scripts/update.py --after-close     # 18:00 那次：跳过份额（那时还没发布）
 """
 import json, os, subprocess, sys
 from datetime import date, datetime, timedelta
@@ -39,10 +46,30 @@ def run(script, *args, optional=False):
 
 def main():
     full = '--full' in sys.argv
+    # 18:00 那次用。见文件头「两个时间点」的说明。
+    after_close = '--after-close' in sys.argv
     fails = []          # 记录失败步骤，最后汇总决定退出码
 
     # 1. 份额（核心，失败即中止：没有份额后面全没意义）
-    run('fetch_etf.py')
+    #
+    # ⚠⚠ 2026-11-16 新增 --after-close：18:00 那次【不跑这一步】。
+    #
+    #   实测证据（都是本机直接打接口）：
+    #     · 11-13 20:10 左右跑 → 0 条；20:53 再跑 → 拿到 11-13（924 条）
+    #     · 11-16 20:10 / 20:20 / 20:28 三次跑 → 都还是 0 条
+    #     · 上交所 ETF 之家自己标注「总规模数据每交易日 23:00 更新」
+    #   结论：份额在收盘后【20 点以后】才发布，18:00 必然没有。
+    #
+    #   为什么是「跳过」而不是「跑了拿不到就算了」：
+    #   跑的话会在 fetch_status.json 写一条「今日无新数据（非交易日或尚未发布）」，
+    #   而体检栏读的是最后一条 —— 于是每天 18:00 页面上都会挂一条黄字，
+    #   看起来像出事，实际是正常的。跳绳比写假话好：
+    #   不跑，体检栏就继续显示上一次（昨晚）的真实结果，那条才是对的。
+    if after_close:
+        print('\n▶ 跳过 fetch_etf.py（--after-close：份额 20 点后才发布）')
+        shares_ok = True
+    else:
+        shares_ok = run('fetch_etf.py')
 
     # 2. 判断今天到底有没有新数据 —— 决定后面是否继续
     fp = os.path.join(DATA, 'shares.json')
@@ -52,6 +79,9 @@ def main():
     today = date.today().isoformat()
     print(f'\n最新交易日 {latest}　今天 {today}　'
           f'{"有更新" if latest == today else "无新数据（非交易日或尚未发布）"}')
+    if after_close:
+        print('  ↑ --after-close 模式下这是预期的：份额今晚会由第二次运行补齐，'
+              '本次只更新价格/指数/情绪。')
 
     # ⚠ 这里原来把 3~5 步全标成 optional=True，意思是「失败也继续」。
     # 但那样等于：价格抓不到 → 净流入用旧价算 → 页面照常发布，看起来一切正常。
