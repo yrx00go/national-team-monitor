@@ -14,11 +14,20 @@ on:
   #   而「改了但从没跑过」正是这一轮所有问题的共同来源
   #   （兜底分支、全失败分支、5:5 平局，全都是没被真实执行过的路径）。
   #   只在动代码/工作流时触发，改 README 不触发，免得白烧一次配额。
+  #
+  # ⚠⚠ 2026-11-16 补 `demo.html` —— 这原本是个真的漏洞，踩到了：
+  #   页面模板 demo.html 不在 paths 里，改完推送**不会触发任何 CI**，
+  #   Pages 就一直在发上一次部署的旧产物，而本地怎么看都是对的。
+  #   症状是「本地全对、线上还是老的，而且要等到当晚 22:10 定时任务才自己好」。
+  #   教训：凡是 deploy job 会读的输入，都必须进 paths —— 否则
+  #   「改了什么」和「跑了什么」之间没有因果关系。
+  #   demo_site.html 不用列：它是产物，由这里的 deploy 重建，不手改。
   push:
     branches: [main]
     paths:
       - 'scripts/**.py'
       - 'tests/**.py'
+      - 'demo.html'
       - '.github/workflows/daily.yml'
   workflow_dispatch:           # 支持手动触发，方便第一次验证
     inputs:
