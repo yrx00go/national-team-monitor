@@ -339,7 +339,7 @@ tr.grp span{font-weight:400;color:#64748B}
 <header>
   <div>
     <h1>国家队监测站 <span style="font-size:12px;color:#A8A29E;font-weight:400">Demo</span></h1>
-    <div class="sub">ETF 份额与净申赎 · 价格叠加 · 机构持仓基准 · 个股季报</div>
+    <div class="sub">ETF 份额与净申赎 · 价格叠加 · 机构持仓基准</div>
   </div>
   <div class="stamp">
     <div>最新交易日 <b id="lastDate">—</b>　区间 <span id="range">—</span></div>
@@ -371,7 +371,6 @@ tr.grp span{font-weight:400;color:#64748B}
   <button class="on" data-pane="combo">监控组合</button>
   <button data-pane="single">单只 ETF</button>
   <button data-pane="inst">国家队持仓基准</button>
-  <button data-pane="stock">个股季报</button>
   <button data-pane="divi">股息率监控</button>
   <button data-pane="consensus">市场共识</button>
 </nav>
@@ -565,11 +564,6 @@ tr.grp span{font-weight:400;color:#64748B}
   <div class="grid2" id="instCharts"></div>
 </div>
 
-<!-- ========== 个股 ========== -->
-<div class="pane" id="pane-stock">
-  <div id="stockBody"></div>
-</div>
-
 <!-- ========== 股息率 ========== -->
 <div class="pane" id="pane-divi">
   <div id="diviBody"></div>
@@ -603,12 +597,10 @@ tr.grp span{font-weight:400;color:#64748B}
 </div>
 
 <script id="DEMO" type="application/json">__DEMO__</script>
-<script id="STOCK" type="application/json">__STOCK__</script>
 <script id="DIVI" type="application/json">__DIVI__</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const D = JSON.parse(document.getElementById('DEMO').textContent);
-const S = JSON.parse(document.getElementById('STOCK').textContent);
 const V = JSON.parse(document.getElementById('DIVI').textContent);
 const C_UP='#DC2626', C_DOWN='#16A34A', C_LINE='#1D4ED8', C_GRAY='#A8A29E', C_AMBER='#B45309';
 const fmt=(v,d=1)=>v==null?'—':Number(v).toFixed(d);
@@ -1903,104 +1895,6 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   });
 });
 
-// ---------- 个股 ----------
-(function(){
-  const P=S.periods;                    // ['2026-09-30','2026-06-30','2026-03-31','2025-12-31']
-  let curP=0, oldP=2;                   // 默认 Q3 vs Q1：这一对才有信息量
-  const fmtP=d=>d.slice(0,7).replace('-',' Q').replace(' Q0',' Q').replace(' Q1',' Q1');
-
-  function build(){
-    const curDate=P[curP], oldDate=P[oldP];
-    const body=S.holders.map(h=>{
-      const cur=(h.by_period[curDate]||[]), old=(h.by_period[oldDate]||[]);
-      const oldMap={}; old.forEach(x=>oldMap[x.code]=x);
-      const curMap={}; cur.forEach(x=>curMap[x.code]=x);
-
-      const items=cur.map(x=>{
-        const o=oldMap[x.code];
-        let st='不变', d=null;
-        if(!o) st='新进前十';
-        else { d=+(x.shares_yi-o.shares_yi).toFixed(4);
-               st = Math.abs(d)<0.0001?'不变':(d>0?'增持':'减持'); }
-        return {...x, st, d};
-      }).sort((a,b)=>(a.st==='新进前十'?-1:b.st==='新进前十'?1:(b.d||0)-(a.d||0)));
-
-      const exited=old.filter(x=>!curMap[x.code])
-                      .sort((a,b)=>b.shares_yi-a.shares_yi);
-      const nUp=items.filter(x=>x.st==='增持').length;
-      const nDown=items.filter(x=>x.st==='减持').length;
-      const nSame=items.filter(x=>x.st==='不变').length;
-      const nNew=items.filter(x=>x.st==='新进前十').length;
-
-      // 只数变化才是这个模块最该看的东西
-      const deltaCnt=cur.length-old.length;
-      const headline = deltaCnt===0
-        ? `<span class="mut">只数不变（${cur.length} 只），以下为逐股变动</span>`
-        : `<b class="up">${old.length} 只 → ${cur.length} 只</b>　`
-          + `<span class="mut">净${deltaCnt<0?'减少':'增加'} ${Math.abs(deltaCnt)} 只</span>`;
-
-      const rowsHtml=items.map(x=>{
-        const tc={'增持':'t-hi','减持':'t-lo','不变':'t-mid','新进前十':'t-lo'}[x.st];
-        return `<tr><td><span class="cd">${x.code}</span> ${x.name}</td>
-          <td class="num">${fmt(x.shares_yi,2)}</td>
-          <td class="num">${x.ratio!=null?fmt(x.ratio,2)+'%':'—'}</td>
-          <td><span class="tag ${tc}">${x.st}</span></td>
-          <td class="num ${x.d>0?'up':x.d<0?'down':'mut'}">${x.d!=null?((x.d>0?'+':'')+fmt(x.d,2)):'—'}</td></tr>`;
-      }).join('');
-
-      // 退出列表：这是重点，不折叠成一行字
-      const exHtml = exited.length ? `
-        <div style="margin-top:12px;border:1px solid #FCD34D;background:#FFFBEB;border-radius:8px;padding:11px 13px">
-          <div style="font-size:12px;font-weight:600;color:#92400E;margin-bottom:7px">
-            退出前十 ${exited.length} 只　
-            <span style="font-weight:400">（上期在前十、本期已不在。<b>不等于清仓</b>——季报只披露前十大，跌出前十就看不见了）</span>
-          </div>
-          <details open>
-            <summary style="font-size:11.5px;color:#B45309">按上期持股量排序，前 60 只列明细（共 ${exited.length} 只）</summary>
-            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
-              ${exited.slice(0,60).map((e,i)=>`<span style="font-size:11px;background:#fff;border:1px solid #FDE68A;
-                border-radius:4px;padding:2px 6px;color:#78350F">${e.code} ${e.name}
-                <b style="color:#92400E">${fmt(e.shares_yi,2)}</b></span>`).join('')}
-              ${exited.length>60?`<span style="font-size:11px;color:#92400E">…等共 ${exited.length} 只</span>`:''}
-            </div>
-          </details>
-        </div>` : '';
-
-      return `<div class="panel"><div class="ph">
-        <div class="pt">${h.short} <span style="font-weight:400;color:#A8A29E;font-size:12px">${h.name}</span></div>
-        <div class="ps">${headline}</div>
-      </div>
-      <div class="ps" style="margin-bottom:10px">${h.desc}</div>
-      <div style="font-size:11.5px;color:var(--tx2);margin-bottom:8px">
-        增持 <b class="up">${nUp}</b>　减持 <b class="down">${nDown}</b>　
-        不变 <b>${nSame}</b>　新进前十 <b>${nNew}</b>　退出前十 <b class="down">${exited.length}</b>
-      </div>
-      <div class="tblwrap" style="max-height:${Math.min(420, 90+items.length*33)}px"><table>
-        <thead><tr><th>股票</th><th class="num">持股（亿股）</th><th class="num">占流通股</th>
-        <th>环比状态</th><th class="num">增减（亿股）</th></tr></thead>
-        <tbody>${rowsHtml}</tbody></table></div>
-      ${exHtml}</div>`;
-    }).join('');
-
-    document.getElementById('stockBody').innerHTML=`
-      <div class="panel"><div class="ph">
-        <div class="pt">选两期对比</div>
-        <div class="ps">季报只披露前十大流通股东，所以「只数」本身就是一个信号</div>
-      </div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:12.5px">
-        <label>本期　<select id="selCur">${P.map((d,i)=>`<option value="${i}" ${i===curP?'selected':''}>${d}</option>`).join('')}</select></label>
-        <span class="mut">对比</span>
-        <label>上期　<select id="selOld">${P.map((d,i)=>`<option value="${i}" ${i===oldP?'selected':''}>${d}</option>`).join('')}</select></label>
-        <span class="mut" style="font-size:11.5px">默认 Q3 对 Q1 — 这两期才有变化，Q3 对 Q2 会全是「不变」</span>
-      </div></div>` + body;
-
-    document.getElementById('selCur').onchange=e=>{curP=+e.target.value; build();};
-    document.getElementById('selOld').onchange=e=>{oldP=+e.target.value; build();};
-  }
-  build();
-})();
-
-
 // ---------- 股息率 ----------
 (function(){
   const st={'已达买入线':'t-lo','已达卖出线':'t-hi','接近买入线':'t-mid'};
@@ -2156,7 +2050,6 @@ D.rows.concat(D.thin||[]).forEach(r=>{
     return;
   }
   const V=S.valuations||[];
-  const pl=S.plates||{};
 
   const fmtPct=(v,d=1)=>v==null?'—':(+v).toFixed(d)+'%';
 
@@ -2210,29 +2103,6 @@ D.rows.concat(D.thin||[]).forEach(r=>{
     </div>
   </div>`;
 
-  // ── 板块热度 → ETF ──
-  const plateBlock=(list,title)=>!((list||[]).length)?'':`
-  <div class="panel">
-    <div class="ph"><div class="pt">${title}</div>
-      <div class="ps">热度是该板块的讨论量，不是涨幅。右侧是可直接下单的对应 ETF</div></div>
-    <div class="tblwrap"><table><thead><tr>
-      <th class="num">#</th><th>板块</th><th class="num">涨幅</th>
-      <th class="num">热度</th><th>对应 ETF</th><th class="num">代码</th>
-    </tr></thead><tbody>
-    ${list.map((p,i)=>`<tr>
-      <td class="num mut">${i+1}</td>
-      <td>${p.name}</td>
-      <td class="num" style="color:${p.chg>0?'var(--up)':(p.chg<0?'var(--down)':'var(--tx3)')}">
-        ${p.chg==null?'—':(p.chg>0?'+':'')+p.chg.toFixed(2)+'%'}</td>
-      <td class="num mut">${p.heat==null?'—':(p.heat/10000).toFixed(1)+'万'}</td>
-      <td class="mut">${p.etf||'—'}</td>
-      <td class="num cd">${p.etf_code||'—'}</td>
-    </tr>`).join('')}
-    </tbody></table></div>
-  </div>`;
-
-  // ── 热股 ──
-  const hotBlock = '';   // ⚠ 2026-11-14 OO 明确：「不看热度个股，这一列去掉」。保留空变量避免下面引用报错。
 
   // ══════════════ 市场预判层（这一栏才是 OO 要的）══════════════
   // ⚠ 和下面「今天媒体在说什么」是**两种语料**，不是同一件事换个说法：
@@ -2240,6 +2110,34 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   //   预判层 = 「大家预测接下来会怎么走」（研报/策略会/机构研判，还没发生）
   //   实测证据：描述层 56 篇里 33 篇（59%）是无效的指数播报，
   //   对预判毫无用处 —— 数量最多、最容易抓的东西，恰好最没用。
+  // ── 对比条（预判层和散户层共用）──
+  // ⚠⚠⚠ 这个函数踩过一次坑，改之前先读完。
+  //
+  // 数据里有两套计数，量纲不同：
+  //   稿件级：a_up / a_down / a_flat / a_dir      ← 按「篇」数
+  //   机构级：n_up / n_down / n_flat / n_dir      ← 按「家」数
+  //
+  // 原来这里写的是 `const dn=r.n_dir`（机构数 6），但分子用的是 `r.a_up`（稿件数 33）。
+  // 33/6 = 550% → 红条宽度 550%（撑爆整条），绿条 100-550 = **-450%**（宽度为负，不渲染）。
+  // 页面上就是「一根全红的条，没有绿色」，而数字明明写着「33 篇偏多 / 2 篇偏空」。
+  // 用户看不出来这是 bug，只会以为「机构真的一致看多」—— 比报错更难发现。
+  //
+  // 规矩：**分子和分母必须来自同一套计数。**
+  // 而且这个函数必须放在 fcBlock 外面 —— 散户层（retailBlock）也要用它。
+  // 放在里面时它只是 fcBlock 的局部变量，外面调用会 ReferenceError。
+  //
+  // 参数含义：(偏多数, 偏空数, 有效分母)。**偏多在前**，画出来是左红右绿。
+  // ⚠ 别调换这两个参数 —— 换了下场就是颜色映射反了，
+  //   散户明明 80% 看空，条却整根红的，比原来那个 bug 还误导。
+  const bar=(up,down,tot)=>{
+    if(!tot) return '';
+    const w=Math.max(0,Math.min(100,Math.round(up/tot*100)));
+    return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin-bottom:7px">
+      <div style="width:${w}%;background:var(--up)"></div>
+      <div style="width:${100-w}%;background:var(--down)"></div>
+    </div>`;
+  };
+
   const FC=S.forecast||{};
   const fcBlock=(key)=>{
     const r=FC[key];
@@ -2255,29 +2153,44 @@ D.rows.concat(D.thin||[]).forEach(r=>{
     // 方向配色：偏多用红、偏空用绿（A股惯例）
     const col={strong_up:'var(--up)',up:'var(--up)',mixed:'var(--tx2)',
                down:'var(--down)',strong_down:'var(--down)'}[r.lean]||'var(--tx2)';
-    const dn=r.n_dir||0;
-    const upW=dn?Math.round((r.a_up||0)/dn*100):0;
-    const dnW=dn?100-upW:0;
+    // ⚠⚠⚠ 这个分母踩过一次坑，改之前先读完。
+    //
+    // 数据里有两套计数，量纲不同：
+    //   稿件级：a_up / a_down / a_flat / a_dir      ← 按「篇」数
+    //   机构级：n_up / n_down / n_flat / n_dir      ← 按「家」数
+    //
+    // 原来这里写的是 `const dn=r.n_dir`（机构数 6），但分子用的是 `r.a_up`（稿件数 33）。
+    // 33/6 = 550% → 红条宽度 550%（撑爆整条），绿条 100-550 = **-450%**（宽度为负，不渲染）。
+    // 页面上就是「一根全红的条，没有绿色」，而数字明明写着「33 篇偏多 / 2 篇偏空」。
+    // 用户看不出来这是 bug，只会以为「机构真的一致看多」—— 比报错更难发现。
+    //
+    // 规矩：**分子和分母必须来自同一套计数。**
+    // 稿件条用 a_*，机构条用 n_*，绝不交叉。
+    const aDir=r.a_dir||((r.a_up||0)+(r.a_down||0));   // 稿件级分母
+    const nDir=r.n_dir||((r.n_up||0)+(r.n_down||0));   // 机构级分母
     return `<div class="panel">
       <div class="ph"><div class="pt">${lab}：接下来会怎么走</div>
         <div class="ps">读的是<b>预判</b>，不是今天的涨跌。窗口
           <b>${r.window_from||'?'} ~ ${r.window_to||'?'}（${r.window_days||'?'} 天）</b></div></div>
 
-      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px">
         <span style="font-size:17px;font-weight:700;color:${col}">${r.lean_txt||'—'}</span>
         <span class="mut" style="font-size:12px">
-          ${r.n_art||0} 篇预判稿 · 有方向的 ${dn} 篇
+          ${r.n_art||0} 篇预判稿 · 有方向的 <b>${aDir}</b> 篇
           · ${r.n_org||0} 家机构（点名 ${r.n_named||0}）
         </span>
       </div>
 
-      ${dn?`<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin-bottom:7px">
-        <div style="width:${upW}%;background:var(--up)"></div>
-        <div style="width:${dnW}%;background:var(--down)"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx3);margin-bottom:12px">
+      ${aDir?`${bar(r.a_up||0, r.a_down||0, aDir)}
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx3);margin-bottom:4px">
         <span><b style="color:var(--up)">${r.a_up||0} 篇偏多</b></span>
         <span><b style="color:var(--down)">${r.a_down||0} 篇偏空</b></span>
+      </div>
+      <div class="ps" style="font-size:11px;color:var(--tx3);line-height:1.7;margin-bottom:12px">
+        分母是<b>有方向的 ${aDir} 篇</b>，不是 ${r.n_art||0} 篇全部 ——
+        其余 ${r.a_flat||0} 篇读完不知道它想说什么。<br>
+        <span style="opacity:.75">另按机构算一次：${r.n_up||0} 家偏多 / ${r.n_down||0} 家偏空
+        （${nDir} 家明确表态）。同一家被四家媒体转载只算 1 家，所以这里的分母比稿件数小得多。</span>
       </div>`:''}
 
       <div style="font-size:13px;line-height:1.85;margin-bottom:12px">${r.headline||''}</div>
@@ -2331,14 +2244,103 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   };
 
 
-  // ══════════ 已删除：散户在说什么（moodBar × 2）══════════
-  // 那块卡片的核心读数是「看多 / 看空」两栏，属于描述层的方向 ——
-  // OO：「市场方向不要了」。而且它的口径本来就最弱：只看标题里有没有
-  // 「涨/跌/加仓/清仓」，大量标题其实没态度（「功亏一篑」这种）。
-  // 现在方向只在预判层出现一处，页面不会自相矛盾。
-  // 帖子量本身还留着 —— 在下面热度表的「股吧散户帖数」那一行，
-  // 它回答的是「今天多热」，不是「散户看什么方向」。
+  // ══════════════ 散户声音（新浪股吧投票帖）══════════════
+  // OO 2026-11-16：「搜索到的都是证券 + 机构，机构都不会空啊，不要这样，
+  //                  多找找野生散户的看法；看看能不能找到」
+  //
+  // ★ 为什么这一栏必须存在
+  //   预判层（fcBlock）读的全是券商研报和财经媒体 —— 而**机构不发看空报告**。
+  //   实测「券商 看空 A股」搜出来的前 10 条全是看多文章。
+  //   于是预判层长期显示「几乎一致偏多」，这个读数几乎没有信息量：
+  //   它测的不是「市场怎么看」，是「券商有没有破例」。
+  //
+  //   所以这一栏和预判层**必须并排摆**。并排才能看出真正有用的东西：
+  //     机构 33 篇偏多 / 2 篇偏空   ←  结构性的，不含信息
+  //     散户 62 人看空 / 15 人看多   ←  自发的，含信息
+  //   两栏方向相反不是矛盾，是这一页最该被看见的事实。
+  //
+  // ★ 数据只来自「投票帖」，不来自自由发言
+  //   股吧的「我看多 上证指数」是新浪提供的按钮，点一下发一条，标题是系统生成的。
+  //   语义 100% 无歧义，不存在反讽。
+  //   自由发言（「无量上涨耍流氓」）实测做不了方向统计 —— 同一句话里的
+  //   「涨」字可能是抱怨。所以自由发言只做样本展示，**一条都不计入比例**。
+  //
+  // ★ 口径：按独立作者按天去重
+  //   同一个人 10 分钟点三次看空，是情绪，不是三个人的判断。
+  //   实测有人一小时内点了 4 次 —— 不去重会把这个人的情绪放大成 4 个人的共识。
+  const RT=S.retail||null;
+  const retailBlock=(()=>{
+    if(!RT){
+      // ⚠ 「没抓」和「抓了但没人投票」是两件事，不能都说成「没有」。
+      return `<div class="panel">
+        <div class="ph"><div class="pt">散户：股吧里在喊什么</div>
+          <div class="ps">这一栏读的是散户自己点的按钮，不是研报</div></div>
+        <div class="ps" style="line-height:1.9">
+          还没有抓过散户层。跑一次 <code>python3 scripts/retail.py</code> 就有了。<br>
+          <span class="mut">数据源：新浪股吧（上证指数 / 深证成指 / 创业板指 / 中证500 / 上证50）
+          的「我看多 / 我看空」投票帖。</span></div></div>`;
+    }
+    const nUp=RT.n_up||0, nDn=RT.n_down||0, nDec=(RT.n_people!=null?RT.n_people:(nUp+nDn));
+    const col=RT.lean==='strong_down'||RT.lean==='down'?'var(--down)'
+             :(RT.lean==='strong_up'||RT.lean==='up'?'var(--up)':'var(--tx2)');
+    // 和预判层共用 bar()：分子分母都来自同一套计数（都是「人」），
+    // 所以这里可以直接调 —— 别自己再写一个宽度计算，那样的 bug 已经踩过一次。
+    // ⚠ 参数顺序是 (偏多, 偏空, 分母) —— 和 fcBlock 里调用的写法一致。
+    const barHtml=nDec?bar(nUp, nDn, nDec):'';
+    return `<div class="panel">
+      <div class="ph"><div class="pt">散户：股吧里在喊什么</div>
+        <div class="ps">散户自己点的按钮，不是研报 ——
+          <b>这是全站唯一一处「不看多也正常」的方向</b></div></div>
 
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <span style="font-size:17px;font-weight:700;color:${col}">${RT.lean_txt||'—'}</span>
+        <span class="mut" style="font-size:12px">
+          近 ${RT.window_days||'?'} 天 · ${nDec} 个独立散户明确表态
+        </span>
+      </div>
+
+      ${barHtml}
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx3);margin-bottom:4px">
+        <span><b style="color:var(--down)">${nDn} 人看空</b></span>
+        <span><b style="color:var(--up)">${nUp} 人看多</b></span>
+      </div>
+      <div class="ps" style="font-size:11px;color:var(--tx3);line-height:1.7;margin-bottom:12px">
+        ${RT.note||''}<br>
+        <span style="opacity:.75">
+        同一人同一天只算一票 —— 实测有人一小时内点了 4 次看空，不去重会把一个人的情绪
+        放大成四个人的共识。${RT.n_mixed?`另有 <b>${RT.n_mixed}</b> 人当天两边都点，不计入。`:''}
+        </span>
+      </div>
+
+      <div class="tblwrap"><table><thead><tr>
+        <th>抽样漏斗</th><th class="num">条数</th><th>说明</th>
+      </tr></thead><tbody>
+        <tr><td>抓到的帖子</td><td class="num">${RT.n_post||0}</td>
+          <td class="mut">5 个宽基指数吧，逐页翻到底（原始 ${RT.n_post_raw||0} 条，去重后入窗口）</td></tr>
+        <tr><td>其中是投票帖</td><td class="num">${RT.n_vote_post||0}</td>
+          <td class="mut">标题形如「我看多 / 我看空 上证指数(SH000001)」—— 系统生成的，不是人写的话</td></tr>
+        <tr><td>去重后的独立散户</td><td class="num"><b>${nDec}</b></td>
+          <td class="mut">按「作者 + 日期」去重</td></tr>
+        <tr><td>被判为免费的机器帖</td><td class="num">${RT.n_bot||0}</td>
+          <td class="mut">行情快讯和官方号（【中证500股指期货…】这类），只从样本里剔，不影响投票</td></tr>
+      </tbody></table></div>
+
+      ${(RT.samples||[]).length?`
+      <div style="font-size:11px;color:var(--tx3);margin:14px 0 6px">
+        散户原话样本（按点击量排，<b>不参与上面的计数</b>）</div>
+      <div class="cons2" style="gap:14px">
+        ${(RT.samples||[]).map(x=>`<div style="font-size:11.5px;line-height:1.7;padding:4px 0;border-bottom:1px solid #F5F5F4">
+          <span class="mut">${x.bar||''} · ${x.time||''}</span><br>${x.title}</div>`).join('')}
+      </div>`:''}
+
+      <div class="ps" style="margin-top:12px;line-height:1.8;font-size:11.5px">
+        <b>它不能拿来干什么</b>：这是「谁在股吧点按钮」，不是「散户仓位」，更不是「明天涨跌」。
+        股吧用户本来就偏短线、偏情绪，看空的人更愿意点按钮 ——
+        <b>所以这里的比例会系统性偏空，绝对值不要当真</b>。有用的是<b>它和机构那栏的差值</b>，
+        以及<b>这个差值有没有变</b>。
+      </div>
+    </div>`;
+  })();
 
   // ── 热度与分位 ──
   // ⚠ P 只给「热度」用，不再给判断卡用。
@@ -2468,6 +2470,7 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   el.innerHTML = `
   ${fcBlock('a_share')}
   ${fcBlock('gold')}
+  ${retailBlock}
   ${policyBlock}
   ${valBlock}
   <div class="panel">
@@ -2491,9 +2494,6 @@ D.rows.concat(D.thin||[]).forEach(r=>{
            <b>这个分位本身也需要更长历史才算稳</b>，现在样本仍然偏短。`}
     </div>
   </div>
-  ${plateBlock(pl.industry,'行业热度 → 能买什么')}
-  ${plateBlock(pl.concept,'概念热度 → 能买什么')}
-  ${hotBlock}
   <div class="panel">
     <div class="ph"><div class="pt">原始素材（可自行复核）</div>
       <div class="ps">上面所有归纳都是从这些标题算出来的。觉得结论不对，先看这里</div></div>
@@ -2509,50 +2509,7 @@ D.rows.concat(D.thin||[]).forEach(r=>{
       </div>
     </div>
   </div>
-  <div class="panel"><div class="ph"><div class="pt">口径（这段很重要，别跳过）</div></div>
-    <div class="ps" style="line-height:1.9">
-      <b>这一栏只剩两层，顺序不能倒过来读</b>：<br>
-      ① <b>「接下来会怎么走」= 预判层</b>。读券商研报、策略会、机构研判里对<b>未来</b>的判断，
-      回答「有多少机构认为接下来会涨」。<b>全站唯一给方向的地方</b>。
-      它给的是比例，不是概率 —— 「39 篇偏多 / 3 篇偏空」说的是「说话的人里怎么说」，
-      不是「涨的概率是 93%」。<br>
-      ② <b>「官方政策」= 政策层</b>。只收新华社/人民日报自己的国内政策稿，
-      按主题归类，回答「官方这几天把力气花在哪」。
-      <b>这一层刻意一个涨跌字都不出现</b> —— 从「说了什么」到「会怎么样」隔着整条传导链，
-      那段推断没有任何数据支持，写上去就是编。<br><br>
-
-      <b>为什么这里没有「今天媒体在说什么」那一栏</b>：那种语料读的是收评、午评、盘中播报，
-      说的是<b>已经发生的事</b>。实测 56 篇里 33 篇（59%）是「创业板指跌3%」这类指数播报 ——
-      数量最多、最容易抓，对预判<b>毫无用处</b>。
-      它和预判层并排摆着，还会各自给出方向，读者不知道该信哪个。
-      与其解释「这两块方向为什么不一样」，不如不要那一块。<br><br>
-
-      <b>预判层的结构性缺陷，必须知道</b>：
-      几乎没有机构会公开发一篇「看空A股」的报告 ——
-      实测用「券商 看空 A股」去搜，返回的前 10 条全是看多文章。
-      所以 A 股那栏<b>长期偏多</b>，这个读数本身信息量很低；
-      真正有用的是<b>比例有没有变</b>，而不是「现在是偏多」。<br>
-      <b>黄金那栏常年样本不足</b>：30 天窗口也只攒到十几篇有方向的稿子，
-      不够 15 篇就直接写「样本不足」，不给倾向词 ——
-      分母撑不起结论时给个词，等于用噪声冒充判断。<br><br>
-
-      <b>政策层的结构性缺陷</b>：新华社是通稿社，什么都发。
-      实测官媒稿 112 篇里只有 27 篇是国内政策，其余是国际新闻（泽连斯基、南非农业部长）、
-      社会新闻（茶博会）、纪检稿（原董事长被开除党籍）。
-      所以这一层<b>不是「新华社说了什么」，是「新华社里的政策稿说了什么」</b>。<br>
-      另外政策有节奏 —— 开会日一天十几条、平时一天零条。
-      「某天 0 条」是正常的，不代表漏抓；上面那排柱子把 0 条的日子也画出来了，就是这个原因。<br><br>
-
-      <b>已知抓不到的</b>：抖音财经博主的原话。实测抖音搜索需登录、视频详情 403、
-      热榜 147 条采样里财经命中 0 条。所以这里没有「陈小群今天说了什么」，
-      只有「机构研报在说什么」和「官方发布了什么」。
-      官方站自己的接口也全部不可用（新华网 403、人民网搜索返回空壳页面），
-      政策层是从东财搜索里按来源过滤出来的。<br>
-      <b>数据来源</b>：东方财富全站搜索（媒体标题 + 研报 + 官媒稿）· 同花顺（行业/概念热度）·
-      蛋卷基金（指数估值分位）· 东方财富股吧（散户帖子）· 今日头条（热门词）·
-      腾讯行情（创业板指当日涨跌）。
-    </div>
-  </div>`;
+  `;
 })();
 
 // ---------- tab ----------

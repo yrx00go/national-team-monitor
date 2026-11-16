@@ -127,6 +127,22 @@ def main():
     if not run('fetch_sentiment.py', optional=True):
         fails.append('fetch_sentiment.py（市场共识未更新，共识栏会停在旧日期）')
 
+    # 散户声音（新浪股吧的「我看多/我看空」投票帖）。
+    #
+    # ⚠ 必须排在 fetch_sentiment.py【之后】：retail.py 是读-改-写
+    #   data/sentiment.json，往里加一个 retail 键。而 fetch_sentiment.py
+    #   每次都会整个重写该文件 —— 顺序反了，昨天抓的散户数据会被今天
+    #   重写的文件抹掉，且不会报错。
+    #
+    # ⚠ 也必须排在 compute_demo.py 之前，理由同上一段（它要把
+    #   sentiment.json 读进 demo.json）。
+    #
+    # ⚠ 为什么不并进 fetch_sentiment.py：那一栏是「机构/媒体在怎么说」，
+    #   这一栏是「散户在怎么想」，两者数据源、口径、可信度都不一样。
+    #   混在一个脚本里，迟早会有人把散户投票算进「机构一致度」。
+    if not run('retail.py', optional=True):
+        fails.append('retail.py（散户声音未更新，那一块会显示旧日期或空）')
+
     # 放在最后：它要读上面所有抓取步骤写下的 fetch_status.json
     if not run('compute_demo.py', optional=True):
         fails.append('compute_demo.py（数据未重算，页面会用上一次的结果）')
