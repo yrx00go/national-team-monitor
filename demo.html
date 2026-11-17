@@ -1449,7 +1449,9 @@ function buildTimeSlider(host,labels,onChange,target){
       `<b>先说清楚这点情绪数据有多薄：</b>`
       +`黄金 <b>${gN}</b> 个调查日（周频）· A股 <b>${aN}</b> 个快照日（日频）`
       +`—— 合计跨 <b>${span}</b> 天（${first} ~ ${last}）。`
-      +`蜡烛那边是 <b>2001 个交易日</b>。`
+      // ⚠ 2026-11-17 改：K 线截到 2026-10 起，两边长度基本对齐了，
+      //   「蜡烛 2001 天 vs 情绪 45 天」的对比已不成立，别再写死。
+      +`蜡烛自 <b>2026-10</b> 起（与情绪区间基本对齐，之前的 K 线没有对照物，不画）。`
       +`<b>情绪点少不代表图坏了</b>：记录是 2026-11-16 才开始的，`
       +`缺口只能靠往后攒 —— 所有源的回溯上限都在 45 天内，补不出来。`
       +`<b>本图不做任何插值</b>：没有调查的日子<b>没有点</b>，`
@@ -1510,7 +1512,19 @@ function buildTimeSlider(host,labels,onChange,target){
   function buildPanel(cfg){
     const s=K.series[cfg.code];
     if(!s) return null;
-    const rows=s.rows;
+    // ⚠⚠ 2026-11-17 OO 定：K 线只从 2026-10-01 起画，之前的一律不要。
+    //   理由：情绪记录是 11 月才开始记的，往前那 2000 根 K 线**没有任何对照物** ——
+    //     ① 图上 99% 的区域是「有价格、没情绪」，读不出任何结论；
+    //     ② 真正有用的那几十根被压到 1px，蜡烛退化成噪点；
+    //     ③ 情绪点少时默认视窗会缩得很窄，看起来像「图坏了」。
+    //   数据不够就不画那么远，这是诚实的做法，不是省性能。
+    //   代价：这张图不再是「长期走势」——看长周期去「资金进出」页的 K 线（那里 1664 天）。
+    const FROM='2026-10-01';
+    const rows=s.rows.filter(r=>r.d>=FROM);
+    if(!rows.length){
+      console.warn('[市场共识] K 线在 '+FROM+' 之后没有数据，跳过该图');
+      return null;
+    }
     const labels=rows.map(r=>r.d);
     const highs=rows.map(r=>r.h);
     const lows=rows.map(r=>r.l);
@@ -1738,7 +1752,7 @@ function buildTimeSlider(host,labels,onChange,target){
     const A=buildPanel({
       key:'cvA', id:'cCvA', code:'000001',
       title:'A股大盘走势 + 多空情绪',
-      sub:'上证指数日线（不复权）叠加「对未来的预判」——'
+      sub:'上证指数日线（不复权，自 2026-10 起）叠加「对未来的预判」——'
          +'左轴读点位，右轴读偏向值',
       priceName:'上证指数（点）',
       inst:aInstBy, ret:aRetBy,
@@ -1746,9 +1760,9 @@ function buildTimeSlider(host,labels,onChange,target){
       retPick: x=>lean({up:x.up,down:x.down}),
       instColor:'#1D4ED8', retColor:'#60A5FA',
       instLabel:'A股 · 机构', retLabel:'A股 · 散户',
-      note:'<b>为什么右边现在只有孤立的点</b>：A股 情绪本该是<b>每天一份</b>，'
-          +'但记录从 2026-11-16 才开始 —— 目前只有 1 天，<b>1 个点连不成线</b>，'
-          +'等第二天数据进来就会连起来。'
+      note:'<b>为什么右边点这么少</b>：A股 情绪本该是<b>每天一份</b>，'
+          +'但记录从 2026-11-16 才开始 —— 天数会一天天涨上去，'
+          +'点连成线只是时间问题。'
           +'点少不是抓取失败，是「历史从今天起才存在」。'
           +'<b>机构</b>读财经媒体里明确给方向的稿子（看多几条 / 看空几条），'
           +'<b>散户</b>读股吧「我看多 / 我看空」的投票。'
@@ -1758,7 +1772,7 @@ function buildTimeSlider(host,labels,onChange,target){
     const Gp=buildPanel({
       key:'cvG', id:'cCvG', code:'518880',
       title:'黄金走势 + 多空情绪',
-      sub:'黄金ETF华安 日线（不复权）叠加 Kitco 周度调查 ——'
+      sub:'黄金ETF华安 日线（不复权，自 2026-10 起）叠加 Kitco 周度调查 ——'
          +'左轴读 ETF 价格，右轴读偏向值',
       priceName:'ETF 价格（元）',
       inst:goldBy, ret:goldBy,
