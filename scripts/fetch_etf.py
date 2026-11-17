@@ -22,26 +22,22 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _universe    # 全站唯一的标的清单，见 _universe.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 os.makedirs(DATA, exist_ok=True)
 
-# (指数, 代码, 简称, 交易所, 角色)  主口径 = SSE / 交叉验证 = REF
-WATCH = [
-    ('上证50',   '510050', '50ETF',            'SSE', '主'),
-    ('沪深300',  '510300', '300ETF华泰柏瑞',     'SSE', '主'),
-    ('沪深300',  '159919', '300ETF嘉实',        'SZSE', '副'),
-    ('中证500',  '510500', '500ETF南方',        'SSE', '主'),
-    ('中证500',  '159922', '500ETF嘉实',        'SZSE', '副'),
-    ('中证1000', '512100', '1000ETF南方',       'SSE', '主'),
-    ('中证1000', '159845', '1000ETF华夏',       'SZSE', '副'),
-    ('科创50',   '588000', '科创50ETF华夏',      'SSE', '主'),
-    ('创业板',   '159915', '创业板ETF易方达',     'SZSE', '主'),
-    ('红利',     '510880', '红利ETF华泰柏瑞',     'SSE', '主'),
-    ('红利',     '515080', '中证红利ETF招商',   'SSE', '主'),
-    ('港股红利', '159545', '港股通红利低波ETF',   'SZSE', '主'),
-]
+# ⚠ 2026-11-17：名单不再写在这里，统一到 _universe.py。
+#   原来这条清单在 5 个脚本里各有一份、字段还不同，改一只标的要动 5 处，
+#   漏一处就出现「份额抓到了、价格没抓」的半残状态。
+#   这里只做格式转换：(代码, 指数, 简称, 交易所, 基金公司, 角色)
+#                →  (指数, 代码, 简称, 交易所, 角色)
+WATCH = [(u[1], u[0], u[2], u[3], u[5]) for u in _universe.UNIVERSE]
+CODES = {w[1] for w in WATCH}
+CORE = set(_universe.core_codes())
+SSE_ALL = {w[1] for w in WATCH if w[3] == 'SSE'}
+SZSE_ALL = {w[1] for w in WATCH if w[3] == 'SZSE'}
 
 UA = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
 
@@ -122,9 +118,14 @@ def main():
         dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(4)][::-1]
 
     sse_added = 0
+    sse_core = [w[1] for w in WATCH if w[3] == 'SSE' and w[4] == 'core']
     for d in dates:
-        if d in hist and any(k in hist[d] for k in ('510050', '510300', '588000')):
-            print(f'{d} 上交所已有，跳过')
+        # ⚠ 2026-11-17：跳过条件从「有 510050/510300/588000 任一只」改成
+        #   「当天 15 只沪市 core 全都在」。
+        #   原来那个条件下，历史日期一律被判「已有」→ 新加的 11 只沪市标的
+        #   永远补不进历史，只能等以后一天一天攒，等于把可回补的优势扔了。
+        if d in hist and all(c in hist[d] for c in sse_core):
+            print(f'{d} 上交所已有（{len(sse_core)} 只齐），跳过')
             continue
         try:
             sse = fetch_sse(d)
@@ -134,29 +135,59 @@ def main():
         if not sse:
             print(f'{d} 上交所无数据（非交易日或未发布）')
             continue
-        rec = {c: round(v, 2) for c, v in sse.items() if c in {w[1] for w in WATCH}}
+        rec = {c: round(v, 2) for c, v in sse.items() if c in CODES}
         if rec:
             hist.setdefault(d, {}).update(rec)
             sse_added += 1
             print(f'{d} 上交所 ✅ {len(rec)} 只')
 
-    # 深交所：只在"最近一个上交所交易日"写入当前快照，防止把周末快照记成工作日
+    # ── 深交所快照：写入「最近一个上交所交易日」────────────────────────
+    # ⚠⚠ 2026-11-17 发现一个系统性滞后 bug（不是偶发）：
+    #    深交所这份快照要【次日早上】才反映前一日收盘数据。
+    #    而我们原来在当晚 18:00 就抓——那时它还是【昨天】的数，
+    #    却被写进了今天的日期里。实测证据：
+    #      11-13 与 11-16 存的 159915 份额精确到最后一位完全相同（452.00 亿份）；
+    #      而 11-17 早上再抓是 462.02 亿份，正好等于 11-16 的真实值。
+    #    ⇒ 11-16 那一格填的是 11-13 的数，深市每天凭空「零申赎」。
+    #
+    #    原来还有一道 `szse_last_write` 一次性锁，写进去就再也不改，
+    #    于是错了也不会自愈。
+    #
+    #    现在的判据：拿快照和【前一个交易日】已存的值比 ——
+    #      完全相同 → 这份快照就是前一日的数据，是过期的，跳过；
+    #      有差异   → 是真的新数据，写入（允许覆盖，这样早上那次能把前晚写错的改对）。
+    #    这也是唯一能自愈的写法：早上 08:10 那次会把前晚的错值修正过来。
     sse_days = sorted(k for k, v in hist.items() if '510300' in v)
     if sse_days:
         last_td = sse_days[-1]
-        if meta.get('szse_last_write') != last_td:
-            try:
-                snap = fetch_szse_snapshot()
-                got = {c: round(v, 2) for c, v in snap.items() if c in {w[1] for w in WATCH if w[3] == 'SZSE'}}
-                if got:
-                    hist.setdefault(last_td, {}).update(got)
+        prev_td = sse_days[-2] if len(sse_days) > 1 else None
+        prev_vals = {c: (hist.get(prev_td) or {}).get(c) for c in SZSE_ALL} if prev_td else {}
+        try:
+            snap = fetch_szse_snapshot()
+            got = {c: round(v, 2) for c, v in snap.items() if c in SZSE_ALL}
+            if not got:
+                print('深交所快照为空，跳过')
+            else:
+                same_as_prev = bool(prev_vals) and all(
+                    prev_vals.get(c) is not None and abs(got[c] - prev_vals[c]) < 1e-6
+                    for c in got)
+                cur = hist.setdefault(last_td, {})
+                already_same = all(cur.get(c) is not None and abs(got[c] - cur[c]) < 1e-6
+                                   for c in got)
+                if same_as_prev:
+                    print(f'深交所快照 = {prev_td} 的数值 → 仍是昨日数据，跳过'
+                          f'（次日早上会自动补上）')
+                elif already_same:
+                    print(f'深交所快照与 {last_td} 已存值一致，无需改动')
+                else:
+                    cur.update(got)
                     meta['szse_last_write'] = last_td
                     print(f'深交所快照 → 写入 {last_td}，{len(got)} 只')
                     if 'szse_first_day' not in meta:
                         meta['szse_first_day'] = last_td
                         print(f'★ 深交所历史从 {last_td} 开始累积')
-            except Exception as e:
-                print(f'深交所失败: {e}')
+        except Exception as e:
+            print(f'深交所失败: {e}')
 
     with open(fp, 'w', encoding='utf-8') as f:
         json.dump(dict(sorted(hist.items())), f, ensure_ascii=False)
@@ -176,7 +207,7 @@ def main():
     #   非交易日 / 尚未发布 → 不是错误，但 last 会落后，体检栏会自动标出来。
     #   拉取异常 → 记 fail 并写清原因。
     last_td = sse_days[-1] if sse_days else None
-    want = len([w for w in WATCH if w[3] == 'SSE'])
+    want = len(sse_core)
     if sse_added == 0 and last_td != date.today().isoformat():
         _fh.report('shares', 'ETF 份额（上交所，全站唯一事实层）', 'ok',
                    last=last_td, got=want, want=want,

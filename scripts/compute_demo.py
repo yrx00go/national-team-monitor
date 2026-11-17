@@ -23,22 +23,18 @@ from datetime import date, datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
 import _td          # 交易日历 + 北京时钟（全站唯一时间口径）
+import _universe    # 全站唯一的标的清单，见 _universe.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 
-WATCH = [
-    ('上证50',   '510050', '50ETF', 'SSE', '华夏'),
-    ('沪深300',  '510300', '300ETF华泰柏瑞', 'SSE', '华泰柏瑞'),
-    ('中证500',  '510500', '500ETF南方', 'SSE', '南方'),
-    ('中证1000', '512100', '1000ETF南方', 'SSE', '南方'),
-    ('科创50',   '588000', '科创50ETF华夏', 'SSE', '华夏'),
-    ('红利',     '510880', '红利ETF华泰柏瑞', 'SSE', '华泰柏瑞'),
-    ('红利',     '515080', '中证红利ETF招商', 'SSE', '招商'),
-    ('创业板',   '159915', '创业板ETF易方达', 'SZSE', '易方达'),
-    ('港股红利', '159545', '港股通红利低波ETF', 'SZSE', '易方达'),
-    ('沪深300',  '159919', '300ETF嘉实', 'SZSE', '嘉实'),
-]
+# ⚠ 2026-11-17：名单统一到 _universe.py（原来这里手写 10 只，与另外 4 个脚本各一份）。
+#   core = 官方 23 只，进「组合合计 / 异动度 / 规模」；
+#   obs  = 红利 3 只 + 588000，只做单只展示与红利对照，**不进合计**。
+#   →  (指数, 代码, 简称, 交易所, 基金公司, 角色)
+WATCH = [(u[1], u[0], u[2], u[3], u[4], u[5]) for u in _universe.UNIVERSE]
+CORE_CODE = set(_universe.core_codes())
+CORE_TOTAL = len(CORE_CODE)     # 23
 START = '2020-01-02'   # 覆盖率：2020 年至今（上交所份额公示实测可回溯到 2017 年）
 MIN_DAYS = 30          # 累计满这么多天才画曲线
 
@@ -50,16 +46,35 @@ MIN_DAYS = 30          # 累计满这么多天才画曲线
 #     ② 份额曲线会出现一个假断崖（102 亿份 → 37 亿份，看着像被巨额赎回）
 #     ③ 组合规模会凭空塌一块
 #
-# 已查证（上交所公告 2022-08-24 + 天天基金拆分记录）：
-#   2022-09-02  份额合并  1 : 0.36555    （102.07 亿份 → 37.31 亿份，乘 0.36555 精确吻合）
-#   2022-08-03  份额分拆  1 : 1.46301    （公告日 2022-07-27）
+# 已查证（上交所公告 + 天天基金拆分记录 + 2026-11-17 全量扫描）：
+#   512100  2022-09-02  合并  1 : 0.36555   （102.07 亿份 → 37.31 亿份，精确吻合）
+#   560010  2022-09-13  合并  1 : 0.35295   （74.14 → 26.19 亿份，规模 72.4→71.4 亿连续）
+#   510310  2024-09-20  合并  1 : 0.51161   （1218.6 → 623.5 亿份，次日价 1.599→3.213）
+#   510100  2025-03-07  合并  1 : 0.49608   （29.38 → 14.58 亿份，次日价 1.333→2.666）
+#   510230  2020-08-14  分拆  1 : 5.00000   （8.70 → 43.49 亿份，次日价 5.683→1.205）
 #
-# 处理方式：把该日之前的份额统一折算到「折算后口径」，
-# 这样整条份额曲线连续，净流入只在真实申赎时变动。
-# ⚠ 只调整份额，不动价格：价格本来就是真实成交价，复权由前复权序列自己处理。
+# 判据（不是靠幅度猜的）：份额跳变 >15%，且「份额比 × 价格比 ≈ 1」= 规模没变
+#   → 是折算不是申赎。真实申赎会真的改变规模（2026 上半年国家队减持就是这样，
+#     份额 −19%、价格不动，规模真的小了 19%）。
+#
+# 处理方式：把折算日【及之前】的份额折到新口径，同时把折算日【及之前】的
+# 不复权价乘以 1/比例。
+#
+# ⚠⚠ 2026-11-17 修：原来只调份额、不调价格，两者口径就错位了 ——
+#   份额是「新口径」（少了一半），价格还是「旧口径」（没翻倍），
+#   相乘得到规模少一半，组合规模曲线会在折算日凭空塌一块，
+#   折算日之前的净流入也被系统性低估一半。
+#   实测 512100 在 2022-08-30：代码算 37.5 亿，真实 102.7 亿。
+#   价格为什么不自己在折算日换单位：**交易所的行情当天仍按旧单位报，要到次日才切**，
+#   所以「份额当天切、价格次日切」是数据本身的性质，必须在代码里对齐。
+#   前复权价天然连续（东财已处理），所以只动不复权序列。
 SPLITS = {
     # code: [(生效日, 折算比例), ...]  比例 = 折算后份额 ÷ 折算前份额
     '512100': [('2022-09-02', 0.36555)],
+    '560010': [('2022-09-13', 0.35295)],
+    '510310': [('2024-09-20', 0.51161)],
+    '510100': [('2025-03-07', 0.49608)],
+    '510230': [('2020-08-14', 5.00000)],
 }
 
 # 红利三兄弟的「身份卡」。
@@ -1101,14 +1116,18 @@ def _derive_health(shares, prices_qfq, prices_bfq, sh_idx, turn_raw,
     # 份额的「到哪天」只认含 510300 的交易日 —— 深市只有 3 天自建历史，
     # 直接 max(shares) 会取到深市快照的日期，让人以为上交所也到那天了。
     _sse_days = [d for d, v in shares.items() if '510300' in v]
+    # ⚠ 2026-11-17：want 从 len(WATCH)（原 10、现 27）改成真实需要的只数。
+    #   份额：沪市 core 15 只（深市走快照，不在这里算）。
+    #   价格：core 23 只 —— 观察池 4 只也抓了价，但「少了」不该报警，所以 want 只数 core。
+    _sse_core_n = len([w for w in WATCH if w[3] == 'SSE' and w[5] == 'core'])
     add('shares', 'ETF 份额（上交所，全站唯一事实层）',
-        max(_sse_days) if _sse_days else None, len(WATCH), len(WATCH))
+        max(_sse_days) if _sse_days else None, _sse_core_n, _sse_core_n)
     add('price_bfq', '价格（不复权，算净流入用）',
         last_of([v[-1] for v in prices_bfq.values() if v]),
-        len([k for k, v in prices_bfq.items() if v]), len(WATCH))
+        len([k for k in prices_bfq if k in CORE_CODE and prices_bfq[k]]), len(CORE_CODE))
     add('price_qfq', '价格（前复权，画曲线用）',
         last_of([v[-1] for v in prices_qfq.values() if v]),
-        len([k for k, v in prices_qfq.items() if v]), len(WATCH))
+        len([k for k in prices_qfq if k in CORE_CODE and prices_qfq[k]]), len(CORE_CODE))
     add('index', '上证指数', last_key(sh_idx))
     add('turnover', '两市成交额', last_of(turn_raw))
     add('margin', '两融余额', max(mg_raw) if mg_raw else None)
@@ -1118,7 +1137,7 @@ def _derive_health(shares, prices_qfq, prices_bfq, sh_idx, turn_raw,
         if d and (not _inst_last or d > _inst_last):
             _inst_last = d
     add('inst', '机构持仓（半年报/年报）', _inst_last,
-        len(inst.get('rows') or []), len(WATCH))
+        len(inst.get('rows') or []), len(CORE_CODE))
 
     order = {'fail': 0, 'stale': 1, 'partial': 2, 'ok': 3}
     out.sort(key=lambda r: (order.get(r['state'], 9), -(r['lag'] or 0)))
@@ -1155,7 +1174,7 @@ def main():
     bfq = {c: {d: v for d, v in arr} for c, arr in prices_bfq.items()}
 
     rows, thin = [], []
-    for idx, code, name, mk, mgr in WATCH:
+    for idx, code, name, mk, mgr, role in WATCH:
         ds = [d for d in days if code in shares.get(d, {})]
         if not ds:
             continue
@@ -1163,16 +1182,28 @@ def main():
 
         sh = [shares[d][code] / 10000.0 for d in ds]
 
-        # ⚠ 份额折算修正：把折算日之前的份额按比例折算到折算后口径。
+        p_q = [qfq.get(code, {}).get(d) for d in ds]      # 画曲线：前复权
+        p_b = [bfq.get(code, {}).get(d) for d in ds]      # 算净流入：不复权
+
+        # ⚠ 份额折算修正：把折算日【及之前】的份额折到新口径。
         #    不做这一步，512100 在 2022-09-02 会被算成「单日净流出 65 亿」——
         #    那是基金公司做份额合并，不是任何人卖了货。
+        #
+        # ⚠⚠ 同时把那份的价格也折算（× 1/比例）：
+        #   交易所行情在折算【当天】仍按旧单位报，次日才切新单位。
+        #   所以「份额当天切、价格次日切」是数据本身的性质。
+        #   只调份额不调价，两者口径错位 → 折算前的规模少一半、净流入低估一半。
+        #   前复权序列东财已处理过，天然连续，不用动。
+        #    ⚠ 两者边界差一天，不能共用一个判断：
+        #      份额  在折算【当天】就换成新单位 → 只折 d < eff
+        #      价格  在折算当天仍报旧单位，次日才换 → 折 d <= eff
+        #      四条实测（512100/560010/510310/510100/510230）都是这个形态。
         for eff, ratio in SPLITS.get(code, []):
             for i, d in enumerate(ds):
                 if d < eff:
                     sh[i] *= ratio
-
-        p_q = [qfq.get(code, {}).get(d) for d in ds]      # 画曲线：前复权
-        p_b = [bfq.get(code, {}).get(d) for d in ds]      # 算净流入：不复权
+                if d <= eff and p_b[i]:
+                    p_b[i] = p_b[i] / ratio
 
         # ⚠ 缺价补齐（只在算钱时用，画曲线仍保留缺口）：
         #    512100 在 2022-09-02 折算当天东财没有不复权收盘价（停牌处理），
@@ -1215,6 +1246,7 @@ def main():
 
         rec = {
             'index': idx, 'code': code, 'name': name, 'market': mk, 'manager': mgr,
+            'role': role,
             'days': len(ds),
             'dates': ds,
             'shares': [round(x, 2) for x in sh],
@@ -1246,15 +1278,28 @@ def main():
         else:
             rows.append(rec)
 
-    # 组合合计
+    # ── 组合合计：只算 core（官方 23 只）──────────────────────────────
+    # ⚠ 2026-11-17：原来这里直接 for r in rows，把红利 3 只和 588000 也算进「国家队组合」，
+    #   导致「监控组合规模 5027 亿」里混了 1310 亿华夏科创50（不在汇金名单）+ 红利。
+    #   现在 core 与 obs 分开：obs 仍然进 rows（单只页、红利对照要用），但不进合计。
+    # ⚠ 2026-11-17：合计口径用「所有有份额的 core」，包括 thin（深市不足 30 天）。
+    #   原来只用 rows，于是深市 8 只被 MIN_DAYS 挡在外面，合计只剩沪市 15 只，
+    #   当日净流入从「23 只」缩成「15 只」—— MIN_DAYS 是【画曲线】的门槛，
+    #   不该拿来决定【合计算几只】。两个问题混在一个变量上，就会这样。
+    #   代价：深市 2026-11-09 才开始有数据，组合规模曲线在那里会跳一级 ——
+    #   这是真实的口径变化，不是行情，members/join_dates 会把它标出来。
+    core_rows = [r for r in rows + thin if r.get('role') == 'core']
+    if not core_rows:
+        raise SystemExit('✗ core 一只都没算出来，检查 shares/价格是否到位')
+
     # ⚠ 这里原来每天每只都调一次 r['dates'].index(d)，是 O(天数²×只数)，
     #    711 天还能忍，拉到 1650 天就会卡到不可用。改为先把日期映射成位置索引。
-    pos = {id(r): {d: i for i, d in enumerate(r['dates'])} for r in rows}
+    pos = {id(r): {d: i for i, d in enumerate(r['dates'])} for r in core_rows}
 
     combo_flow, combo_cum, acc = {}, {}, 0.0
     for d in days:
         s = 0.0
-        for r in rows:
+        for r in core_rows:
             j = pos[id(r)].get(d, -1)
             if j < 0:
                 continue
@@ -1268,7 +1313,7 @@ def main():
     combo_size = []
     for d in days:
         tot = 0.0
-        for r in rows:
+        for r in core_rows:
             j = pos[id(r)].get(d, -1)
             if j < 0:
                 continue
@@ -1285,7 +1330,7 @@ def main():
     # 会在中途加入，导致「组合规模」凭空跳一级。这个不是行情，是口径变化，必须标注。
     members = []
     for d in days:
-        members.append(sum(1 for r in rows if d in pos[id(r)]))
+        members.append(sum(1 for r in core_rows if d in pos[id(r)]))
 
     # 上证指数按 days 对齐 —— 必须用 days 的日期序列，不能用自己的日期序列，
     # 否则 x 轴会和净流入柱错位一格。指数交易日应覆盖 days 全集；
@@ -1338,10 +1383,28 @@ def main():
                   'sh_index': sh_line,
                   'sh_stat': sh_stat,
                   'join_dates': [{'code': r['code'], 'name': r['name'], 'from': r['dates'][0]}
-                                 for r in rows if r['dates'][0] > days[0]],
-                  'bridge': calc_bridge(rows, None),
+                                 for r in core_rows if r['dates'][0] > days[0]],
+                  'bridge': calc_bridge(core_rows, None),
                   'cum_path': calc_cum_path(days, [combo_cum[d] for d in days], CYCLE),
-                  'turnover': calc_turnover_combo(rows),
+                  'turnover': calc_turnover_combo(core_rows),
+                  # ── 口径覆盖度：必须上屏，否则「23 只」和「实际算了几只」会被看混 ──
+                  #   深交所只给当前快照，8 只深市 core 要累积满 MIN_DAYS 才进合计，
+                  #   在那之前合计只含 15 只沪市 —— 这不是 bug，是数据源能力边界。
+                  'coverage': {
+                      'total': CORE_TOTAL,
+                      # in_combo：真的进了「合计」的只数（含尚未满 30 天的深市）
+                      'in_combo': len(core_rows),
+                      # curve_ready：够 30 天、能画进历史曲线的只数
+                      # ⚠ 这两个数必须分开 —— 否则会出现「说纳入 23 只、又列出 8 只没纳入」
+                      #   这种自相矛盾的文案（2026-11-17 真写出来过）。
+                      'curve_ready': len([r for r in core_rows if r['days'] >= MIN_DAYS]),
+                      'calibrating': [{'code': r['code'], 'name': r['name'], 'days': r['days'],
+                                       'note': r.get('note', '')} for r in thin
+                                      if r.get('role') == 'core'],
+                      'obs_in_page': [{'code': r['code'], 'name': r['name'],
+                                       'reason': '观察池，不进国家队合计'} for r in rows + thin
+                                      if r.get('role') == 'obs'],
+                  },
                   # 当日异动度：倍数 + 分档 + 一年分位。首页 KPI 直接读这几个字段。
                   'abnormal': abn,
                   'abn_latest': {
@@ -1356,7 +1419,7 @@ def main():
         'margin': mg,
         'rows': rows,
         'thin': thin,
-        'cycle': calc_cycle(rows, CYCLE),
+        'cycle': calc_cycle(core_rows, CYCLE),
         'inst_updated': inst['updated_at'],
         # 三只「红利」的对照。数据全部现算，只有「跟踪哪条指数、多少只样本、
         # 一年分红几次」这类【查证得来的事实】来自 DIVIDEND_FAMILY 常量。

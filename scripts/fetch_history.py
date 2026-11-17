@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
 import _td          # 交易日历 + 北京时钟，见 _td.py 开头的说明
 import _net         # 请求节流 + 账单，见 _net.py 开头的说明
+import _universe    # 全站唯一的标的清单，见 _universe.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -29,19 +30,9 @@ os.makedirs(DATA, exist_ok=True)
 
 START = date(2020, 1, 2)
 
-# (指数, 代码, 简称, 交易所)
-WATCH = [
-    ('上证50',   '510050', '50ETF', 'SSE'),
-    ('沪深300',  '510300', '300ETF华泰柏瑞', 'SSE'),
-    ('中证500',  '510500', '500ETF南方', 'SSE'),
-    ('中证1000', '512100', '1000ETF南方', 'SSE'),
-    ('科创50',   '588000', '科创50ETF华夏', 'SSE'),
-    ('红利',     '510880', '红利ETF华泰柏瑞', 'SSE'),
-    ('红利',     '515080', '中证红利ETF招商', 'SSE'),
-    ('创业板',   '159915', '创业板ETF易方达', 'SZSE'),
-    ('港股红利', '159545', '港股通红利低波ETF', 'SZSE'),
-    ('沪深300',  '159919', '300ETF嘉实', 'SZSE'),
-]
+# ⚠ 2026-11-17：名单统一到 _universe.py（原来这里手写 10 只，与 4 个脚本各一份）
+#                →  (指数, 代码, 简称, 交易所)
+WATCH = [(u[1], u[0], u[2], u[3]) for u in _universe.UNIVERSE]
 
 UA = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'}
 

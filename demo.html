@@ -72,6 +72,12 @@ nav button.on{color:var(--tx);border-bottom-color:var(--tx);font-weight:600}
 .kpi .v small{font-size:12px;font-weight:400;color:var(--tx3);margin-left:2px}
 .kpi .d{font-size:11px;color:var(--tx3);margin-top:3px}
 
+/* 口径说明条：默认低调，但内容必须在上屏就能读到 */
+.cov{margin:0 0 12px;padding:9px 12px;border-radius:8px;background:#F8FAFC;
+     border:1px solid #E2E8F0;font-size:11.5px;line-height:1.75;color:#475569}
+.cov b{color:#1E293B;font-weight:600}
+.cov .warn{color:#B45309}
+.cov .d{color:#94A3B8}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px 12px;margin-bottom:18px}
 .ph{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .pt{font-size:14px;font-weight:600}
@@ -408,6 +414,13 @@ tr.grp span{font-weight:400;color:#64748B}
        K 线回答的是「价格怎么走的」，两者不是同一个问题；
        放了 K 线反而让人以为这张图是在讲这只 ETF 的行情。
        价格走势挪到「市场共识」页，和情绪叠在一起看（那才是它该待的地方）。 -->
+
+  <!-- ── 口径说明（2026-11-17 加）────────────────────────────────────
+       为什么必须写在页面上而不是只写在代码注释里：
+       「监控组合」这四个字本身没有说清算了几只。7 只、16 只、23 只算出来的
+       当日净流入能差一倍，谁看到都会以为对方算错了。
+       所以这里直接写死口径 + 覆盖度，让「为什么跟别的站不一样」一眼可答。 -->
+  <div class="cov" id="covNote"></div>
 
   <div class="panel">
     <div class="ph">
@@ -939,6 +952,30 @@ document.getElementById('upd').textContent=D.updated_at;
 //    而是【会误导】：5,311 亿这个数会被直接读成「国家队规模」，
 //    实际它只是 7 只自选 ETF 的市值合计，且其中 2 只红利根本不在汇金名单上。
 //    一个需要三行小字才能解释清楚、且解释了还是容易被读错的数，不如不放。
+// ---------- 口径说明条 ----------
+// 「监控组合」没写清是几只，7/16/23 只算出来的当日净流入能差一倍。
+// 谁看到都会以为对方算错了，所以把口径直接写上屏。
+(function(){
+  const c=D.combo.coverage||{}, el=document.getElementById('covNote');
+  if(!el) return;
+  const inAll=(c.in_combo||0), tot=(c.total||0), ready=(c.curve_ready||0);
+  const cal=(c.calibrating||[]);
+  const obs=(c.obs_in_page||[]).map(o=>o.code+' '+o.name).join('、');
+  let h='<b>口径：中央汇金实际持有 '+tot+' 只 ETF</b>';
+  h+=' <span class="d">（2025 年报 21 只 + 汇金资管 15 只，去重；2026 中报名单未变）</span>';
+  h+='<br>不含观察池：'+obs+'　<span class="d">— 不在汇金名单里，只做单只展示，不进合计</span>';
+  // 「进合计」和「能画曲线」是两件事，分开说，否则文案会自相矛盾
+  h+='<br>当日净流入按 <b>'+inAll+' 只</b>统计';
+  if(ready<inAll && cal.length){
+    h+='　<span class="warn">⚠ 其中 '+cal.length+' 只（'
+      + cal.map(m=>m.code).join('、')
+      + '）深市数据刚开始累积（'+cal.map(m=>m.days+'天').join('/')
+      + '），已计入当日合计，但要满 30 个交易日才进历史曲线</span>';
+  }
+  h+='<span class="d">　深交所只提供当日快照、无法回补历史</span>';
+  el.innerHTML=h;
+})();
+
 const lastFlow=D.combo.flow[D.combo.flow.length-1];
 const sumN=(a,n)=>a.slice(-n).reduce((x,y)=>x+y,0);
 

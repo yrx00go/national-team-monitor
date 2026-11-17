@@ -22,23 +22,17 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _universe    # 全站唯一的标的清单，见 _universe.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 os.makedirs(DATA, exist_ok=True)
 
-WATCH = [
-    ('上证50',   '510050', '50ETF'),
-    ('沪深300',  '510300', '300ETF华泰柏瑞'),
-    ('中证500',  '510500', '500ETF南方'),
-    ('中证1000', '512100', '1000ETF南方'),
-    ('科创50',   '588000', '科创50ETF华夏'),
-    ('红利',     '510880', '红利ETF华泰柏瑞'),
-    ('红利',     '515080', '中证红利ETF招商'),
-    ('创业板',   '159915', '创业板ETF易方达'),
-    ('港股红利', '159545', '港股通红利低波ETF'),
-    ('沪深300',  '159919', '300ETF嘉实'),
-]
+# ⚠ 2026-11-17：名单统一到 _universe.py。
+#   ⚠ 这里只取 core（23 只）——机构持仓来自基金半年报/年报，
+#     多抓 4 只观察池会让每轮多 4 次基金公司页面请求，而红利/588000
+#     本来就不在国家队口径里，「存活率」这个指标对它们没有意义。
+WATCH = [(u[1], u[0], u[2]) for u in _universe.UNIVERSE if u[5] == 'core']
 
 UA = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
       'Referer': 'https://fundf10.eastmoney.com/'}

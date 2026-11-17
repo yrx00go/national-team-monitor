@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
 import _td          # 交易日历 + 北京时钟，见 _td.py 开头的说明
 import _net         # 请求节流 + 账单，见 _net.py 开头的说明
+import _universe    # 全站唯一的标的清单，见 _universe.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -28,11 +29,9 @@ DATA = os.path.join(BASE, 'data')
 # 这里留出余量早抓几天，免得 START 前移后要重抓。
 BEG = '20190101'
 
-CODES = {
-    '510050': 'sh', '510300': 'sh', '510500': 'sh', '512100': 'sh',
-    '588000': 'sh', '510880': 'sh', '515080': 'sh',
-    '159915': 'sz', '159545': 'sz', '159919': 'sz',
-}
+# ⚠ 2026-11-17：名单统一到 _universe.py，不再在这里手写。
+#   原来 10 只写死在这，和 fetch_etf / compute_demo 各写一份，改一只标的要动 5 处。
+CODES = {u[0]: ('sh' if u[3] == 'SSE' else 'sz') for u in _universe.UNIVERSE}
 
 
 def _get(url, referer='https://gu.qq.com/', tries=5):
