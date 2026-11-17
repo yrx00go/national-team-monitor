@@ -425,22 +425,24 @@ tr.grp span{font-weight:400;color:#64748B}
   <div class="panel">
     <div class="ph">
       <div class="pt">大盘点位与资金进出（监控组合合计）</div>
-      <div class="ps">蜡烛：上证指数走势（不占轴）　柱：单日净流入（亿元）　线：区间累计</div>
+      <div class="ps">左轴：上证指数点位　右轴：区间累计净流入　底部窄带：单日净流入</div>
       <div class="legend" style="justify-content:center">
         <span><i class="ln" style="background:#DC2626"></i>收阳蜡烛 / 净流入柱</span>
         <span><i class="ln" style="background:#16A34A"></i>收阴蜡烛 / 净流出柱</span>
         <span><i class="ln" style="background:#1D4ED8"></i>累计净流入（右轴）</span>
-        <span class="mut">上证只画形状、不上刻度，高低开收在悬停里读</span>
+        <span class="mut">悬停看当天资金量与开高低收</span>
       </div>
     </div>
     <div class="chartbox" style="height:430px"><canvas id="cCombo"></canvas></div>
     <div id="tsCombo"></div>
     <div class="ps" style="margin-top:7px">
-      读法：三样东西一张图、各读各的 ——
-      <b>蜡烛</b>是上证指数走势，只画形状不上刻度（点位跟「亿元」不是一种量，
-      硬塞进纵轴会让两边都读不准），高低开收在悬停里看；
-      <b>左轴</b>是单日净流入，红柱净买入、绿柱净卖出，浅灰零线是「不进不出」；
-      <b>右轴</b>是区间累计净流入，零线之上 = 净买入、之下 = 净卖出。
+      读法：三样东西一张图，各读各的 ——
+      <b>蜡烛</b>读左轴，是上证指数点位，实体红 = 收阳、实体绿 = 收阴，
+      高低开收在悬停里看；
+      <b>蓝线</b>读右轴，是区间累计净流入，零线之上 = 净买入、之下 = 净卖出；
+      <b>底部那条浅灰窄带</b>是单日净流入，红柱净买入、绿柱净卖出，
+      带子中间那条线是「不进不出」。柱高按<b>当前时间窗内的最大值</b>归一化
+      ——所以它只表示「这天在窗口里算多还是少」，绝对值请悬停看，或对比左轴刻度。
       2026-11-09 起深市 8 只并入合计，组合规模/成员数在那一天会跳一级
       —— 那是口径变化，不是行情。
     </div>
@@ -775,6 +777,9 @@ function bindZoom(chart,labels,win){
     reYearAxis(chart,labels,W.a,W.b);
     chart.update('none');       // 'none' = 不做动画，拖动才跟手
   };
+  // ⚠ 把窗口对象挂到图表上：插件的 beforeUpdate 阶段读 options/scales 都不可靠
+  //   （options 首帧还是空、scales 是上一帧），而 W 是唯一的实时状态源。
+  chart._winRef=W;
   cur={fn:apply,win:W};
   VIEW_SUBS.push(cur);
   return cur;
@@ -1224,6 +1229,10 @@ function buildTimeSlider(host,labels,onChange,target){
       //   组合图给 0.5，让蜡烛退成背景纹理；走势+情绪两张图不传，保持 1。
       const alpha=chart._klAlpha==null?1:chart._klAlpha;
       if(alpha<1) ctx.globalAlpha=alpha;
+      // ⚠ 2026-11-17：实体/空心由每张图指定（chart._klSolid）。
+      //   走势+情绪两张图不传 → 保持 A 股习惯的空心阳线；
+      //   组合图传 true → 全实体（OO 要求，空心在密集时显得虚）。
+      const solid=chart._klSolid===true;
       for(let i=lo;i<=hi;i++){
         const r=s.rows[i];
         if(!r) continue;      // 2026-11-17：组合图的 K 线按 D.days 对齐，允许 null（缺则不画）
@@ -1258,7 +1267,7 @@ function buildTimeSlider(host,labels,onChange,target){
         const yC=ya.getPixelForValue(r.c);
         const top=Math.min(yO,yC), bot=Math.max(yO,yC);
         const hgt=Math.max(1, bot-top);
-        if(up){
+        if(up && !solid){
           // 阳线空心（A 股习惯）：密集时仍能看出边界，纯实心会糊成一片
           ctx.fillRect(xc-bodyW/2, top, bodyW, hgt);
           if(bodyW>2.5){
@@ -1277,44 +1286,115 @@ function buildTimeSlider(host,labels,onChange,target){
   };
 
 
-// ---------- 组合图：上证K线 + 单日净流入柱 + 累计净流入线，三样一张图 ----------
+// ---------- 组合图：上证K线（左轴点位）+ 净流入柱（底部窄带）+ 累计线（右轴）----------
 // 演进史（别再重演）：
 //   ① 橙线(点位)+蓝线(累计) 单张双轴 → 两轴零点高度差 32.8pp，读数被投诉；
 //   ② 2026-11-17 上午：蜡烛+柱+线叠一张 + 量能副图 → 柱子盖蜡烛，OO 否掉；
-//   ③ 同日下午：抄对站 UI 的柱+线，上方单独一张 K 线 → 两张图纵向劈开，
-//      时间轴还得靠「上藏下显」硬贴，OO 说「放一张图上」（2026-11-17 14:31）；
-//   ④ 现在：三样叠一张。**关键在蜡烛不占任何可见刻度** ——
-//      点位（3400~4300）和金额（±千亿）差两个数量级，共轴必然有一边被压平。
-//      做法：蜡烛挂一个 display:false 的 yK，插件按它换算像素；
-//      可见的只有左轴（单日净流入）和右轴（累计净流入）。
-//      ⇒ 蜡烛提供「形状/位置感」，钱提供「刻度」，两者互不干扰。
+//   ③ 同日下午第一次：「柱+线」抄对站 UI，K 线单独一张 → OO 要合成一张；
+//   ④ 同日下午第二次：三样一张，K 线挂隐藏刻度不上轴 → OO 要「左轴是上证点位」；
+//   ⑤ 现在（OO 三条明确要求）：
+//      1) 蜡烛改实体（空心 → 实心）
+//      2) 左轴 = 上证指数点位（不再是「亿元」）
+//      3) 单日净流入柱压在图表底部一条窄带里，最高不超过右轴 −2000 的位置，
+//         悬停看当天资金量
+//
+// ★ 为什么柱子不能再挂 Chart.js 的轴：
+//   柱子如果挂左轴（点位），柱高会按点位比例画，几十亿的柱子贴着 4000 点画出来
+//   等于零高；挂右轴（累计）则高度会跟着累计范围变，缩放一换就跳。
+//   OO 要的是「固定压在底部、高度按当日资金量的相对大小」，与两轴的数值范围无关。
+//   ⇒ 所以柱子改成**在图表底部一条固定像素带里自绘**（barStrip 插件）：
+//     带高 = 图高的 14%，基线在带子顶部；向上是净流入、向下是净流出；
+//     归一化用**当前可见窗口内的最大值**，缩放就重新算 —— 这样永远读得出相对强弱。
 (function(){
   const kseries=(D.kline&&D.kline.series&&D.kline.series['000001'])||null;
   const kmap={}; if(kseries) kseries.rows.forEach(r=>{kmap[r.d]=r;});
   const KL=D.days.map(d=>kmap[d]||null);
   const hasK=KL.some(Boolean);
 
+  const FLOW=D.combo.flow, CUM=D.combo.cum;
+
+  // ── 底部资金带插件 ──
+  // 为什么不画成一张独立的副图：OO 要的是「放上去能看到当天的资金量」，
+  //   独立副图就得再来一根 x 轴、再来一个滑条，图也越来越长。
+  //   压在主图底部一条带里，既保留「走势+资金同屏对照」，又不抢 K 线的位置。
+  // 底部给资金带留出的比例（占绘图区高度）。K 线、累计线、柱子带三者共用它，
+  // 否则蜡烛会踩进带子里把柱子盖住（第一版就是这样，柱子全被 K 线遮没）。
+  const BAND=0.17;
+
+  // 轴自适应：把两个轴的底部人为压低 BAND 比例，让走势整体落在带子之上。
+  // ⚠ 为什么必须在 beforeUpdate 里做：范围要随【当前可见窗口】重算，
+  //   缩放后如果还按全量范围算，带子会被蜡烛踩穿。
+  const flowStrip={
+    id:'flowStrip',
+    afterDatasetsDraw(chart){
+      const xa=chart.scales.x;
+      if(!xa) return;
+      const ca=chart.chartArea, ctx=chart.ctx;
+      const lo=Math.max(0, Math.floor(xa.min));
+      const hi=Math.min(FLOW.length-1, Math.ceil(xa.max));
+      if(hi<lo) return;
+
+      // 带子高度 = 绘图区高度 × BAND（与轴留白同一个数，两者必须一致）
+      const H=(ca.bottom-ca.top)*BAND;
+      const base=ca.bottom;             // 基线就在绘图区底部
+      const half=H/2;                   // 上下各一半：上=净流入，下=净流出
+      // ⚠ 零线放在 base-half 处，也就是说整条带子从 base-H 到 base
+      const zero=base-half;
+
+      // 归一化：用当前可见窗口内的最大绝对值（缩放后自动重算）
+      let mx=0;
+      for(let i=lo;i<=hi;i++){ const v=FLOW[i]; if(v!=null&&Math.abs(v)>mx) mx=Math.abs(v); }
+      if(mx<=0) return;
+
+      const span=Math.max(1, hi-lo);
+      const pxPer=Math.abs(xa.getPixelForValue(hi)-xa.getPixelForValue(lo))/span;
+      const w=Math.max(1, Math.min(9, pxPer*0.62));
+
+      ctx.save();
+      // 带子底色 + 顶边线：让人一眼看出「这是一条独立量带」，
+      // 而不是柱子从零线延伸下来（第一版没画边框，读起来像散落的色块）
+      ctx.fillStyle='rgba(214,211,209,.30)';
+      ctx.fillRect(ca.left, base-H, ca.right-ca.left, H);
+      ctx.strokeStyle='rgba(168,162,158,.55)';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(ca.left, base-H); ctx.lineTo(ca.right, base-H);
+      ctx.stroke();
+      // 零线（虚线，与蜡烛的影线区分开）
+      ctx.setLineDash([3,3]);
+      ctx.strokeStyle='rgba(120,113,108,.65)';
+      ctx.beginPath(); ctx.moveTo(ca.left, zero); ctx.lineTo(ca.right, zero); ctx.stroke();
+      ctx.setLineDash([]);
+
+      for(let i=lo;i<=hi;i++){
+        const v=FLOW[i];
+        if(v==null) continue;
+        const h=Math.min(half, Math.abs(v)/mx*half);
+        if(h<0.6) continue;
+        ctx.fillStyle = v>=0 ? 'rgba(220,38,38,.72)' : 'rgba(22,163,74,.72)';
+        const xc=xa.getPixelForValue(i);
+        ctx.fillRect(xc-w/2, v>=0?zero-h:zero, w, h);
+      }
+      ctx.restore();
+    }
+  };
+
   const dsets=[
-    {label:'单日净流入',data:D.combo.flow,
-     backgroundColor:D.combo.flow.map(f=>f==null?'transparent'
-       :(f>=0?'rgba(220,38,38,.55)':'rgba(22,163,74,.55)')),
-     borderWidth:0,barPercentage:.7,categoryPercentage:1,order:2},
-    {type:'line',label:'累计净流入',data:D.combo.cum,yAxisID:'y1',
+    {type:'line',label:'累计净流入',data:CUM,yAxisID:'y1',
      borderColor:C_LINE,backgroundColor:'transparent',borderWidth:1.8,
      pointRadius:0,fill:false,tension:.15,order:3},
   ];
   if(hasK){
-    // 脚手架：撑开隐藏的 yK 范围（点位），否则最高/最低影线被裁到绘图区外。
-    // ⚠ 必须显式 type:'line'：继承图表级 'bar' 会从刻度 0 起画，把范围拉到 0 起。
-    dsets.push({type:'line',label:'_h',data:KL.map(r=>r?r.h:null),yAxisID:'yK',
+    // 脚手架：撑开左轴（点位）范围，否则最高/最低影线被裁到绘图区外
+    dsets.push({type:'line',label:'_h',data:KL.map(r=>r?r.h:null),
       borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0,order:1});
-    dsets.push({type:'line',label:'_l',data:KL.map(r=>r?r.l:null),yAxisID:'yK',
+    dsets.push({type:'line',label:'_l',data:KL.map(r=>r?r.l:null),
       borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0,order:1});
   }
 
   charts.cCombo=new Chart(document.getElementById('cCombo'),{
-    type:'bar',
-    plugins:[candlePlugin],
+    type:'line',
+    plugins:[candlePlugin, flowStrip],
     data:{labels:D.days,datasets:dsets},
     options:{responsive:true,maintainAspectRatio:false,animation:false,
       layout:{padding:{bottom:8,right:26,top:2}},
@@ -1325,10 +1405,7 @@ function buildTimeSlider(host,labels,onChange,target){
             title:c=>c[0].label,
             label:c=>{
               if(c.dataset.label==='累计净流入')
-                return '累计净流入：'+sgn(D.combo.cum[c.dataIndex])+' 亿';
-              if(c.dataset.label==='单日净流入')
-                return '单日净流入：'+(c.dataIndex===0
-                  ?'—（区间起点）':sgn(D.combo.flow[c.dataIndex])+' 亿');
+                return '累计净流入：'+sgn(CUM[c.dataIndex])+' 亿';
               return null;
             },
             afterBody:c=>{
@@ -1338,49 +1415,82 @@ function buildTimeSlider(host,labels,onChange,target){
                 L.push('上证 开 '+fmt(r.o,2)+'　高 '+fmt(r.h,2),
                        '　　　低 '+fmt(r.l,2)+'　收 '+fmt(r.c,2)+'（'+sgn(chg,2)+'%）');
               }
+              // ⚠ 单日净流入不在 dataset 里了（柱子是自绘的），
+              //   所以必须在 afterBody 里补 —— 否则「悬停看当天资金量」这个要求就落空了。
+              const f=FLOW[k];
+              L.push('单日净流入：'+(k===0?'—（区间起点）'
+                :(f==null?'—':sgn(f)+' 亿')));
               L.push('组合规模：'+fmt(D.combo.size[k])+' 亿　成员 '+D.combo.members[k]+' 只');
               return L;
             }
           }}},
       scales:{
         x:yearAxis(D.days),
+        // 左轴 = 上证指数点位（OO 2026-11-17 要求）
         y:{position:'left',afterFit:sc=>{sc.width=64;},
+          title:{display:true,text:'上证指数（点）',font:{size:10},color:C_GRAY},
+          ticks:{font:{size:10},color:C_GRAY,callback:v=>Number(v).toFixed(0)},
+          grid:{color:'#F5F5F4'}
+        },
+        y1:{position:'right',afterFit:sc=>{sc.width=68;},
           beginAtZero:true,
-          title:{display:true,text:'亿元',font:{size:10},color:C_GRAY},
-          ticks:{font:{size:10},color:C_GRAY,callback:v=>v},
-          // 只画零线：零是「不进不出」，是这张图唯一的语义线
+          title:{display:true,text:'累计净流入（亿元）',font:{size:10},color:C_LINE,
+                 padding:{bottom:4}},
+          // ⚠ 有硬 min/max 后自动步长会算出 986.2 / −6951.113483 这种小数，
+          //   统一取整；precision:0 让 Chart.js 自己挑整数步长。
+          ticks:{font:{size:10},color:C_GRAY,precision:0,
+                 callback:v=>Math.round(v).toLocaleString()},
+          // 右轴只画零线：零是「不进不出」，这张图唯一的语义线
           grid:{display:true,
             color:ctx=>ctx.tick.value===0?'#A8A29E':'transparent',
             lineWidth:ctx=>ctx.tick.value===0?1:0,tickLength:0}
-        },
-        y1:{position:'right',afterFit:sc=>{sc.width=64;},
-          beginAtZero:true,
-          title:{display:true,text:'累计',font:{size:10},color:C_LINE,
-                 padding:{bottom:4}},
-          ticks:{font:{size:10},color:C_GRAY,callback:v=>v},
-          grid:{display:false}
-        },
-        // yK：只给蜡烛插件换算像素用，不显示、不出刻度。
-        // ⚠ 硬边界：不设 min/max 时实测被拉到 0..4500，蜡烛被压进上半幅
-        //   （原因未查清，硬边界是确定性修法）。
-        yK:(function(){
-          if(!hasK) return {display:false};
-          const hs=KL.map(r=>r?r.h:null).filter(v=>v!=null);
-          const ls=KL.map(r=>r?r.l:null).filter(v=>v!=null);
-          return {display:false,
-                  min:Math.floor(Math.min.apply(null,ls)*0.99),
-                  max:Math.ceil(Math.max.apply(null,hs)*1.01)};
-        })()
+        }
       }}
   });
-  // ⚠ _klY/_kl 必须在构造后立刻补并 update：animation:false 时首帧在构造里同步画完，
-  //   不补的话蜡烛按默认 'y'（金额轴）画 —— 范围差两个数量级，首屏蜡烛全糊在零线附近。
-  charts.cCombo._klY='yK';
+  // 蜡烛：实体 + 不透明（现在它是主角，柱子已让到底部带里）
   if(hasK) charts.cCombo._kl={rows:KL};
-  // 蜡烛退成背景（0.55），柱子和累计线才是这张图要读的东西
-  charts.cCombo._klAlpha=0.42;
+  charts.cCombo._klSolid=true;
+  charts.cCombo._klAlpha=0.95;
+
+  // ── 轴留白：让走势整体落在底部资金带之上 ──
+  // ⚠⚠ 走插件 beforeUpdate 走不通（试过两版）：钩子确实被调用、参数也对，
+  //   但写进 options.scales.y.min 的值在 Chart.js 后续的刻度适配里又被覆盖，
+  //   实测「近 3 月」窗口下轴始终停在 2280-4300（全量范围），蜡烛被压在上方 1/3。
+  //   改成【在 update 之前手动算好并写入】，配合 bindZoom 的 apply 一起跑 ——
+  //   这是唯一确定的时机：改完立刻 update('none')。
+  const fitBand=()=>{
+    if(!hasK) return;
+    const xa=charts.cCombo.scales.x;
+    const lo=Math.max(0, Math.floor(xa.min));
+    const hi=Math.min(KL.length-1, Math.ceil(xa.max));
+    if(hi<=lo) return;
+    let lmin=Infinity,lmax=-Infinity,cmin=Infinity,cmax=-Infinity;
+    for(let i=lo;i<=hi;i++){
+      const r=KL[i];
+      if(r){ if(r.l<lmin) lmin=r.l; if(r.h>lmax) lmax=r.h; }
+      const v=D.combo.cum[i];
+      if(v!=null){ if(v<cmin) cmin=v; if(v>cmax) cmax=v; }
+    }
+    if(!isFinite(lmin)||lmax<=lmin) return;
+    const k=(BAND/(1-BAND))*1.06;
+    const sp=lmax-lmin;
+    const y=charts.cCombo.options.scales.y;
+    y.min=Math.floor((lmin-sp*k)/10)*10;
+    y.max=Math.ceil((lmax+sp*0.02)/10)*10;
+    if(isFinite(cmin)&&cmax>cmin){
+      const cs=cmax-cmin;
+      const y1=charts.cCombo.options.scales.y1;
+      y1.min=Math.floor((cmin-cs*k)/100)*100;
+      y1.max=Math.ceil(cmax/100)*100;
+    }
+  };
+  charts.cCombo._fitBand=fitBand;
+  fitBand();
   charts.cCombo.update('none');
-  bindZoom(charts.cCombo,D.days);
+  const sub=bindZoom(charts.cCombo,D.days);
+  // 把留白挂在同一个 apply 之后（每次窗口变化都重算）
+  const origApply=sub.fn;
+  sub.fn=()=>{ origApply(); fitBand(); charts.cCombo.update('none'); };
 
   window.tsCombo=buildTimeSlider(document.getElementById('tsCombo'),D.days);
 })();
