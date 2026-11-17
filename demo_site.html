@@ -425,23 +425,25 @@ tr.grp span{font-weight:400;color:#64748B}
   <div class="panel">
     <div class="ph">
       <div class="pt">大盘点位与资金进出（监控组合合计）</div>
-      <div class="ps">左轴：上证指数（点）　右轴：区间累计净流入（亿元）——
-        同一件事的两个面：蓝线是「钱」，橙线是「钱买在什么位置」</div>
+      <div class="ps">主图：上证指数蜡烛（走势）+ 单日净流入柱（左轴）+ 累计净流入线（右轴）；
+        副图：两市成交额（量能）。两张图共用一个时间滑条</div>
       <div class="legend">
-        <span><i class="ln" style="background:#B45309"></i>上证指数（左轴，点）— 日线</span>
-        <span><i class="ln" style="background:#1D4ED8"></i>区间累计净流入（右轴，亿元）</span>
-        <span class="mut">悬停看当日单日净流入与组合规模</span>
+        <span><i class="ln" style="background:#DC2626"></i>收阳（收 ≥ 开）</span>
+        <span><i class="ln" style="background:#16A34A"></i>收阴（收 &lt; 开）</span>
+        <span><i class="ln" style="background:#1D4ED8"></i>累计净流入（右轴，亿元）</span>
+        <span class="mut">红/绿淡柱 = 单日净流入（左轴，亿元）· 蜡烛开高低收在悬停里读</span>
       </div>
     </div>
     <div class="chartbox" style="height:400px"><canvas id="cCombo"></canvas></div>
+    <div class="chartbox" style="height:110px;margin-top:6px"><canvas id="cComboVol"></canvas></div>
     <div id="tsCombo"></div>
     <div class="ps" style="margin-top:7px">
-      读法：两条线各读自己那一侧的刻度。中间那条深色横线是右轴的 <b>0</b> ——
-      线上是「区间起点以来净买入」，线下是「净卖出」。它不在最底部，因为累计最低下探到
-      −1950 亿，轴必须往下留出这段水下高度，否则那条线会贴着边框走。
-      左轴是点位，点位没有「零」这层含义，所以它没有零线。
-      单日净流入的柱子放在这张图的尺度上每根不到 1 像素，看不出来，只留在悬停里
-      —— <b>把时间窗缩到近 3 月就能看见柱子了</b>。
+      读法：主图三套刻度各读各的 —— <b>蜡烛</b>的高低开收不占轴（悬停看数，只有形状）；
+      <b>左轴</b>是单日净流入，红柱净买入、绿柱净卖出，浅灰零线是「不进不出」；
+      <b>右轴</b>是区间累计净流入，深色零线之上 = 净买入、之下 = 净卖出。
+      副图是两市成交额（量能），柱子颜色跟当天涨跌，蓝线是 5 日均量。
+      缩放时间窗时两张图一起动。2026-11-09 起深市 8 只并入合计，
+      组合规模/成员数在那一天会跳一级 —— 那是口径变化，不是行情。
     </div>
   </div>
 
@@ -1187,100 +1189,245 @@ function buildTimeSlider(host,labels,onChange,target){
   return {setRange:(a,b)=>{A.value=a;B.value=b;commit();}};
 }
 
-// ---------- 组合图（单张，双轴：左=上证点位，右=累计净流入）----------
-// 演进史（别重复踩）：
-//   ① 最早是「柱用左轴 + 线用右轴」的单张双轴 → 两轴各自自动缩放，
-//      实测左轴 0 线在 55.0% 高度、右轴 0 线在 22.1% 高度，差 32.8pp，
-//      用户投诉「任意数额都无法与纵坐标匹配」。根子是【两根轴零点落在不同高度】，不是「有双轴」。
-//   ② 于是拆成上下两张，回避了双轴 → 读数安全了，但「钱 vs 位置」的对照关系也没了。
-//   ③ 现在是单张双轴，但两根轴的缩放策略【故意不同】：
-//      右轴（金额）beginAtZero:true —— 零是「不进不出」，必须能看见，零点在底部零线上；
-//      左轴（点位）自动缩放 —— 3200 点里没有「零」这层含义，从 0 起算是无信息的留白。
-//      ⚠ 这不是偏心，是两种量本身的性质不同。实测若左轴也从 0 起算，
-//        1582 点的跨度只能占 35.2% 绘图高度（128px/365px），指数会被压成一条直线。
-//      代价：两根轴的零点不再重合（点位轴根本没有零点刻度）。
-//      所以每根线必须在 legend 和轴标题里写清「读哪一侧」——靠标注消歧，不靠对齐消歧。
-//   ④ 为什么可以叠在一起：实测 corr(上证指数, 累计净流入) = −0.1258，
-//      两者近乎无关 —— 这是【两个独立信号】，不是一个信号画了两遍。
-//      （对比：单只页 份额 vs 累计净流入 = 0.9821，那条才必须降级到 tooltip。）
-(function(){
-  const SH=D.combo.sh_index||[];
-  const hasSh=SH.some(x=>x!=null);
+  // ⚠ 2026-11-17 上移：蜡烛插件原来是 const，定义在走势+情绪那节（组合图代码之后），
+  //   组合图构造 Chart 时引用它 → TDZ「Cannot access before initialization」→
+  //   整个脚本从这行起全部中断，页面图表全空。const 必须定义在使用之前。
+  // ── 蜡烛插件（从原组合页 K 线搬过来，逻辑不变）──
+  // ⚠ 只画当前可见窗口内的蜡烛。全量 2001 根时逐根画，每根 <1px，
+  //   画出来是一团红绿噪点；每帧 2001 次 fillRect 手机也会掉帧。
+  //   每根宽度 <2.2px 时改画「高低影线 + 收盘点」的线状 ——
+  //   这是 K 线图在极度压缩时的标准退化画法。
+  const candlePlugin={
+    id:'candles',
+    afterDatasetsDraw(chart){
+      const s=chart._kl;
+      if(!s||!s.rows.length) return;
+      const ctx=chart.ctx;
+      // ⚠ 2026-11-17：刻度可由图表指定（_klY）。组合图里蜡烛用的是隐藏的 yK ——
+      //   点位（3000 点级）和金额（±百亿级）不能共轴，而三条可见轴会把两边挤满。
+      //   不传 _klY 的图（走势+情绪两张）仍用默认 'y'，行为不变。
+      const xa=chart.scales.x, ya=chart.scales[chart._klY||'y'];
+      if(!xa||!ya) return;
 
-  // ⚠ Chart.js 的 order 是「数值大的画在上层」，不是小的。这里先写反过一次：
-  //    指数线 order:1 被压在蓝色填充区下面，橙线发灰。现在让指数在最上层。
+      const lo=Math.max(0, Math.floor(xa.min));
+      const hi=Math.min(s.rows.length-1, Math.ceil(xa.max));
+      if(hi<lo) return;
+
+      const span=Math.max(1, hi-lo);
+      const pxPer=Math.abs(xa.getPixelForValue(hi)-xa.getPixelForValue(lo))/span;
+      const thin=pxPer<2.2;
+      const bodyW=Math.max(1, Math.min(11, pxPer*0.62));
+
+      ctx.save();
+      for(let i=lo;i<=hi;i++){
+        const r=s.rows[i];
+        if(!r) continue;      // 2026-11-17：组合图的 K 线按 D.days 对齐，允许 null（缺则不画）
+        const up=r.c>=r.o;
+        const col=up?'#DC2626':'#16A34A';
+        const xc=xa.getPixelForValue(i);
+        const yH=ya.getPixelForValue(r.h);
+        const yL=ya.getPixelForValue(r.l);
+
+        ctx.strokeStyle=col;
+        ctx.fillStyle=col;
+        ctx.lineWidth=thin?1:Math.max(1,Math.min(1.6,pxPer*0.14));
+
+        if(thin){
+          ctx.beginPath();
+          ctx.moveTo(xc, yH);
+          ctx.lineTo(xc, yL);
+          ctx.stroke();
+          if(pxPer>=1.1){
+            const yC=ya.getPixelForValue(r.c);
+            ctx.fillRect(xc-0.7, yC-0.7, 1.4, 1.4);
+          }
+          continue;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(xc, yH);
+        ctx.lineTo(xc, yL);
+        ctx.stroke();
+
+        const yO=ya.getPixelForValue(r.o);
+        const yC=ya.getPixelForValue(r.c);
+        const top=Math.min(yO,yC), bot=Math.max(yO,yC);
+        const hgt=Math.max(1, bot-top);
+        if(up){
+          // 阳线空心（A 股习惯）：密集时仍能看出边界，纯实心会糊成一片
+          ctx.fillRect(xc-bodyW/2, top, bodyW, hgt);
+          if(bodyW>2.5){
+            ctx.save();
+            ctx.globalCompositeOperation='destination-out';
+            ctx.fillRect(xc-bodyW/2+1, top+1,
+                         Math.max(1,bodyW-2), Math.max(1,hgt-2));
+            ctx.restore();
+          }
+        }else{
+          ctx.fillRect(xc-bodyW/2, top, bodyW, hgt);
+        }
+      }
+      ctx.restore();
+    }
+  };
+
+
+// ---------- 组合图：K线（走势）+ 资金叠加 + 量能副图 ----------
+// 演进史（别重复踩）：
+//   ① 最早「柱左轴+线右轴」单张双轴 → 两轴零点落在不同高度，读数被投诉，拆成上下两张；
+//   ② 拆两张 → 「钱 vs 位置」的对照关系也没了，又合回单张双轴，两根轴缩放策略故意不同
+//      （金额轴 beginAtZero：零是「不进不出」必须可见；点位轴自动缩放：点位没有「零」的含义）；
+//   ③ 2026-11-17 OO 定：走势用蜡烛图表示、同时展示当日量能 → 行情软件标准布局：
+//        主图  上证指数蜡烛（隐藏刻度 yK）+ 单日净流入柱（左轴，亿元）
+//              + 累计净流入线（右轴，亿元）
+//        副图  两市成交额柱 + MA5 均量线，与主图共用时间滑条
+//   ⚠ 蜡烛为什么藏在内部刻度：三条可见轴（点位/单日/累计）会把两侧挤满，
+//     所以蜡烛用 display:false 的 yK 自算范围，插件拿它换算像素，OHLC 进悬停。
+//   ⚠ 量能为什么单独副图：成交额（万亿级）和净流入（百亿级）差一个数量级，
+//     同轴会互相吃掉；行情软件的做法就是副图，这里照搬。
+//   ⚠ K线（2018-08 起 2000 天）比 D.days（2020-01 起）长，必须按【日期】对齐成
+//     与 D.days 等长的数组，缺的日子置 null —— 插件对 null 跳过（见 candlePlugin）。
+(function(){
+  const kseries=(D.kline&&D.kline.series&&D.kline.series['000001'])||null;
+  const kmap={}; if(kseries) kseries.rows.forEach(r=>{kmap[r.d]=r;});
+  const KL=D.days.map(d=>kmap[d]||null);
+  const hasK=KL.some(Boolean);
+
+  const vmap={}; D.volume.dates.forEach((d,i)=>{vmap[d]=i;});
+  const vget=arr=>D.days.map(d=>{const i=vmap[d];return i==null?null:arr[i];});
+  const VOLV=vget(D.volume.val), VOLMA=vget(D.volume.ma5), VOLP=vget(D.volume.pctile);
+  // 量能颜色跟当天涨跌（A股习惯：涨红跌绿）；缺 K 线的日子给灰底
+  const VOLC=D.days.map(d=>{const r=kmap[d];
+    return r?(r.c>=r.o?'rgba(220,38,38,.42)':'rgba(22,163,74,.42)'):'#E7E5E4';});
+
+  // ── 主图 ──
+  const flowC=D.combo.flow.map(f=>f==null?'transparent'
+    :(f>=0?'rgba(220,38,38,.50)':'rgba(22,163,74,.50)'));
   const dsets=[
-    {type:'line',label:'区间累计净流入',data:D.combo.cum,yAxisID:'y1',
-     borderColor:C_LINE,backgroundColor:'rgba(29,78,216,.05)',borderWidth:1.5,
-     pointRadius:0,fill:true,tension:.15,order:1},
+    {type:'bar',label:'单日净流入',data:D.combo.flow,yAxisID:'y',
+     backgroundColor:flowC,borderWidth:0,order:2,
+     // ⚠ barPercentage 是「格子宽的倍数」不是百分比：100 = ×100（实测每根 2938px，
+     //   整张图被涂成红绿大色块）。占满格子传 1。
+     barPercentage:1,categoryPercentage:1},
+    {type:'line',label:'累计净流入',data:D.combo.cum,yAxisID:'y1',
+     borderColor:C_LINE,backgroundColor:'transparent',borderWidth:1.5,
+     pointRadius:0,fill:false,tension:.15,order:3},
   ];
-  if(hasSh){
-    // 橙线放后面入栈 + order 更大 = 画在最上层，避免被蓝色填充区盖住。
-    // ⚠ 宽度 1.7 → 1.3：1660 天挤在 ~1150px 里，每根日线占不到 0.7px，
-    //    1.7px 的笔画会让相邻两天的线在垂直方向叠起来，整条线糊成一片橙雾，
-    //    把蓝线的形状吃掉。细一点反而更能看出「这是高频日线」这个事实。
-    dsets.push({type:'line',label:'上证指数',data:SH,yAxisID:'y',
-      borderColor:C_AMBER,backgroundColor:'transparent',borderWidth:1.3,
-      pointRadius:0,pointHitRadius:0,fill:false,tension:0,order:5});
+  if(hasK){
+    // 脚手架：撑开 yK（隐藏刻度）的范围，否则最高/最低的影线会被裁到绘图区外。
+    // ⚠ 不能只给 close：Chart.js 只按数据点算范围（走势+情绪两张图踩过同一坑）。
+    // ⚠ 必须显式 type:'line'：图表级默认是 'bar'，柱子会从刻度 0 起画，
+    //   把 yK 范围强行拉到 0..4500（实测），蜡烛被压扁在上半部。
+    dsets.push({type:'line',label:'_h',data:KL.map(r=>r?r.h:null),yAxisID:'yK',
+      borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0,order:1});
+    dsets.push({type:'line',label:'_l',data:KL.map(r=>r?r.l:null),yAxisID:'yK',
+      borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0,order:1});
   }
 
   charts.cCombo=new Chart(document.getElementById('cCombo'),{
+    type:'bar',
+    plugins:[candlePlugin],
     data:{labels:D.days,datasets:dsets},
     options:{responsive:true,maintainAspectRatio:false,animation:false,
-      // ⚠ 这一行是修「X 轴年份只露半截」的关键：
-      //    实测 400px 高的 canvas 里 chartArea.bottom=374，留给 X 轴 26px，
-      //    而 X 轴本身就要 26px —— 富余 0px，字体渲染差 1px 就把年份切掉。
-      //    加 8px 底部留白后，X 轴实得 34px，有 8px 余量。
-      // 右侧留 26px：右轴标题是竖排文字，宽度约 14px，原来只留 4px 时
-      // 标题和刻度数字几乎贴在一起，视觉上糊成一条。
-      layout:{padding:{bottom:8,right:26,top:2}},
+      layout:{padding:{bottom:4,right:26,top:2}},
       interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},
-        tooltip:{callbacks:{
-          title:c=>c[0].label,
-          // ⚠ 按 label 判断而不是 datasetIndex：dataset 顺序会随 hasSh 变化，
-          //    用序号会在缺指数数据时把「累计净流入」错标成「上证指数」。
-          label:c=>c.dataset.label==='上证指数'
-            ? '上证指数：'+fmt(SH[c.dataIndex],2)+' 点'
-            : '区间累计：'+sgn(D.combo.cum[c.dataIndex])+' 亿',
-          afterBody:c=>{
-            const k=c[0].dataIndex, f=D.combo.flow[k], m=D.combo.members[k];
-            // 第 0 天没有「前一天」，净流入恒为 0 —— 说成 0 会让人以为当天真的不进不出
-            let t='单日净流入：'+(k===0?'—（区间起点）':(f==null?'—':sgn(f)+' 亿'));
-            t+='\n组合规模：'+fmt(D.combo.size[k])+' 亿　成员 '+m+' 只';
-            return t;
-          }
-        }}},
+        tooltip:{filter:it=>it.dataset.label!=='_h'&&it.dataset.label!=='_l',
+          callbacks:{
+            title:c=>c[0].label,
+            label:c=>{
+              if(c.dataset.label==='累计净流入')
+                return '累计净流入：'+sgn(D.combo.cum[c.dataIndex])+' 亿';
+              if(c.dataset.label==='单日净流入')
+                return '单日净流入：'+(c.dataIndex===0
+                  ?'—（区间起点）':sgn(D.combo.flow[c.dataIndex])+' 亿');
+              return null;
+            },
+            afterBody:c=>{
+              const k=c[0].dataIndex, r=KL[k], L=[];
+              if(r){
+                const chg=(r.c/r.o-1)*100;
+                L.push('上证 开 '+fmt(r.o,2)+'　高 '+fmt(r.h,2),
+                       '　　　低 '+fmt(r.l,2)+'　收 '+fmt(r.c,2)+'（'+sgn(chg,2)+'%）');
+              }
+              const v=VOLV[k];
+              if(v!=null) L.push('两市成交 '+fmt(v,0)+' 亿'
+                +(VOLP[k]!=null?'　（近5年分位 '+VOLP[k].toFixed(0)+'%）':''));
+              L.push('组合规模：'+fmt(D.combo.size[k])+' 亿　成员 '+D.combo.members[k]+' 只');
+              return L;
+            }
+          }}},
       scales:{
-        x:yearAxis(D.days),
+        // x 刻度由下方量能副图统一出，主图藏掉（两张图贴在一起才像一张行情图）
+        x:Object.assign(yearAxis(D.days),{display:false}),
         y:{
-          position:'left',afterFit:s=>{s.width=58;},
-          // 不设 beginAtZero：点位不需要从 0 起算（见上方 ③）
-          title:{display:true,text:'上证指数（点）',font:{size:10},color:C_AMBER},
-          ticks:{font:{size:10},color:C_AMBER,callback:v=>Number(v).toFixed(0)},
-          grid:{display:false},
-          display:hasSh
+          position:'left',afterFit:sc=>{sc.width=64;},
+          beginAtZero:true,
+          title:{display:true,text:'单日净流入（亿元）',font:{size:10},color:C_GRAY},
+          ticks:{font:{size:10},color:C_GRAY,callback:v=>v+'亿'},
+          grid:{display:true,
+            color:ctx=>ctx.tick.value===0?'#A8A29E':'transparent',
+            lineWidth:ctx=>ctx.tick.value===0?1:0,tickLength:0}
         },
         y1:{
-          // 右轴给 74 而不是 58：刻度标签带「亿」字（7000亿 比 4400 宽两成），
-          // 58px 会让数字顶满，竖排标题只能贴着外沿挤出去。
-          position:'right',afterFit:s=>{s.width=74;},
+          position:'right',afterFit:sc=>{sc.width=74;},
           beginAtZero:true,
           title:{display:true,text:'累计净流入（亿元）',font:{size:10},color:C_LINE,
                  padding:{bottom:4}},
           ticks:{font:{size:10},color:C_GRAY,callback:v=>v+'亿'},
-          // 只画金额轴的零线，其余刻度线透明：零是「不进不出」，是这张图唯一需要
-          // 强调的语义线（线上=净买入，线下=净卖出）。点位轴没有零，所以零线归右轴。
           grid:{display:true,
             color:ctx=>ctx.tick.value===0?'#78716C':'transparent',
-            lineWidth:ctx=>ctx.tick.value===0?1.2:0,
-            tickLength:0}
-        }
+            lineWidth:ctx=>ctx.tick.value===0?1.2:0,tickLength:0}
+        },
+        // yK 用硬边界：实测不设 min/max 时被拉到 0..4500，蜡烛被压进上半幅
+        // （数据 2700~3900 应占满绘图区）。原因未查清（疑似隐藏刻度的默认行为），
+        // 硬边界是确定性的修法——蜡烛插件只拿它换算像素，不出刻度。
+        yK:(function(){
+          const hs=KL.map(r=>r?r.h:null).filter(v=>v!=null);
+          const ls=KL.map(r=>r?r.l:null).filter(v=>v!=null);
+          return {display:false,
+                  min:Math.floor(Math.min.apply(null,ls)*0.995),
+                  max:Math.ceil(Math.max.apply(null,hs)*1.005)};
+        })()
       }}
   });
-
-  // 接上全局时间窗 + 把滑条造出来
+  // ⚠ _klY/_kl 必须在构造后立刻补并 update：animation:false 时首帧在构造里同步画完，
+  //   不补的话蜡烛按默认 'y'（金额轴）画 —— 范围差三个数量级，首屏蜡烛全糊在零线附近。
+  charts.cCombo._klY='yK';
+  if(hasK) charts.cCombo._kl={rows:KL};
+  charts.cCombo.update('none');
   bindZoom(charts.cCombo,D.days);
+
+  // ── 量能副图：与主图共用时间窗（bindZoom 同一个 VIEW）和 x 刻度 ──
+  charts.cComboVol=new Chart(document.getElementById('cComboVol'),{
+    type:'bar',
+    data:{labels:D.days,datasets:[
+      {label:'两市成交额',data:VOLV,backgroundColor:VOLC,borderWidth:0,
+       barPercentage:1,categoryPercentage:1,yAxisID:'y'},
+      {type:'line',label:'MA5',data:VOLMA,yAxisID:'y',
+       borderColor:'#2563EB',borderWidth:1.1,pointRadius:0,fill:false,tension:.2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      layout:{padding:{bottom:8,right:26,top:0}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{
+          title:c=>c[0].label,
+          label:c=>c.dataset.label==='MA5'
+            ? 'MA5 均量：'+fmt(VOLMA[c.dataIndex],0)+' 亿'
+            : '两市成交：'+fmt(VOLV[c.dataIndex],0)+' 亿'
+        }}},
+      scales:{
+        x:yearAxis(D.days),
+        y:{position:'left',afterFit:sc=>{sc.width=64;},beginAtZero:true,
+          title:{display:true,text:'成交额（亿元）',font:{size:10},color:C_GRAY},
+          ticks:{font:{size:10},color:C_GRAY,maxTicksLimit:5,
+            callback:v=>v>=10000?((v/10000).toFixed(1).replace(/\.0$/,'')+'万'):v},
+          grid:{color:'#F5F5F4'}}
+      }}
+  });
+  bindZoom(charts.cComboVol,D.days);
+
   window.tsCombo=buildTimeSlider(document.getElementById('tsCombo'),D.days);
 })();
 
@@ -1413,80 +1560,6 @@ function buildTimeSlider(host,labels,onChange,target){
     return {arr:out, hit};
   }
 
-  // ── 蜡烛插件（从原组合页 K 线搬过来，逻辑不变）──
-  // ⚠ 只画当前可见窗口内的蜡烛。全量 2001 根时逐根画，每根 <1px，
-  //   画出来是一团红绿噪点；每帧 2001 次 fillRect 手机也会掉帧。
-  //   每根宽度 <2.2px 时改画「高低影线 + 收盘点」的线状 ——
-  //   这是 K 线图在极度压缩时的标准退化画法。
-  const candlePlugin={
-    id:'candles',
-    afterDatasetsDraw(chart){
-      const s=chart._kl;
-      if(!s||!s.rows.length) return;
-      const ctx=chart.ctx;
-      const xa=chart.scales.x, ya=chart.scales.y;
-      if(!xa||!ya) return;
-
-      const lo=Math.max(0, Math.floor(xa.min));
-      const hi=Math.min(s.rows.length-1, Math.ceil(xa.max));
-      if(hi<lo) return;
-
-      const span=Math.max(1, hi-lo);
-      const pxPer=Math.abs(xa.getPixelForValue(hi)-xa.getPixelForValue(lo))/span;
-      const thin=pxPer<2.2;
-      const bodyW=Math.max(1, Math.min(11, pxPer*0.62));
-
-      ctx.save();
-      for(let i=lo;i<=hi;i++){
-        const r=s.rows[i];
-        const up=r.c>=r.o;
-        const col=up?'#DC2626':'#16A34A';
-        const xc=xa.getPixelForValue(i);
-        const yH=ya.getPixelForValue(r.h);
-        const yL=ya.getPixelForValue(r.l);
-
-        ctx.strokeStyle=col;
-        ctx.fillStyle=col;
-        ctx.lineWidth=thin?1:Math.max(1,Math.min(1.6,pxPer*0.14));
-
-        if(thin){
-          ctx.beginPath();
-          ctx.moveTo(xc, yH);
-          ctx.lineTo(xc, yL);
-          ctx.stroke();
-          if(pxPer>=1.1){
-            const yC=ya.getPixelForValue(r.c);
-            ctx.fillRect(xc-0.7, yC-0.7, 1.4, 1.4);
-          }
-          continue;
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(xc, yH);
-        ctx.lineTo(xc, yL);
-        ctx.stroke();
-
-        const yO=ya.getPixelForValue(r.o);
-        const yC=ya.getPixelForValue(r.c);
-        const top=Math.min(yO,yC), bot=Math.max(yO,yC);
-        const hgt=Math.max(1, bot-top);
-        if(up){
-          // 阳线空心（A 股习惯）：密集时仍能看出边界，纯实心会糊成一片
-          ctx.fillRect(xc-bodyW/2, top, bodyW, hgt);
-          if(bodyW>2.5){
-            ctx.save();
-            ctx.globalCompositeOperation='destination-out';
-            ctx.fillRect(xc-bodyW/2+1, top+1,
-                         Math.max(1,bodyW-2), Math.max(1,hgt-2));
-            ctx.restore();
-          }
-        }else{
-          ctx.fillRect(xc-bodyW/2, top, bodyW, hgt);
-        }
-      }
-      ctx.restore();
-    }
-  };
 
   // ⚠⚠ 两张图**共用同一个时间窗**（CVVIEW）。
   //   理由：这两个标的的交易日序列实测完全相同（都是 2001 天、
