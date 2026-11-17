@@ -425,25 +425,23 @@ tr.grp span{font-weight:400;color:#64748B}
   <div class="panel">
     <div class="ph">
       <div class="pt">大盘点位与资金进出（监控组合合计）</div>
-      <div class="ps">主图：上证指数蜡烛（走势）+ 单日净流入柱（左轴）+ 累计净流入线（右轴）；
-        副图：两市成交额（量能）。两张图共用一个时间滑条</div>
-      <div class="legend">
-        <span><i class="ln" style="background:#DC2626"></i>收阳（收 ≥ 开）</span>
-        <span><i class="ln" style="background:#16A34A"></i>收阴（收 &lt; 开）</span>
-        <span><i class="ln" style="background:#1D4ED8"></i>累计净流入（右轴，亿元）</span>
-        <span class="mut">红/绿淡柱 = 单日净流入（左轴，亿元）· 蜡烛开高低收在悬停里读</span>
+      <div class="ps">柱：单日净流入（亿元）　线：区间累计　上：上证指数 K 线（走势）</div>
+      <div class="legend" style="justify-content:center">
+        <span><i class="ln" style="background:#DC2626"></i>净流入柱（亿元）</span>
+        <span><i class="ln" style="background:#16A34A"></i>净流出柱（亿元）</span>
+        <span><i class="ln" style="background:#1D4ED8"></i>累计净流入（右轴，累计）</span>
+        <span class="mut">上证 K 线高低开收在悬停里读 · 两图共用一根时间滑条</span>
       </div>
     </div>
-    <div class="chartbox" style="height:400px"><canvas id="cCombo"></canvas></div>
-    <div class="chartbox" style="height:110px;margin-top:6px"><canvas id="cComboVol"></canvas></div>
+    <div class="chartbox" style="height:260px"><canvas id="cK"></canvas></div>
+    <div class="chartbox" style="height:300px;margin-top:6px"><canvas id="cCombo"></canvas></div>
     <div id="tsCombo"></div>
     <div class="ps" style="margin-top:7px">
-      读法：主图三套刻度各读各的 —— <b>蜡烛</b>的高低开收不占轴（悬停看数，只有形状）；
-      <b>左轴</b>是单日净流入，红柱净买入、绿柱净卖出，浅灰零线是「不进不出」；
-      <b>右轴</b>是区间累计净流入，深色零线之上 = 净买入、之下 = 净卖出。
-      副图是两市成交额（量能），柱子颜色跟当天涨跌，蓝线是 5 日均量。
-      缩放时间窗时两张图一起动。2026-11-09 起深市 8 只并入合计，
-      组合规模/成员数在那一天会跳一级 —— 那是口径变化，不是行情。
+      读法：上图是上证指数 K 线（只看走势，不占资金刻度）；下图左轴是单日净流入
+      —— 红柱净买入、绿柱净卖出，浅灰零线是「不进不出」；右轴是区间累计净流入，
+      零线之上 = 净买入、之下 = 净卖出。缩放时间窗时两张图一起动。
+      2026-11-09 起深市 8 只并入合计，组合规模/成员数在那一天会跳一级
+      —— 那是口径变化，不是行情。
     </div>
   </div>
 
@@ -1272,162 +1270,115 @@ function buildTimeSlider(host,labels,onChange,target){
   };
 
 
-// ---------- 组合图：K线（走势）+ 资金叠加 + 量能副图 ----------
-// 演进史（别重复踩）：
-//   ① 最早「柱左轴+线右轴」单张双轴 → 两轴零点落在不同高度，读数被投诉，拆成上下两张；
-//   ② 拆两张 → 「钱 vs 位置」的对照关系也没了，又合回单张双轴，两根轴缩放策略故意不同
-//      （金额轴 beginAtZero：零是「不进不出」必须可见；点位轴自动缩放：点位没有「零」的含义）；
-//   ③ 2026-11-17 OO 定：走势用蜡烛图表示、同时展示当日量能 → 行情软件标准布局：
-//        主图  上证指数蜡烛（隐藏刻度 yK）+ 单日净流入柱（左轴，亿元）
-//              + 累计净流入线（右轴，亿元）
-//        副图  两市成交额柱 + MA5 均量线，与主图共用时间滑条
-//   ⚠ 蜡烛为什么藏在内部刻度：三条可见轴（点位/单日/累计）会把两侧挤满，
-//     所以蜡烛用 display:false 的 yK 自算范围，插件拿它换算像素，OHLC 进悬停。
-//   ⚠ 量能为什么单独副图：成交额（万亿级）和净流入（百亿级）差一个数量级，
-//     同轴会互相吃掉；行情软件的做法就是副图，这里照搬。
-//   ⚠ K线（2018-08 起 2000 天）比 D.days（2020-01 起）长，必须按【日期】对齐成
-//     与 D.days 等长的数组，缺的日子置 null —— 插件对 null 跳过（见 candlePlugin）。
+// ---------- 组合图：上证K线（上）+ 资金进出（下），共用一根时间滑条 ----------
+// 演进史（别再重演）：
+//   ① 橙线(点位)+蓝线(累计) 单张双轴 → 两轴零点高度差 32.8pp，读数被投诉；
+//   ② 2026-11-17 上午：蜡烛+柱+线叠一张、下面加量能副图 → 柱子盖蜡烛，OO 否掉；
+//   ③ 2026-11-17 下午 OO 定稿：抄对站（etf.maomaoci-a.com）的资金图 UI ——
+//      单日净流入柱（红进绿出）+ 累计净流入线（蓝），左轴「亿元」右轴「累计」，
+//      【只在这套 UI 上面补一张上证 K 线图】。量能副图撤掉：参考 UI 没有，
+//      量能信息「量能与杠杆」面板本来就有，不在这里重复。
+//   结构：两张独立 canvas 上下贴放，共用 VIEW 时间滑条（bindZoom 同一状态）；
+//   K 线图藏 x 刻度、由下方资金图统一出 —— 贴起来仍像一张行情图。
 (function(){
   const kseries=(D.kline&&D.kline.series&&D.kline.series['000001'])||null;
   const kmap={}; if(kseries) kseries.rows.forEach(r=>{kmap[r.d]=r;});
   const KL=D.days.map(d=>kmap[d]||null);
   const hasK=KL.some(Boolean);
 
-  const vmap={}; D.volume.dates.forEach((d,i)=>{vmap[d]=i;});
-  const vget=arr=>D.days.map(d=>{const i=vmap[d];return i==null?null:arr[i];});
-  const VOLV=vget(D.volume.val), VOLMA=vget(D.volume.ma5), VOLP=vget(D.volume.pctile);
-  // 量能颜色跟当天涨跌（A股习惯：涨红跌绿）；缺 K 线的日子给灰底
-  const VOLC=D.days.map(d=>{const r=kmap[d];
-    return r?(r.c>=r.o?'rgba(220,38,38,.42)':'rgba(22,163,74,.42)'):'#E7E5E4';});
-
-  // ── 主图 ──
-  const flowC=D.combo.flow.map(f=>f==null?'transparent'
-    :(f>=0?'rgba(220,38,38,.50)':'rgba(22,163,74,.50)'));
-  const dsets=[
-    {type:'bar',label:'单日净流入',data:D.combo.flow,yAxisID:'y',
-     backgroundColor:flowC,borderWidth:0,order:2,
-     // ⚠ barPercentage 是「格子宽的倍数」不是百分比：100 = ×100（实测每根 2938px）。
-     //   1 = 占满格子，但柱子比蜡烛宽、把走势全盖住了（OO 2026-11-17 反馈「太大」）
-     //   → 收到 0.45，柱宽约半根蜡烛，主次分明。
-     barPercentage:.45,categoryPercentage:1},
-    {type:'line',label:'累计净流入',data:D.combo.cum,yAxisID:'y1',
-     borderColor:C_LINE,backgroundColor:'transparent',borderWidth:1.5,
-     pointRadius:0,fill:false,tension:.15,order:3},
-  ];
-  if(hasK){
-    // 脚手架：撑开 yK（隐藏刻度）的范围，否则最高/最低的影线会被裁到绘图区外。
-    // ⚠ 不能只给 close：Chart.js 只按数据点算范围（走势+情绪两张图踩过同一坑）。
-    // ⚠ 必须显式 type:'line'：图表级默认是 'bar'，柱子会从刻度 0 起画，
-    //   把 yK 范围强行拉到 0..4500（实测），蜡烛被压扁在上半部。
-    dsets.push({type:'line',label:'_h',data:KL.map(r=>r?r.h:null),yAxisID:'yK',
-      borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0,order:1});
-    dsets.push({type:'line',label:'_l',data:KL.map(r=>r?r.l:null),yAxisID:'yK',
-      borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0,order:1});
-  }
-
-  charts.cCombo=new Chart(document.getElementById('cCombo'),{
-    type:'bar',
+  // ── 上：上证指数 K 线 ──
+  // 蜡烛直接用可见 y 轴（点位，自动缩放）——走势+情绪两张图的成熟画法：
+  // type:'line' + candlePlugin + 脚手架撑范围。脚手架必须显式 type:'line'
+  //（继承 bar 会从 0 起画把轴拉爆，上午刚踩过）。
+  charts.cK=new Chart(document.getElementById('cK'),{
+    type:'line',
     plugins:[candlePlugin],
-    data:{labels:D.days,datasets:dsets},
+    data:{labels:D.days,datasets:[
+      {label:'_h',data:KL.map(r=>r?r.h:null),
+       borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0},
+      {label:'_l',data:KL.map(r=>r?r.l:null),
+       borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0},
+    ]},
     options:{responsive:true,maintainAspectRatio:false,animation:false,
-      layout:{padding:{bottom:4,right:26,top:2}},
+      layout:{padding:{bottom:2,right:26,top:2}},
       interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},
         tooltip:{filter:it=>it.dataset.label!=='_h'&&it.dataset.label!=='_l',
           callbacks:{
             title:c=>c[0].label,
-            label:c=>{
-              if(c.dataset.label==='累计净流入')
-                return '累计净流入：'+sgn(D.combo.cum[c.dataIndex])+' 亿';
-              if(c.dataset.label==='单日净流入')
-                return '单日净流入：'+(c.dataIndex===0
-                  ?'—（区间起点）':sgn(D.combo.flow[c.dataIndex])+' 亿');
-              return null;
-            },
+            label:()=>null,
             afterBody:c=>{
-              const k=c[0].dataIndex, r=KL[k], L=[];
-              if(r){
-                const chg=(r.c/r.o-1)*100;
-                L.push('上证 开 '+fmt(r.o,2)+'　高 '+fmt(r.h,2),
-                       '　　　低 '+fmt(r.l,2)+'　收 '+fmt(r.c,2)+'（'+sgn(chg,2)+'%）');
-              }
-              const v=VOLV[k];
-              if(v!=null) L.push('两市成交 '+fmt(v,0)+' 亿'
-                +(VOLP[k]!=null?'　（近5年分位 '+VOLP[k].toFixed(0)+'%）':''));
-              L.push('组合规模：'+fmt(D.combo.size[k])+' 亿　成员 '+D.combo.members[k]+' 只');
-              return L;
+              const r=KL[c[0].dataIndex];
+              if(!r) return [];
+              const chg=(r.c/r.o-1)*100;
+              return ['上证 开 '+fmt(r.o,2)+'　高 '+fmt(r.h,2),
+                      '　　　低 '+fmt(r.l,2)+'　收 '+fmt(r.c,2)+'（'+sgn(chg,2)+'%）'];
             }
           }}},
       scales:{
-        // x 刻度由下方量能副图统一出，主图藏掉（两张图贴在一起才像一张行情图）
+        // x 刻度由下方资金图统一出（两图贴放才像一张行情图）
         x:Object.assign(yearAxis(D.days),{display:false}),
-        y:{
-          position:'left',afterFit:sc=>{sc.width=64;},
-          beginAtZero:true,
-          title:{display:true,text:'单日净流入（亿元）',font:{size:10},color:C_GRAY},
-          ticks:{font:{size:10},color:C_GRAY,callback:v=>v+'亿'},
-          grid:{display:true,
-            color:ctx=>ctx.tick.value===0?'#A8A29E':'transparent',
-            lineWidth:ctx=>ctx.tick.value===0?1:0,tickLength:0}
-        },
-        y1:{
-          position:'right',afterFit:sc=>{sc.width=74;},
-          beginAtZero:true,
-          title:{display:true,text:'累计净流入（亿元）',font:{size:10},color:C_LINE,
-                 padding:{bottom:4}},
-          ticks:{font:{size:10},color:C_GRAY,callback:v=>v+'亿'},
-          grid:{display:true,
-            color:ctx=>ctx.tick.value===0?'#78716C':'transparent',
-            lineWidth:ctx=>ctx.tick.value===0?1.2:0,tickLength:0}
-        },
-        // yK 用硬边界：实测不设 min/max 时被拉到 0..4500，蜡烛被压进上半幅
-        // （数据 2700~3900 应占满绘图区）。原因未查清（疑似隐藏刻度的默认行为），
-        // 硬边界是确定性的修法——蜡烛插件只拿它换算像素，不出刻度。
-        yK:(function(){
-          const hs=KL.map(r=>r?r.h:null).filter(v=>v!=null);
-          const ls=KL.map(r=>r?r.l:null).filter(v=>v!=null);
-          return {display:false,
-                  min:Math.floor(Math.min.apply(null,ls)*0.995),
-                  max:Math.ceil(Math.max.apply(null,hs)*1.005)};
-        })()
+        y:{position:'left',afterFit:sc=>{sc.width=64;},
+          title:{display:true,text:'上证指数（点）',font:{size:10},color:C_GRAY},
+          ticks:{font:{size:10},color:C_GRAY,callback:v=>Number(v).toFixed(0)},
+          grid:{color:'#F5F5F4'}}
       }}
   });
-  // ⚠ _klY/_kl 必须在构造后立刻补并 update：animation:false 时首帧在构造里同步画完，
-  //   不补的话蜡烛按默认 'y'（金额轴）画 —— 范围差三个数量级，首屏蜡烛全糊在零线附近。
-  charts.cCombo._klY='yK';
-  if(hasK) charts.cCombo._kl={rows:KL};
-  charts.cCombo.update('none');
-  bindZoom(charts.cCombo,D.days);
+  // ⚠ _kl 必须构造后立刻补并 update：animation:false 时首帧同步画完，
+  //   不补的话蜡烛按折线画（走势+情绪两张图同款处理）。
+  if(hasK) charts.cK._kl={rows:KL};
+  charts.cK.update('none');
+  bindZoom(charts.cK,D.days);
 
-  // ── 量能副图：与主图共用时间窗（bindZoom 同一个 VIEW）和 x 刻度 ──
-  charts.cComboVol=new Chart(document.getElementById('cComboVol'),{
+  // ── 下：资金进出（对站 UI：柱=单日净流入，线=区间累计）──
+  charts.cCombo=new Chart(document.getElementById('cCombo'),{
     type:'bar',
     data:{labels:D.days,datasets:[
-      {label:'两市成交额',data:VOLV,backgroundColor:VOLC,borderWidth:0,
-       barPercentage:.7,categoryPercentage:1,yAxisID:'y'},
-      {type:'line',label:'MA5',data:VOLMA,yAxisID:'y',
-       borderColor:'#2563EB',borderWidth:1.1,pointRadius:0,fill:false,tension:.2}
+      {label:'单日净流入',data:D.combo.flow,
+       backgroundColor:D.combo.flow.map(f=>f==null?'transparent'
+         :(f>=0?'rgba(220,38,38,.75)':'rgba(22,163,74,.75)')),
+       borderWidth:0,barPercentage:.85,categoryPercentage:1},
+      {type:'line',label:'累计净流入',data:D.combo.cum,yAxisID:'y1',
+       borderColor:C_LINE,backgroundColor:'transparent',borderWidth:1.5,
+       pointRadius:0,fill:false,tension:.15},
     ]},
     options:{responsive:true,maintainAspectRatio:false,animation:false,
-      layout:{padding:{bottom:8,right:26,top:0}},
+      layout:{padding:{bottom:8,right:26,top:2}},
       interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},
         tooltip:{callbacks:{
           title:c=>c[0].label,
-          label:c=>c.dataset.label==='MA5'
-            ? 'MA5 均量：'+fmt(VOLMA[c.dataIndex],0)+' 亿'
-            : '两市成交：'+fmt(VOLV[c.dataIndex],0)+' 亿'
+          label:c=>{
+            if(c.dataset.label==='累计净流入')
+              return '累计净流入：'+sgn(D.combo.cum[c.dataIndex])+' 亿';
+            return '单日净流入：'+(c.dataIndex===0
+              ?'—（区间起点）':sgn(D.combo.flow[c.dataIndex])+' 亿');
+          },
+          afterBody:c=>{
+            const k=c[0].dataIndex;
+            return ['组合规模：'+fmt(D.combo.size[k])+' 亿　成员 '+D.combo.members[k]+' 只'];
+          }
         }}},
       scales:{
         x:yearAxis(D.days),
-        y:{position:'left',afterFit:sc=>{sc.width=64;},beginAtZero:true,
-          title:{display:true,text:'成交额（亿元）',font:{size:10},color:C_GRAY},
-          ticks:{font:{size:10},color:C_GRAY,maxTicksLimit:5,
-            callback:v=>v>=10000?((v/10000).toFixed(1).replace(/\.0$/,'')+'万'):v},
-          grid:{color:'#F5F5F4'}}
+        y:{position:'left',afterFit:sc=>{sc.width=64;},
+          beginAtZero:true,
+          title:{display:true,text:'亿元',font:{size:10},color:C_GRAY},
+          ticks:{font:{size:10},color:C_GRAY,callback:v=>v},
+          grid:{display:true,
+            color:ctx=>ctx.tick.value===0?'#A8A29E':'transparent',
+            lineWidth:ctx=>ctx.tick.value===0?1:0,tickLength:0}
+        },
+        y1:{position:'right',afterFit:sc=>{sc.width=64;},
+          beginAtZero:true,
+          title:{display:true,text:'累计',font:{size:10},color:C_LINE,
+                 padding:{bottom:4}},
+          ticks:{font:{size:10},color:C_GRAY,callback:v=>v},
+          grid:{display:false}
+        }
       }}
   });
-  bindZoom(charts.cComboVol,D.days);
+  bindZoom(charts.cCombo,D.days);
 
   window.tsCombo=buildTimeSlider(document.getElementById('tsCombo'),D.days);
 })();
