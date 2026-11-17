@@ -1292,9 +1292,10 @@ function buildTimeSlider(host,labels,onChange,target){
   const dsets=[
     {type:'bar',label:'单日净流入',data:D.combo.flow,yAxisID:'y',
      backgroundColor:flowC,borderWidth:0,order:2,
-     // ⚠ barPercentage 是「格子宽的倍数」不是百分比：100 = ×100（实测每根 2938px，
-     //   整张图被涂成红绿大色块）。占满格子传 1。
-     barPercentage:1,categoryPercentage:1},
+     // ⚠ barPercentage 是「格子宽的倍数」不是百分比：100 = ×100（实测每根 2938px）。
+     //   1 = 占满格子，但柱子比蜡烛宽、把走势全盖住了（OO 2026-11-17 反馈「太大」）
+     //   → 收到 0.45，柱宽约半根蜡烛，主次分明。
+     barPercentage:.45,categoryPercentage:1},
     {type:'line',label:'累计净流入',data:D.combo.cum,yAxisID:'y1',
      borderColor:C_LINE,backgroundColor:'transparent',borderWidth:1.5,
      pointRadius:0,fill:false,tension:.15,order:3},
@@ -1389,7 +1390,7 @@ function buildTimeSlider(host,labels,onChange,target){
     type:'bar',
     data:{labels:D.days,datasets:[
       {label:'两市成交额',data:VOLV,backgroundColor:VOLC,borderWidth:0,
-       barPercentage:1,categoryPercentage:1,yAxisID:'y'},
+       barPercentage:.7,categoryPercentage:1,yAxisID:'y'},
       {type:'line',label:'MA5',data:VOLMA,yAxisID:'y',
        borderColor:'#2563EB',borderWidth:1.1,pointRadius:0,fill:false,tension:.2}
     ]},
