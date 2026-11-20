@@ -1055,6 +1055,172 @@ def calc_cum_path(days, combo_cum, bounds):
     }
 
 
+def calc_bond_equity(be_raw, days_ref=None):
+    """股债比价：R = 沪深300全收益 / 中证全债，再看 R 的滚动 5 年分位。
+
+    ═══ 为什么这么算（这一段是本模块的全部价值，改之前先读完）═══
+
+    ❌ 先说我【否掉】的三种算法，以及为什么否掉：
+
+      ① 固定基准归一化后找「两线交叉」
+         这是原图的做法。但实测：2004-01-01 两者都归一到 1.0，
+         到 2026-11-19 沪深300全收益 = 6.00 倍、中证全债 = 2.67 倍。
+         **股票线永远在债券线上方，2006 年以后只可能交叉一次。**
+         原图画得出 6 次，是因为它每段重新设了基准 —— 那已经不是「同一起点比」，
+         而是「随便选个起点让它交叉」，起点一换结论就换。
+
+      ② 滚动 N 年归一化找交叉
+         实测 2/3/5 年分别得到 32/31/30 个月份的穿越，碎到没法看，
+         而且对 N 极其敏感 —— 换个 N 结论全变。这种指标不能上页面。
+
+      ③ R 的全历史分位
+         R 有强趋势漂移：2005 年 ≈ 8，2026 年 ≈ 22。
+         拿全历史分位去量今天，永远得出「股票很贵」（因为今天 R 天然比十年前高）。
+         实测 2008-11-04（历史大底）的全历史分位只有 8%，
+         却说不出「那时候比现在便宜 3 倍」——**它量的是趋势，不是贵贱。**
+
+    ✅ 采用：R 的滚动 5 年分位
+         R    = 沪深300全收益 / 中证全债
+         R 低 = 股票相对债券便宜（同样的钱买股票更划算）
+         分位 = 今天的 R 在过去 5 年（1220 个交易日）里的百分位
+         滚动窗口天然吃掉了趋势漂移，剩下的就是「相对自己近几年贵不贵」。
+
+      为什么是 5 年不是 3 年：
+        3 年窗口太短，2023-08 ~ 2024-09 那段会长期贴 0%（样本里全是下跌），
+        分位失去分辨力。5 年覆盖一轮完整的涨跌，实测曲线最平滑。
+        实测 5 年窗口下，六次历史低点的分位是 48/4/50/18/4/0% —— 后三次精准，
+        前两次（2008/2016）偏高，因为那两年的前 5 年正是大牛市，
+        R 的绝对值已经很高。**这是这个指标的已知盲区，页面上要写出来。**
+
+    ═══ 档位划分（写死，别按经验调）═══
+        <20%   便宜      —— 历史上这个位置买股票，5 年维度赢面大
+        20-40% 偏便宜
+        40-60% 中性
+        60-80% 偏贵
+        >80%   贵
+
+    ═══ 已知局限（必须显示在页面上，不能只写在代码里）═══
+        · 债券端用「中证全债」不是原图的「二级债基（80债+20股）」。
+          中证官网基金指数序列里没有二级债基（只有 H11020~H11026 那批），抓不到。
+          纯债比二级债基波动小 → 我们的 R 比原图更「极值化」，档位边界会偏。
+        · 分位是「相对自己近 5 年」，不是绝对估值。5 年都在跌，分位也会显得很低。
+        · 两轮牛市后的 5 年里，R 的分位会被前期高点压低（2008/2016 的盲区）。
+    """
+    if not be_raw:
+        return None
+    a = {d: c for d, c in (be_raw.get('hs300tr') or [])}
+    b = {d: c for d, c in (be_raw.get('bond') or [])}
+    days = sorted(set(a) & set(b))
+    if len(days) < 300:
+        print(f'  ⚠ 股债比价：共同交易日只有 {len(days)} 天，不足以算滚动分位')
+        return None
+
+    R = [a[d] / b[d] for d in days]
+    n = len(R)
+    WIN = 1220                      # 5 年 × 244 交易日
+    MIN_SAMPLE = 250                # 少于此不判分位（约 1 年）
+
+    def pct_at(i):
+        lo = max(0, i - WIN)
+        seg = R[lo:i + 1]
+        if len(seg) < MIN_SAMPLE:
+            return None
+        v = R[i]
+        return sum(1 for x in seg if x < v) / len(seg) * 100.0
+
+    def band(p):
+        if p is None:
+            return None
+        if p < 20:
+            return '便宜'
+        if p < 40:
+            return '偏便宜'
+        if p < 60:
+            return '中性'
+        if p < 80:
+            return '偏贵'
+        return '贵'
+
+    # ── 整条分位曲线（页面画图用）──
+    # ⚠ 只在能画的位置给值，前面的返回 None —— 否则前 250 天的 0%
+    #   会在图上画出一条贴着底边的假线。
+    pct_series = [pct_at(i) for i in range(n)]
+
+    cur_p = pct_series[-1]
+    cur_band = band(cur_p)
+
+    # ── 六轮历史低点：自动找，不手填 ──
+    #
+    # ⚠ 为什么不直接写死那六个日期：
+    #   写死的日期是「别人图上的红点」，不是我们算出来的。
+    #   而且他图上 2008 和 2016 那两轮，在我们口径下分位是 48%/50%，
+    #   根本不算低点 —— 照抄会得到一张「自己跟自己对不上」的图。
+    #   所以：**自动找每年分位最低的那天**，只保留分位 < 25% 的，作为「历史低位区」。
+    #   这样图上标的每一个点，都是我们自己的判据说出来的。
+    lows = []
+    for y in range(2005, int(days[-1][:4]) + 1):
+        idxs = [i for i in range(n) if days[i][:4] == str(y) and pct_series[i] is not None]
+        if not idxs:
+            continue
+        i = min(idxs, key=lambda k: pct_series[k])
+        if pct_series[i] < 25:
+            lows.append({
+                'date': days[i],
+                'pct': round(pct_series[i], 1),
+                'R': round(R[i], 2),
+                'band': band(pct_series[i]),
+            })
+
+    # ── 分位曲线用得上的历史参考：最高/最低 ──
+    valid = [(days[i], pct_series[i]) for i in range(n) if pct_series[i] is not None]
+    hi = max(valid, key=lambda x: x[1])
+    lo = min(valid, key=lambda x: x[1])
+
+    # ── 两条归一化曲线（页面画线用）──
+    #
+    # ⚠⚠ 基准必须是【首日】，不能取「5 年前」。
+    #   我第一版取的是「5 年前」（想让两条线在近端靠得近一点、形状好读），
+    #   但画的是**全历史**曲线 —— 结果 2005 年那一段被压到 0.127，
+    #   图上出现一条从 0.13 拉起来的假暴跌，而那段实际是 2005 年的熊市底。
+    #   **归一化的基准日必须和曲线覆盖的区间一致，否则前面那段就是错的。**
+    #
+    #   现在：以首日（2004-01-01）为 1.0，全区间画。
+    #   代价是股票线从 0.9 跑到 6.0、债券从 1.0 跑到 2.7，两条线远端会拉开 ——
+    #   但那才是事实：22 年里满仓股票确实赢债券 2 倍多。
+    #   想看清近几年的形状，用下面那张「分位图」，它已经消掉趋势了。
+    base = days[0]
+    a0, b0 = a[base], b[base]
+    na = [a[d] / a0 for d in days]
+    nb = [b[d] / b0 for d in days]
+
+    # ── 体检用的新鲜度（不在这里判，只把事实带出去）──
+    return {
+        'days': days,
+        'R': [round(x, 4) for x in R],
+        'pct': [None if p is None else round(p, 1) for p in pct_series],
+        'norm_hs': [round(x, 4) for x in na],
+        'norm_bond': [round(x, 4) for x in nb],
+        'base_date': base,
+        'cur': {
+            'date': days[-1],
+            'R': round(R[-1], 3),
+            'pct': None if cur_p is None else round(cur_p, 1),
+            'band': cur_band,
+            'hs': round(a[days[-1]], 2),
+            'bond': round(b[days[-1]], 2),
+        },
+        'lows': lows,
+        'ext': {
+            'hi_date': hi[0], 'hi': round(hi[1], 1),
+            'lo_date': lo[0], 'lo': round(lo[1], 1),
+        },
+        'win': WIN,
+        'n': n,
+        'src': (be_raw.get('meta') or {}).get('src') or '',
+        'at': (be_raw.get('meta') or {}).get('updated') or '',
+    }
+
+
 def _derive_health(shares, prices_qfq, prices_bfq, sh_idx, turn_raw,
                    mg_raw, inst, today):
     """没有上报记录时，直接从数据文件反推一份体检。
@@ -1643,6 +1809,71 @@ def main():
     except Exception as e:
         out['gold_survey'] = None
         print(f'  ⚠ 黄金调查读取失败：{type(e).__name__}: {e}')
+
+    # ── 股债比价（2026-11-20 新增）────────────────────────────────
+    #
+    # ⚠ 为什么这一块独立于「市场共识」：
+    #   共识层回答的是「别人在怎么说」（媒体/股吧/机构），
+    #   股债比价回答的是「相对债券，股票贵不贵」—— 这是个**自己的判据**，
+    #   跟谁在说什么无关。混进共识层就等于把「事实」和「观点」搅在一起，
+    #   而那一层已经因为四票制被反复重算过，不该再往里塞东西。
+    try:
+        _bp = os.path.join(DATA, 'bond_equity.json')
+        if os.path.exists(_bp):
+            _bj = json.load(open(_bp, encoding='utf-8'))
+            out['bond_equity'] = calc_bond_equity(_bj)
+            if out['bond_equity']:
+                _bc = out['bond_equity']['cur']
+                print(f'  股债比价：{_bc["date"]}  R={_bc["R"]}  '
+                      f'滚动5年分位 {_bc["pct"]}%（{_bc["band"]}）  '
+                      f'共 {out["bond_equity"]["n"]} 个交易日')
+
+                # ── 体检：股债比价 ──
+                #
+                # ⚠⚠ 关键：如果 fetch_bond.py 已经上报过（走 _fh.report），
+                #   _fh.summarize() 里就已经有这一项了 —— 这里再 append 一次
+                #   会让体检栏出现**两条「股债比价」**，一条 ok 一条 stale。
+                #   2026-11-20 第一次跑就踩到了：一条报 2026-11-19 ok（来自 report），
+                #   一条报 stale（来自这里的 append，因为 days_silent 算不到）。
+                #   **同一件事被两套判据各报一次，页面看起来像有两个数据源。**
+                #   所以先查重：summarize 有就用它的，没有才补一条。
+                _bl = _bc['date']
+                _blag = _fh._gap(_bl, today_real) if _bl else None
+                _has = any(h.get('key') == 'bond_equity' for h in health)
+                if not _has:
+                    if _blag is not None and _blag > 5:
+                        _bstate, _bnote = 'stale', f'最新停在 {_bl}，已 {_blag} 个交易日无新数据'
+                    else:
+                        _bstate, _bnote = 'ok', ''
+                    health.append({
+                        'key': 'bond_equity', 'name': '股债比价',
+                        'state': _bstate, 'last': _bl, 'lag': _blag,
+                        'got': out['bond_equity']['n'], 'want': None,
+                        'note': _bnote, 'days_bad': 0, 'days_silent': 0,
+                    })
+            else:
+                out['bond_equity'] = None
+                print('  ⚠ 股债比价：数据不足以计算（共同交易日 < 300）')
+                health.append({
+                    'key': 'bond_equity', 'name': '股债比价',
+                    'state': 'fail', 'last': None, 'lag': None,
+                    'got': 0, 'want': None,
+                    'note': '共同交易日不足 300 天，无法算滚动分位',
+                    'days_bad': 0, 'days_silent': 0,
+                })
+        else:
+            out['bond_equity'] = None
+            print('  ⚠ 没有 data/bond_equity.json（先跑 fetch_bond.py）')
+            health.append({
+                'key': 'bond_equity', 'name': '股债比价',
+                'state': 'fail', 'last': None, 'lag': None,
+                'got': 0, 'want': None,
+                'note': '文件不存在，先跑 fetch_bond.py',
+                'days_bad': 0, 'days_silent': 0,
+            })
+    except Exception as e:
+        out['bond_equity'] = None
+        print(f'  ⚠ 股债比价读取失败：{type(e).__name__}: {e}')
 
     try:
         _cp = os.path.join(DATA, 'consensus_history.json')

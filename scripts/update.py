@@ -258,6 +258,23 @@ def main():
     if not run('fetch_gold_survey.py', optional=True):
         fails.append('fetch_gold_survey.py（黄金调查未更新）')
 
+    # 股债比价：沪深300全收益 + 中证全债（2026-11-20 新增）
+    #
+    # ⚠ 为什么单独一个脚本而不是并进 fetch_index.py：
+    #   数据源完全不同 —— fetch_index 打东财 push2his，这个打中证官网。
+    #   两者的限流策略、失败形态都不一样（东财是 RemoteDisconnected 断连，
+    #   中证是 405 + 返回一个 HTML 页）。混在一个脚本里，
+    #   一类失败会拖垮另一类，而且体检栏分不清是哪边挂了。
+    #
+    # ⚠ 也正因为它走的是另一个域名（csindex.com.cn），
+    #   放在这一串东财脚本之后不会加剧 push2his 的限流 —— 配额是各算各的。
+    #
+    # ⚠ 这个源**没有备用源**。中证不给全收益指数的实时行情页，
+    #   只有 perf 接口。拿不到时脚本保留旧值并 exit=1，
+    #   页面照常出图（画的是上一次的数据），体检栏会标红。
+    if not run('fetch_bond.py', optional=True):
+        fails.append('fetch_bond.py（股债比价未更新，那一页会用旧值）')
+
     # 每日共识快照存档。**顺序必须在上面全部抓完之后** ——
     # 它读的是 gold_survey.json / sentiment.json 的最终结果。
     #

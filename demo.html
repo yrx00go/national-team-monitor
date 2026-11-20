@@ -399,6 +399,7 @@ tr.grp span{font-weight:400;color:#64748B}
   <button data-pane="single">单只 ETF</button>
   <button data-pane="inst">国家队持仓基准</button>
   <button data-pane="divi">股息率监控</button>
+  <button data-pane="bond">股债交汇</button>
   <button data-pane="consensus">市场共识</button>
 </nav>
 
@@ -619,6 +620,69 @@ tr.grp span{font-weight:400;color:#64748B}
        这一栏是「别人在怎么说」——媒体标题、股吧帖子、热度榜。是统计，不是事实。
      所以这里每一块都标了「这是什么 / 它不能拿来干什么」，
      因为没有出处的数字最容易被当成结论用。 -->
+<!-- ========== 股债交汇 ========== -->
+<!-- ⚠ 这一页是【两类内容拼起来的】，必须让人一眼分清哪块是谁的：
+     · 上半「别人怎么复盘」—— 6 轮历史交汇的示意，是引用，不是我们算的
+     · 下半「我们自己的判据」—— R 的滚动 5 年分位，天天更新
+     不做这个区分，看的人会把上面那张历史图当成结论用。 -->
+<div class="pane" id="pane-bond">
+  <div class="kpis k3" id="kpisBond"></div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">股债比价：R = 沪深300全收益 ÷ 中证全债</div>
+      <div class="ps">R 越低 = 股票相对债券越便宜　·　分位 = 今天的 R 在过去 5 年里的百分位</div>
+      <div class="legend" style="justify-content:center">
+        <span><i class="ln" style="background:#DC2626"></i>沪深300全收益</span>
+        <span><i class="ln" style="background:#7C3AED"></i>中证全债</span>
+        <span><i class="ln" style="background:#F59E0B"></i>历史低位区（我们算的）</span>
+      </div>
+    </div>
+    <div class="chartbox" style="height:400px"><canvas id="cBond"></canvas></div>
+    <div id="tsBond"></div>
+    <div class="ps" style="margin-top:7px">
+      两条线以 <b id="bondBase">—</b> 为 1.0 归一化，<b>纵轴用对数刻度</b> ——
+      归一化后股票跑到 7.6 倍、债券只有 2.7 倍，用线性轴债券会被压成一条平线。
+      对数轴把「倍数」变成等距，两条线之间的<b>垂直距离</b>才代表收益差距。
+      橙点是每年<b>分位最低</b>的那天（且分位 &lt; 25%），是程序自己找的，不是手填的年份。
+      想看近几年的形状请看下面那张分位图 —— 它已经消掉了长期趋势。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">分位刻度：现在处在历史什么位置</div>
+      <div class="ps" id="bondPctNote">—</div>
+    </div>
+    <div class="chartbox" style="height:280px"><canvas id="cBondPct"></canvas></div>
+    <div class="ps" style="margin-top:7px">
+      <b>怎么读这个数：</b>分位 &lt; 20% = 便宜，20–40% 偏便宜，40–60% 中性，60–80% 偏贵，&gt; 80% 贵。
+      它回答的是「股票相对债券贵不贵」，<b>不是「明天涨不涨」</b>。
+      分位低只说明「这个位置历史上买股票赢面大」，不代表不会再跌。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">历史低位区（每年最低那天，分位 &lt; 25%）</div>
+      <div class="ps">这是我们的判据算出来的，不是照抄别人的年份</div>
+    </div>
+    <div class="tblwrap">
+      <table id="tBondLow">
+        <thead><tr>
+          <th>日期</th><th class="num">R 值</th><th class="num">滚动5年分位</th><th>档位</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph"><div class="pt">口径（这段很重要，别跳过）</div></div>
+    <div class="ps" id="bondCaveat" style="line-height:1.9"></div>
+  </div>
+</div>
+
 <div class="pane" id="pane-consensus">
   <!-- 走势 + 情绪叠加图：两张（A股 / 黄金）。
        ⚠ 容器在这里、图在 JS 里建，而且是**懒建**：
@@ -1105,6 +1169,266 @@ function renderKpis(list,el){
 }
 renderKpis(kpisFlow, document.getElementById('kpis'));
 renderKpis(kpisLev,  document.getElementById('kpisLev'));
+
+// ══════════════════════════════════════════════════════════════
+//  股债交汇（2026-11-20 新增）
+// ══════════════════════════════════════════════════════════════
+//  这一页回答的问题和别处不一样：
+//    组合页 = 钱在进还是在出；共识页 = 别人在怎么说。
+//    这一页 = 相对债券，股票现在贵不贵。
+//
+//  ⚠ 全站唯一一个「自己造判据」的模块。
+//    别的栏都是搬运（份额、价格、两融有权威出处），这一栏的档位边界
+//    是我们定的。所以页面上必须把判据和局限都写出来，不能只给结论。
+(function(){
+  const BE = D.bond_equity;
+  if(!BE){ return; }
+
+  const cur=BE.cur, lows=BE.lows||[], days=BE.days||[];
+
+  // ── 顶部三个数 ──
+  // ⚠ 分位的颜色是真·语义色：低分位（便宜）用绿、高分位（贵）用红。
+  //   这里不能用全局 C_UP/C_DOWN —— 那是「涨红跌绿」的行情色，
+  //   而分位高不高跟涨跌无关。两套色混用会让人读反。
+  const pc = cur.pct;
+  const pColor = pc==null ? '' : (pc<20?'#16A34A':pc<40?'#65A30D':pc<60?'#78716C':pc<80?'#EA580C':'#DC2626');
+  const kpis=[
+    {k:'滚动 5 年分位', v:pc==null?'—':pc.toFixed(1), u:'%',
+     d:`${cur.band||'—'}　·　越低越好买`, color:pColor,
+     tag:{c:pColor||'#A8A29E'}},
+    {k:'股债比价 R', v:fmt(cur.R,2), u:'',
+     d:`沪深300全收益 ${fmt(cur.hs,0)} ÷ 中证全债 ${fmt(cur.bond,1)}`},
+    {k:'数据截至', v:cur.date, u:'',
+     d:`${BE.n} 个交易日　·　${BE.win} 日滚动窗`},
+  ];
+  renderKpis(kpis, document.getElementById('kpisBond'));
+
+  document.getElementById('bondBase').textContent = BE.base_date;
+
+  // ── 图 1：两条归一化曲线 + 历史低位区标记 ──
+  //
+  // ⚠ 用自绘插件画橙点，不用 Chart.js 的 dataset：
+  //   挂 dataset 就得占一个 y 轴，而两条线已经在 0.9~2.0 之间，
+  //   硬塞一个只有几十个点的 dataset 会把轴的范围带偏。
+  //   自绘只碰像素，不影响刻度。这是组合图那次踩出来的经验。
+  const lowMark={ id:'lowMark', afterDatasetsDraw(chart){
+    const xa=chart.scales.x, ya=chart.scales.y, ctx=chart.ctx;
+    const lo=Math.max(0, Math.floor(xa.min)), hi=Math.min(days.length-1, Math.ceil(xa.max));
+    const idx={};
+    days.forEach((d,i)=>{ idx[d]=i; });
+    ctx.save();
+    lows.forEach(L=>{
+      const i=idx[L.date];
+      if(i==null || i<lo || i>hi) return;
+      const x=xa.getPixelForValue(i);
+      const y=ya.getPixelForValue(BE.norm_hs[i]);
+      if(!isFinite(x)||!isFinite(y)) return;
+      // 竖虚线：从底到顶，表示「这一年最便宜的时候」
+      ctx.beginPath();
+      ctx.setLineDash([2,4]);
+      ctx.strokeStyle='rgba(245,158,11,.55)';
+      ctx.lineWidth=1;
+      ctx.moveTo(x, chart.chartArea.top);
+      ctx.lineTo(x, chart.chartArea.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // 橙点画在股票线上
+      ctx.beginPath();
+      ctx.arc(x,y,3.5,0,Math.PI*2);
+      ctx.fillStyle='#F59E0B';
+      ctx.fill();
+      ctx.strokeStyle='#fff';
+      ctx.lineWidth=1.2;
+      ctx.stroke();
+    });
+    ctx.restore();
+  }};
+
+  // ⚠⚠ 两张图都必须【懒建】。
+  //   pane-bond 默认 display:none，在隐藏容器里 new Chart 会拿到 clientWidth=0，
+  //   Chart.js 按 0 宽算比例尺 → 图挤在左上角，切过去也不会自己修好。
+  //   这个坑在共识页踩过一次（见 __initCvCharts 的注释），这里直接沿用。
+  let bondBuilt=false;
+  window.__initBondCharts=function(){
+    if(bondBuilt) return;
+    const el1=document.getElementById('cBond');
+    const el2=document.getElementById('cBondPct');
+    if(!el1||!el2||!el1.clientWidth) return;   // 还没可见 → 下次再说
+    bondBuilt=true;
+
+  charts.cBond=new Chart(document.getElementById('cBond'),{
+    type:'line',
+    data:{ labels:days, datasets:[
+      {label:'沪深300全收益', data:BE.norm_hs, borderColor:'#DC2626', borderWidth:1.6,
+       pointRadius:0, tension:0, fill:false, yAxisID:'y'},
+      {label:'中证全债', data:BE.norm_bond, borderColor:'#7C3AED', borderWidth:1.6,
+       pointRadius:0, tension:0, fill:false, yAxisID:'y'},
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          title:it=>it[0].label,
+          label:it=>`${it.dataset.label}　${(it.parsed.y*100).toFixed(0)}（2004起 = 100）`,
+          afterBody:it=>{
+            const i=it[0].dataIndex;
+            const p=BE.pct[i];
+            return p==null?[]:[`分位 ${p.toFixed(1)}%　R=${BE.R[i].toFixed(2)}`];
+          },
+        }},
+      },
+      scales:{
+        x:{ticks:{maxTicksLimit:10, autoSkip:true, font:{size:11}},
+           grid:{display:false}},
+        y:{position:'left', type:'logarithmic',
+           // ⚠⚠ 必须用对数轴，这是这张图能读的**唯一**前提。
+           //   实测归一化后：股票 0.82~7.57（9.2 倍跨度）、债券 0.99~2.68（2.7 倍）。
+           //   用线性轴 → 债券那条线被压成一条几乎水平的细线，
+           //   而它恰恰是「股债比价」的另一半，压平了就等于只画了股票。
+           //   对数轴把「倍数」变成等距：从 1 涨到 2 和从 4 涨到 8 占一样高，
+           //   这正好是「收益相等」该有的表达 —— 两条线的**距离**才代表差距。
+           title:{display:true, text:'归一化（2004-01-01 = 1，对数轴）',
+                  font:{size:11}, color:'#78716C'},
+           ticks:{font:{size:11},
+                  // ⚠ 对数轴默认只给 1 和 10 这类整数量级刻度（实测只出了 1 和 8），
+                  //   中间一片空白看不出差别。手动补 1/2/3/5/8 这几档 ——
+                  //   它们是 1~10 之间最自然的倍数锚点，够读又不拥挤。
+                  callback:v=>{
+                    const allow=[1,2,3,5,8];
+                    return allow.some(a=>Math.abs(v-a)<1e-6) ? String(v) : '';
+                  }},
+           grid:{color:'rgba(168,162,158,.18)'}},
+      },
+    },
+    plugins:[lowMark],
+  });
+
+  // ── 图 2：分位曲线（这个才是天天更新的那个指标）──
+  //
+  // ⚠ 画分位不画 R：R 有趋势漂移（2005 年 8 → 2026 年 22），
+  //   直接把 R 画上去，2020 年以后的部分永远贴在顶上，
+  //   看的人会得出「股票一直很贵」的错结论。
+  //   分位已经消掉漂移，0~100 之间来回走，才是可读的。
+  const pctBand={ id:'pctBand', beforeDatasetsDraw(chart){
+    // 20% / 80% 两条参考线：便宜和贵的分界
+    const {ctx, chartArea:ca, scales:{y}}=chart;
+    const y20=y.getPixelForValue(20), y80=y.getPixelForValue(80);
+    ctx.save();
+    // 便宜区（0~20%）淡绿
+    if(isFinite(y20)){
+      ctx.fillStyle='rgba(22,163,74,.07)';
+      ctx.fillRect(ca.left, y20, ca.right-ca.left, ca.bottom-y20);
+    }
+    // 贵区（80~100）淡红
+    if(isFinite(y80)){
+      ctx.fillStyle='rgba(220,38,38,.07)';
+      ctx.fillRect(ca.left, ca.top, ca.right-ca.left, y80-ca.top);
+    }
+    ctx.setLineDash([3,4]);
+    ctx.strokeStyle='rgba(22,163,74,.45)';
+    ctx.beginPath(); ctx.moveTo(ca.left,y20); ctx.lineTo(ca.right,y20); ctx.stroke();
+    ctx.strokeStyle='rgba(220,38,38,.45)';
+    ctx.beginPath(); ctx.moveTo(ca.left,y80); ctx.lineTo(ca.right,y80); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }};
+
+  charts.cBondPct=new Chart(document.getElementById('cBondPct'),{
+    type:'line',
+    data:{ labels:days, datasets:[
+      {label:'滚动5年分位', data:BE.pct, borderColor:'#B45309', borderWidth:1.5,
+       pointRadius:0, tension:0, fill:false, spanGaps:false},
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          title:it=>it[0].label,
+          label:it=>it.parsed.y==null?[]:`分位 ${it.parsed.y.toFixed(1)}%`,
+          afterBody:it=>{
+            const i=it[0].dataIndex;
+            return [`R=${BE.R[i].toFixed(2)}`];
+          },
+        }},
+      },
+      scales:{
+        x:{ticks:{maxTicksLimit:10, autoSkip:true, font:{size:11}}, grid:{display:false}},
+        y:{min:0, max:100, position:'left',
+           title:{display:true, text:'分位（%）', font:{size:11}, color:'#78716C'},
+           ticks:{font:{size:11}, stepSize:20},
+           grid:{color:'rgba(168,162,158,.18)'}},
+      },
+    },
+    plugins:[pctBand],
+  });
+
+  };   // ← __initBondCharts 结束
+
+
+  // 分位图的说明条
+  const pn=document.getElementById('bondPctNote');
+  if(pn){
+    pn.innerHTML=`当前 ${cur.date}　分位 <b style="color:${pColor}">${pc==null?'—':pc.toFixed(1)+'%'}</b>　`
+      +`（${cur.band||'—'}）　·　历史最高 ${BE.ext.hi.toFixed(1)}%（${BE.ext.hi_date}）　`
+      +`最低 ${BE.ext.lo.toFixed(1)}%（${BE.ext.lo_date}）`;
+  }
+
+  // ── 低位区表格 ──
+  const tb=document.querySelector('#tBondLow tbody');
+  if(tb){
+    tb.innerHTML = lows.slice().reverse().map(L=>`
+      <tr><td>${L.date}</td>
+        <td class="num">${L.R.toFixed(2)}</td>
+        <td class="num" style="color:#16A34A;font-weight:600">${L.pct.toFixed(1)}%</td>
+        <td><span style="color:#16A34A">${L.band}</span></td></tr>`).join('')
+      || '<tr><td colspan="4" class="mut">没有分位低于 25% 的年份</td></tr>';
+  }
+
+  // ── 口径说明 ──
+  //
+  // ⚠⚠ 这一段是本模块最重要的一段文字，不是免责声明套话。
+  //   它写的是「这个东西哪里会骗你」。少了它，页面上那些数字会被当成结论用。
+  const cv=document.getElementById('bondCaveat');
+  if(cv){
+    cv.innerHTML=`
+      <b>1. 股票端用「沪深300全收益（H00300）」不是 000300。</b>
+      价格指数把分红剔掉，而分红是 A 股年化 2–3% 的真实回报，十年差 30%。
+      用价格指数会让股债比价系统性低估股票收益 → 永远显示「股票便宜」→ 指标就废了。<br><br>
+
+      <b>2. 债券端用「中证全债（H11001）」，不是原图的「二级债基」。</b>
+      中证官网的基金指数序列里没有二级债基（只有开放式 H11020 / 股票型 H11021 /
+      混合型 H11022 / 债券型 H11023 / 货币 H11025 / QDII H11026 / 金牛系列），抓不到。
+      纯债比二级债基波动小 → <b>我们的 R 比原图更「极值化」，档位边界会偏保守</b>。<br><br>
+
+      <b>3. 为什么不用「两条线交叉」当判据（原图的做法）</b><br>
+      实测：2004-01-01 两者归一化都 =1.0，到 2026-11-19 沪深300全收益 = 6.00 倍、
+      中证全债 = 2.67 倍。<b>股票线永远在上方，2006 年后只可能交叉一次</b>，
+      画不出 6 次。原图能画 6 次，是因为它每段重新设了基准 —— 起点一换结论就换。<br><br>
+
+      <b>4. 已知盲区：两轮牛市之后，分位会被前期高点压低。</b>
+      实测 2008-11-04 和 2016-01-28 这两个历史大底，滚动 5 年分位分别是 48% 和 50%，
+      <b>在我们这套判据下它们不算「便宜」</b> —— 因为那两年往前数 5 年正是大牛市，
+      R 的绝对值已经被推得很高。所以这个指标对「熊市底部」的识别比「牛市顶部」弱。<br><br>
+
+      <b>5. 分位是「相对自己近 5 年」，不是绝对估值。</b>
+      5 年都在跌，分位也会显得低。它回答的是「比过去 5 年便宜还是贵」，
+      <b>不是「绝对值便宜」</b>，更不是「明天涨不涨」。<br><br>
+
+      <b>6. 这不是抄底信号。</b>
+      分位低只说明「这个位置历史上买股票赢面大」，不代表不会再跌。
+      原图自己那句话说得对：<i>「这只是历史复盘规律，不是抄底信号，
+      碰到就马上涨，也有可能继续磨底。」</i><br><br>
+
+      <span class="mut">数据源：中证指数官网 csindex.com.cn（H00300 / H11001）
+      ${BE.at?`　·　抓取于 ${BE.at}`:''}
+      　·　这条链路没有备用源，中证限流时保留旧值并在上面的体检栏报出来。</span>`;
+  }
+})();
+
 
 // ══════════════════════════════════════════════════════════════
 //  时间滑动条：把 DOM 造出来，接上全局 VIEW
@@ -3456,6 +3780,9 @@ function showPane(name){
   //   顺序不能反：pane 还是 display:none 时 clientWidth=0，
   //   Chart.js 会按 0 宽算比例尺，图挤在左上角且切回来不会自己修好。
   if(typeof window.__initCvCharts==='function') window.__initCvCharts();
+  // 股债页同理：pane 隐藏时建图会拿到 0 宽。这里单独一个钩子，
+  // 因为它的图不依赖「共识层」的数据，没必要跟 __initCvCharts 绑在一起。
+  if(name==='bond' && typeof window.__initBondCharts==='function') window.__initBondCharts();
   Object.values(charts).forEach(c=>c.resize&&c.resize());
 }
 document.querySelectorAll('nav button').forEach(b=>{
