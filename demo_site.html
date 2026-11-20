@@ -133,6 +133,11 @@ nav button.on{color:var(--tx);border-bottom-color:var(--tx);font-weight:600}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--tx2);margin-bottom:9px}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
 .legend .ln{width:14px;height:2px;border-radius:1px}
+/* 虚线图例项：图上是虚线，图例就得是虚线。
+   ⚠ 这条不是装饰 —— 中证全债和合成二级债基只有颜色和线型两个差别，
+     图例里都画实线的话，看的人没法在图例上学到「哪条是虚的」。 */
+.legend .ln.dash{height:0;border-top:2px dashed #0891B2;border-radius:0}
+.legend .dot{width:8px;height:8px;border-radius:50%;background:#F59E0B}
 /* K 线标的切换（上证 / 黄金）。
    ⚠ 只做切换，不做并排：两张 K 线并排会诱导横向比形状，
      而上证是点位、黄金是 ETF 价格，量纲完全不同，比形状毫无意义。 */
@@ -635,8 +640,8 @@ tr.grp span{font-weight:400;color:#64748B}
       <div class="legend" style="justify-content:center">
         <span><i class="ln" style="background:#DC2626"></i>沪深300全收益</span>
         <span><i class="ln" style="background:#7C3AED"></i>中证全债（纯债）</span>
-        <span><i class="ln" style="background:#0891B2"></i>合成二级债基（80债+20股）</span>
-        <span><i class="ln" style="background:#F59E0B"></i>历史低位区（我们算的）</span>
+        <span><i class="ln dash"></i>合成二级债基（80债+20股，虚线）</span>
+        <span><i class="dot"></i>历史低位区（我们算的）</span>
       </div>
     </div>
     <div class="chartbox" style="height:430px"><canvas id="cBond"></canvas></div>
