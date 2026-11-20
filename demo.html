@@ -634,19 +634,45 @@ tr.grp span{font-weight:400;color:#64748B}
       <div class="ps">R 越低 = 股票相对债券越便宜　·　分位 = 今天的 R 在过去 5 年里的百分位</div>
       <div class="legend" style="justify-content:center">
         <span><i class="ln" style="background:#DC2626"></i>沪深300全收益</span>
-        <span><i class="ln" style="background:#7C3AED"></i>中证全债</span>
+        <span><i class="ln" style="background:#7C3AED"></i>中证全债（纯债）</span>
+        <span><i class="ln" style="background:#0891B2"></i>合成二级债基（80债+20股）</span>
         <span><i class="ln" style="background:#F59E0B"></i>历史低位区（我们算的）</span>
       </div>
     </div>
-    <div class="chartbox" style="height:400px"><canvas id="cBond"></canvas></div>
+    <div class="chartbox" style="height:430px"><canvas id="cBond"></canvas></div>
     <div id="tsBond"></div>
     <div class="ps" style="margin-top:7px">
-      两条线以 <b id="bondBase">—</b> 为 1.0 归一化，<b>纵轴用对数刻度</b> ——
-      归一化后股票跑到 7.6 倍、债券只有 2.7 倍，用线性轴债券会被压成一条平线。
-      对数轴把「倍数」变成等距，两条线之间的<b>垂直距离</b>才代表收益差距。
+      三条线以 <b id="bondBase">—</b> 为 1.0 归一化，<b>纵轴用对数刻度</b> ——
+      归一化后股票跑到 7.6 倍、纯债只有 2.7 倍，用线性轴债那条会被压成平线。
+      对数轴把「倍数」变成等距，两条线之间的<b>垂直距离</b>才代表收益差距。<br>
+      <b>青线是合成的二级债基</b>（每日再平衡 80% 中证全债 + 20% 沪深300全收益）——
+      加它只为一件事：<b>让这张图能跟原图的画法对上</b>，好看清「交汇」是怎么产生的。
+      它含 20% 股票，所以股票跌时它也跟着跌，会比纯债更贴近股票线。
+      ⚠ 合成指数不是真实产品（没有费率、不严格再平衡），不能当成可投标的。<br>
       橙点是每年<b>分位最低</b>的那天（且分位 &lt; 25%），是程序自己找的，不是手填的年份。
-      想看近几年的形状请看下面那张分位图 —— 它已经消掉了长期趋势。
     </div>
+  </div>
+
+  <!-- ── B 方案：拆解原图的 6 轮「交汇」 ─────────────────────────
+       这块存在的唯一理由：原图那 6 个红点看上去像「同一件事发生了 6 次」，
+       实际它们相差一倍多。不把这件事摆出来，看的人会被误导。 -->
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">拆解原图的 6 轮「交汇」：它们其实是同一个位置吗？</div>
+      <div class="ps" id="bondHisNote">—</div>
+    </div>
+    <div class="tblwrap">
+      <table id="tBondHis">
+        <thead><tr>
+          <th>轮次</th><th>日期</th>
+          <th class="num">股票/二级债<br><span class="mut">越小越"贴近"</span></th>
+          <th class="num">滚动5年分位<br><span class="mut">越低越便宜</span></th>
+          <th>我们的档位</th><th>原图说他涨了</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="ps" id="bondHisBody" style="margin-top:9px;line-height:1.9"></div>
   </div>
 
   <div class="panel">
@@ -1263,6 +1289,12 @@ renderKpis(kpisLev,  document.getElementById('kpisLev'));
        pointRadius:0, tension:0, fill:false, yAxisID:'y'},
       {label:'中证全债', data:BE.norm_bond, borderColor:'#7C3AED', borderWidth:1.6,
        pointRadius:0, tension:0, fill:false, yAxisID:'y'},
+      // C 方案：合成二级债基。加它只为对齐原图的画法 ——
+      // 它含 20% 股票，会主动跟着股票跌，所以更容易跟红线「贴」在一起。
+      // 原图那个「交汇」的观感，一半来自这条线的性质。
+      {label:'合成二级债基', data:BE.norm_mix, borderColor:'#0891B2', borderWidth:1.4,
+       pointRadius:0, tension:0, fill:false, yAxisID:'y',
+       borderDash:[5,3]},
     ]},
     options:{
       responsive:true, maintainAspectRatio:false,
@@ -1388,6 +1420,64 @@ renderKpis(kpisLev,  document.getElementById('kpisLev'));
       || '<tr><td colspan="4" class="mut">没有分位低于 25% 的年份</td></tr>';
   }
 
+  // ── B 方案：拆解原图的 6 轮 ──
+  //
+  // ⚠ 这一块是本页信息密度最高的地方，写的时候守住两条：
+  //   ① 只摆事实，不嘲讽原图。原图作者大概率也不是故意误导 ——
+  //      他就是拿对数轴画了图，然后肉眼挑点。这是常见的作图失误，不是骗。
+  //   ② 每一行都必须同时给出「他的说法」和「我们的判据」，
+  //      让人自己看出差在哪。只给我们的数、不给他的数，等于不让人判断。
+  (function(){
+    const his=BE.his||[], cross=BE.cross||{};
+    const note=document.getElementById('bondHisNote');
+    if(note){
+      note.innerHTML = cross.n
+        ? `2004 年至今，股票线真正跌到债券线<b>下方</b>的只有 <b>${cross.n}</b> 个交易日，`
+          +`且全部在 <b>${cross.from} ~ ${cross.to}</b> 之间。<b>2006 年之后再没交叉过。</b>`
+        : `2004 年至今，股票线从未跌到债券线下方。`;
+    }
+    const t=document.querySelector('#tBondHis tbody');
+    if(t){
+      t.innerHTML = his.map(h=>{
+        // 分位配色：<20 绿 / <40 黄绿 / <60 灰 / 其它橙
+        const p=h.pct_mix;
+        const c = p==null?'#78716C':(p<20?'#16A34A':p<40?'#65A30D':p<60?'#78716C':'#EA580C');
+        // 「倍数差」越小越贴近。1.2 以下才算视觉上真的贴住了
+        const tight = h.gap < 1.3;
+        return `<tr>
+          <td>${h.tag}${h.year}</td>
+          <td>${h.date}</td>
+          <td class="num" style="${tight?'color:#0891B2;font-weight:600':''}">${h.gap.toFixed(2)}×</td>
+          <td class="num" style="color:${c};font-weight:600">${p==null?'—':p.toFixed(1)+'%'}</td>
+          <td style="color:${c}">${h.band_mix||'—'}</td>
+          <td class="mut" style="font-size:12px">${h.claim}</td>
+        </tr>`;
+      }).join('');
+    }
+    const bd=document.getElementById('bondHisBody');
+    if(bd && his.length){
+      const cheap = his.filter(h=>h.pct_mix!=null && h.pct_mix<20);
+      const mid   = his.filter(h=>h.pct_mix!=null && h.pct_mix>=40);
+      const gaps  = his.map(h=>h.gap);
+      const gmin=Math.min(...gaps), gmax=Math.max(...gaps);
+      bd.innerHTML = `
+        <b>这张表在说什么：</b><br>
+        ① 六轮的「股票/二级债」倍数在 <b>${gmin.toFixed(2)}× ~ ${gmax.toFixed(2)}×</b> 之间摆动。
+           倍数 1.00× 才是真正重合（长期收益相等），六轮里没有一轮到过 1.00×。
+           最近的一轮是 ${his[his.length-1].gap.toFixed(2)}× —— 还差
+           <b>${((1-1/his[his.length-1].gap)*100).toFixed(0)}%</b> 的股票跌幅才等于二级债。<br>
+        ② 但原图<b>看起来</b>它们都贴在债券线上，因为纵轴是对数轴、跨度拉到 0.8~20，
+           1.2~1.7 倍的差距只占图高的 7%~17%，肉眼就是「贴着」。<br>
+        ③ 更要紧的是：按滚动 5 年分位，六轮里只有 <b>${cheap.length}</b> 轮真的算「便宜」（&lt;20%），
+           有 <b>${mid.length}</b> 轮落在「中性」以上（≥40%）。
+           ${mid.length?`分别是 ${mid.map(h=>`<b>${h.tag}${h.year}（${h.pct_mix.toFixed(1)}%）</b>`).join('、')}。`:''}<br>
+           原因是那几年往前数 5 年正好是大牛市，R 的绝对值已经被推得很高 ——
+           <b>绝对水平高，不等于相对自己近几年贵。</b><br><br>
+        <span class="mut">结论：原图那 6 个点是「事后回头看哪个位置之后涨了」挑出来的，
+        不是一个能事前使用的判据。它作为历史科普没问题，但不能当信号。</span>`;
+    }
+  })();
+
   // ── 口径说明 ──
   //
   // ⚠⚠ 这一段是本模块最重要的一段文字，不是免责声明套话。
@@ -1399,10 +1489,16 @@ renderKpis(kpisLev,  document.getElementById('kpisLev'));
       价格指数把分红剔掉，而分红是 A 股年化 2–3% 的真实回报，十年差 30%。
       用价格指数会让股债比价系统性低估股票收益 → 永远显示「股票便宜」→ 指标就废了。<br><br>
 
-      <b>2. 债券端用「中证全债（H11001）」，不是原图的「二级债基」。</b>
+      <b>2. 债券端主判据用「中证全债（H11001）」，图上另画了一条合成的二级债基。</b>
       中证官网的基金指数序列里没有二级债基（只有开放式 H11020 / 股票型 H11021 /
-      混合型 H11022 / 债券型 H11023 / 货币 H11025 / QDII H11026 / 金牛系列），抓不到。
-      纯债比二级债基波动小 → <b>我们的 R 比原图更「极值化」，档位边界会偏保守</b>。<br><br>
+      混合型 H11022 / 债券型 H11023 / 货币 H11025 / QDII H11026 / 金牛系列），抓不到日线。
+      所以图上那条青线是<b>自己合成的</b>：每日再平衡 80% 中证全债 + 20% 沪深300全收益。<br>
+      <b>合成指数的局限（必须知道）：</b>没有申赎费和管理费、不严格每日再平衡、
+      20% 是监管上限而多数真实二级债基只在 10~15% 股票仓位。
+      <b>它只能用来对齐原图的画法，不能当成可投标的，也不进主判据。</b><br>
+      主判据（分位）仍用纯债口径。两种口径我都算了，结论几乎一样：
+      当前分位纯债 <b>${fmt(cur.pct,1)}%</b> vs 二级债基 <b>${fmt(cur.pct_mix,1)}%</b>，
+      六轮的档位也一致 —— <b>说明这个判据不依赖债券端怎么选，是稳健的。</b><br><br>
 
       <b>3. 为什么不用「两条线交叉」当判据（原图的做法）</b><br>
       实测：2004-01-01 两者归一化都 =1.0，到 2026-11-19 沪深300全收益 = 6.00 倍、

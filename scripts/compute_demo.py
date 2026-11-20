@@ -1120,12 +1120,37 @@ def calc_bond_equity(be_raw, days_ref=None):
     WIN = 1220                      # 5 年 × 244 交易日
     MIN_SAMPLE = 250                # 少于此不判分位（约 1 年）
 
-    def pct_at(i):
+    # ── 合成「二级债基」（C 方案，2026-11-20 加）────────────────────
+    #
+    # 为什么要有：原图的债券端不是纯债，是「二级债基」—— 80% 以上配债券、
+    # 最多 20% 配股票。中证官网没有这个指数的日线（基金指数序列只有
+    # H11020~H11026 那一批，没有二级债基），所以只能**自己合成**。
+    #
+    # 合成方法：每日再平衡，80% 中证全债 + 20% 沪深300全收益，从 1000 起复利。
+    #   逐日按权重加权当日收益，再累乘 —— 这等价于「每天收盘把仓位调回 8:2」。
+    #
+    # ⚠⚠ 必须说清这是合成指数，不是真实指数：
+    #   ① 真实的二级债基有申赎费、管理费、跟踪误差，实际收益比这个低
+    #   ② 真实基金经理不会严格 8:2 每日再平衡，仓位会变
+    #   ③ 20% 是上限不是常态，多数二级债基股票仓位在 10~15%
+    #   所以它只能用来「对齐原图的画法」，不能当成一个可投资的标的。
+    #   页面上必须标成「合成」。
+    mix = [1000.0]
+    for i in range(1, n):
+        rs = (a[days[i]] / a[days[i - 1]] - 1) if a[days[i - 1]] else 0.0
+        rb = (b[days[i]] / b[days[i - 1]] - 1) if b[days[i - 1]] else 0.0
+        mix.append(mix[-1] * (1 + 0.8 * rb + 0.2 * rs))
+
+    # 二级债基口径的比价：R2 = 股票 / 二级债基
+    R2 = [a[days[i]] / mix[i] for i in range(n)]
+
+    def pct_at(i, series):
+        """第 i 天在「过去 5 年」里的百分位。series 是要算的那条 R。"""
         lo = max(0, i - WIN)
-        seg = R[lo:i + 1]
+        seg = series[lo:i + 1]
         if len(seg) < MIN_SAMPLE:
             return None
-        v = R[i]
+        v = series[i]
         return sum(1 for x in seg if x < v) / len(seg) * 100.0
 
     def band(p):
@@ -1144,7 +1169,8 @@ def calc_bond_equity(be_raw, days_ref=None):
     # ── 整条分位曲线（页面画图用）──
     # ⚠ 只在能画的位置给值，前面的返回 None —— 否则前 250 天的 0%
     #   会在图上画出一条贴着底边的假线。
-    pct_series = [pct_at(i) for i in range(n)]
+    pct_series = [pct_at(i, R) for i in range(n)]
+    pct_series2 = [pct_at(i, R2) for i in range(n)]     # 二级债基口径（C）
 
     cur_p = pct_series[-1]
     cur_band = band(cur_p)
@@ -1192,22 +1218,83 @@ def calc_bond_equity(be_raw, days_ref=None):
     a0, b0 = a[base], b[base]
     na = [a[d] / a0 for d in days]
     nb = [b[d] / b0 for d in days]
+    nmix = [x / mix[0] for x in mix]        # 合成二级债基，C 方案画图用
+
+    # ── B 方案：把「他那 6 轮」用两套口径同时算出来 ────────────────
+    #
+    # ⚠⚠ 这一段的目的不是「复现他的图」，是**拆穿他的图**。
+    #
+    #   他的图标的 6 个点，看起来「都在两线交汇处」，好像同一件事发生了 6 次。
+    #   实测（本模块算出来的）：
+    #     · 这 6 个点的 R 从 13.45 到 20.95，跨度 1.6 倍 —— 根本不是同一个位置
+    #     · 但图上看它们都贴着债券线，因为纵轴是对数轴、跨度 0.8~20，
+    #       1.3~1.7 倍的差距只占图高 7%~17%，肉眼就是「贴着」
+    #     · 更要命的：2008 和 2016 这两轮，滚动 5 年分位是 48% / 50%（中性），
+    #       在他图上是「第一轮」「第三轮」，在我们的判据下根本不算便宜
+    #
+    #   所以这里给出的对照表，每一行都带上「他说的涨幅」和「我们的分位」，
+    #   让人一眼看到：**他挑的点，便宜程度差了一倍多。**
+    #
+    # 六轮的年份来自原图。日期取「该年 R2 最低的那天」，不手填具体日期 ——
+    # 因为图上看不到精确日期，手填等于编。
+    HIS_ROUNDS = [
+        (2008, '第一轮', '市场反弹大概 110%'),
+        (2012, '第二轮', '反复交汇磨底，后面走牛，累计上涨 150%'),
+        (2016, '第三轮', '熔断底交汇，蓝筹慢牛，涨了近 40%'),
+        (2018, '第四轮', '贸易战底部交汇，迎来修复行情，涨幅 55%'),
+        (2022, '第五轮', '年初交汇，阶段反弹 25%'),
+        (2024, '第六轮', '去年九月二次交汇，随后快速修复 30%'),
+    ]
+    his = []
+    for yy, tag, claim in HIS_ROUNDS:
+        idxs = [i for i in range(n) if days[i][:4] == str(yy)]
+        if not idxs:
+            continue
+        # 用二级债基口径找该年最低（这才是他图上的那个点）
+        i = min(idxs, key=lambda k: R2[k])
+        p1, p2 = pct_series[i], pct_series2[i]
+        his.append({
+            'year': yy, 'tag': tag, 'claim': claim,
+            'date': days[i],
+            'R_pure': round(R[i], 2),
+            'R_mix': round(R2[i], 3),
+            'gap': round(na[i] / nmix[i], 3),      # 股票 / 二级债基 = 倍数差
+            'pct_pure': None if p1 is None else round(p1, 1),
+            'pct_mix': None if p2 is None else round(p2, 1),
+            'band_mix': band(p2) if p2 is not None else None,
+        })
+
+    # 全部历史里，股票线真正低于债券线的天数（回答「到底有没有交叉过」）
+    real_cross_days = [days[i] for i in range(n) if na[i] < nb[i]]
 
     # ── 体检用的新鲜度（不在这里判，只把事实带出去）──
     return {
         'days': days,
         'R': [round(x, 4) for x in R],
+        'R_mix': [round(x, 4) for x in R2],
         'pct': [None if p is None else round(p, 1) for p in pct_series],
+        'pct_mix': [None if p is None else round(p, 1) for p in pct_series2],
         'norm_hs': [round(x, 4) for x in na],
         'norm_bond': [round(x, 4) for x in nb],
+        'norm_mix': [round(x, 4) for x in nmix],
+        'his': his,
+        'cross': {
+            'n': len(real_cross_days),
+            'from': real_cross_days[0] if real_cross_days else None,
+            'to': real_cross_days[-1] if real_cross_days else None,
+        },
         'base_date': base,
         'cur': {
             'date': days[-1],
             'R': round(R[-1], 3),
+            'R_mix': round(R2[-1], 3),
             'pct': None if cur_p is None else round(cur_p, 1),
+            'pct_mix': (None if pct_series2[-1] is None
+                        else round(pct_series2[-1], 1)),
             'band': cur_band,
             'hs': round(a[days[-1]], 2),
             'bond': round(b[days[-1]], 2),
+            'mix': round(mix[-1], 2),
         },
         'lows': lows,
         'ext': {

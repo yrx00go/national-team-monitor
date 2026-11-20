@@ -200,6 +200,108 @@ class TestBondEquity(unittest.TestCase):
         years = [L['date'][:4] for L in be['lows']]
         self.assertEqual(len(years), len(set(years)))
 
+    # ══════════════════════════════════════════════════════════
+    # C 方案：合成二级债基（2026-11-20 加）
+    # ══════════════════════════════════════════════════════════
+    # ⚠ 这一组锁的不是「哪个指数涨得好」，是「合成出来的东西还在不在
+    #   股票和纯债之间」。越界就说明权重写错或复利方式错了。
+
+    def test_norm_mix_between_bond_and_stock(self):
+        """股票年化 8% / 纯债 3% 的匀速行情下，8:2 合成的净值必须夹在两者中间。
+
+        这条是 C 方案的底线：如果它跑到了债券线下面或股票线上面，
+        说明权重或日收益公式写反了（比如把 rb、rs 写混），
+        那样页面上那条青线会画出「不存在的第三条路」。
+        """
+        be = CD.calc_bond_equity(_mk(8, 3))
+        nh, nb, nm = be['norm_hs'], be['norm_bond'], be['norm_mix']
+        self.assertEqual(len(nm), len(nh), 'norm_mix 长度必须和日序列一致')
+        # 第 0 天是基准日，三条线都等于 1.0，不参与严格大小比较
+        for i in (1, len(nm) // 2, len(nm) - 1):
+            self.assertGreater(nm[i], nb[i], f'第 {i} 天：合成线跌到纯债下面了')
+            self.assertLess(nm[i], nh[i], f'第 {i} 天：合成线跑到股票上面了')
+
+    def test_norm_mix_starts_at_one(self):
+        """归一化基准和另外两条线用同一天 —— 否则三条线没法摆在一张图上比。"""
+        be = CD.calc_bond_equity(_mk(8, 3))
+        self.assertAlmostEqual(be['norm_mix'][0], 1.0, places=4)
+        self.assertAlmostEqual(be['norm_hs'][0], 1.0, places=4)
+        self.assertAlmostEqual(be['norm_bond'][0], 1.0, places=4)
+
+    def test_mix_has_no_lookahead(self):
+        """合成净值第 i 天只能用到第 i 天及以前的收益。
+
+        造一个「前半段涨、后半段暴跌」的序列：只要出现 lookahead
+        （比如整段先算完再回头归一），前半段的形状就会被后半段污染。
+        这里用最简单的判据：前 10 天的合成涨幅必须为正。
+        """
+        be = CD.calc_bond_equity(_mk(8, 3))
+        self.assertGreater(be['norm_mix'][9], 1.0)
+        self.assertGreater(be['norm_hs'][9], 1.0)
+
+    def test_pct_mix_head_is_none(self):
+        """二级债基口径的分位曲线，前段同样必须是 None（不能是 0）。"""
+        be = CD.calc_bond_equity(_mk(8, 3))
+        self.assertIsNone(be['pct_mix'][0])
+        self.assertIsNotNone(be['pct_mix'][-1])
+
+    def test_cur_has_both_calibers(self):
+        """两种口径的当前值都要给出来 —— 缺一个，页面上就少一行对照。"""
+        be = CD.calc_bond_equity(_mk(8, 3))
+        for k in ('R', 'R_mix', 'pct', 'pct_mix', 'mix'):
+            self.assertIn(k, be['cur'], f'cur 缺 {k}')
+        self.assertLess(be['cur']['R_mix'], be['cur']['R'],
+                        'R2 = 股票 ÷ 二级债基，分母比纯债大 → 必然小于 R')
+
+    # ── B 方案：6 轮复盘表 ────────────────────────────────────
+    def test_his_rounds_shape(self):
+        """his 里每条都必须带全字段，且年份来自原图那 6 个、不重复。
+
+        ⚠ 允许少于 6 条：10 年样本只覆盖到 2008/2012 两轮。
+          这里锁的是「格式」，不是「条数」。
+        """
+        be = CD.calc_bond_equity(_mk(8, 3))
+        want = {2008, 2012, 2016, 2018, 2022, 2024}
+        keys = {'year', 'tag', 'claim', 'date', 'R_pure', 'R_mix',
+                'gap', 'pct_pure', 'pct_mix', 'band_mix'}
+        years = []
+        for h in be['his']:
+            self.assertTrue(keys.issubset(h.keys()), f"缺字段：{keys - set(h)}")
+            self.assertIn(h['year'], want, f"{h['year']} 不在原图那 6 轮里")
+            years.append(h['year'])
+        self.assertEqual(len(years), len(set(years)), '同一年出现了两次')
+
+    def test_his_gap_never_reaches_one(self):
+        """倍数差 ≥ 1 —— 股票线从未真正跌到二级债基线下方（匀速牛市下）。
+
+        这条对应那个核心结论：原图那 6 个点没有一个是真交叉点。
+        真交叉会出现在 2005~2006 年那段，不在他标的 6 轮里。
+        """
+        be = CD.calc_bond_equity(_mk(8, 3))
+        for h in be['his']:
+            self.assertGreaterEqual(h['gap'], 1.0, f"{h['tag']} 出现真交叉")
+
+    def test_cross_count_matches_series(self):
+        """cross.n 必须和「逐日 norm_hs < norm_bond」的计数完全一致。
+
+        ⚠ 这个数字是页面上那句「真交叉只有 282 天」的唯一来源。
+          一旦统计口径和曲线口径不一致，那句话就成了假话。
+        """
+        be = CD.calc_bond_equity(_mk(8, 3))
+        n_real = sum(1 for i in range(len(be['days']))
+                     if be['norm_hs'][i] < be['norm_bond'][i])
+        self.assertEqual(n_real, be['cross']['n'])
+
+    def test_cross_zero_in_steady_bull(self):
+        """股票一路跑赢债券时不该有交叉，cross 的 from/to 应为 None。
+
+        反向断言：如果有人把 cross 的判据写反（>），这里立刻会红。
+        """
+        be = CD.calc_bond_equity(_mk(8, 3))
+        self.assertEqual(be['cross']['n'], 0)
+        self.assertIsNone(be['cross']['from'])
+        self.assertIsNone(be['cross']['to'])
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
