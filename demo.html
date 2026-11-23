@@ -454,24 +454,6 @@ tr.grp span{font-weight:400;color:#64748B}
     </div>
   </div>
 
-  <div class="panel">
-    <div class="ph">
-      <div class="pt">最新快照</div>
-      <div class="ps">点击表头排序 · 净流入为估算值</div>
-    </div>
-    <div class="tblwrap">
-      <table id="tSnap">
-        <thead><tr>
-          <th>代码</th><th>名称</th><th>指数</th>
-          <th class="num">份额（亿份）</th><th class="num">当日变动</th>
-          <th class="num">当日净流入（亿）</th><th class="num">近5日</th><th class="num">近20日</th>
-          <th class="num">最新价</th><th class="num">机构占比</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </div>
-
   <div class="panel" id="mlPanel">
     <div class="ph">
       <div class="pt">量能与杠杆：同样是 120 亿，在不同水位里含义完全不同</div>
@@ -2017,11 +1999,23 @@ function buildTimeSlider(host,labels,onChange,target){
     const span=Math.round((new Date(last+'T00:00:00')
                           -new Date(first+'T00:00:00'))/864e5)+1;
     const gN=Object.keys(goldBy).length;
-    const aN=Object.keys(aInstBy).length;
+    // ⚠⚠ 2026-11-23 修：原来这里写的是 Object.keys(aInstBy).length，
+    //   只数了「A股机构」那一层。而 A股机构来自 forecast 的多空稿，
+    //   经常抓不到（11-16 之后一直是空的）；散户来自股吧，每天都有。
+    //   结果：明明有 5 天散户快照，页面却写「A股 1 个快照日」，
+    //   看起来像「这一栏已经停了」——用户就是这么以为的。
+    //   正确口径是「有任一层数据的日子」，机构层单独标注覆盖数。
+    const aDays=new Set([...Object.keys(aInstBy), ...Object.keys(aRetBy)]);
+    const aN=aDays.size;
+    const aInstN=Object.keys(aInstBy).length;
     gapBox.innerHTML=
       `<b>先说清楚这点情绪数据有多薄：</b>`
       +`黄金 <b>${gN}</b> 个调查日（周频）· A股 <b>${aN}</b> 个快照日（日频）`
       +`—— 合计跨 <b>${span}</b> 天（${first} ~ ${last}）。`
+      // ⚠ 2026-11-23 补：机构层和散户层的覆盖天数常常不一样（机构源抓不到时为空），
+      //   只报合计数会让人以为「机构也在天天更新」。两层要分别说。
+      +(aInstN<aN?`其中 A股<b>机构</b>层只有 <b>${aInstN}</b> 天有数据`
+                   +`（机构源是财经媒体多空稿，抓不到就空着，<b>不是没记录</b>）；`:``)
       // ⚠ 2026-11-17 改：K 线截到 2026-10 起，两边长度基本对齐了，
       //   「蜡烛 2001 天 vs 情绪 45 天」的对比已不成立，别再写死。
       +`蜡烛自 <b>2026-10</b> 起（与情绪区间基本对齐，之前的 K 线没有对照物，不画）。`
@@ -2838,34 +2832,14 @@ function buildTimeSlider(host,labels,onChange,target){
   })();
 })();
 
-// ---------- 快照表 ----------
-document.querySelector('#tSnap tbody').innerHTML=D.rows.map(r=>{
-  const L=r.latest, i=r.inst.latest;
-  return `<tr>
-    <td><span class="cd">${r.code}</span></td>
-    <td>${r.name}</td><td class="mut">${r.index}</td>
-    <td class="num">${fmt(L.shares)}</td>
-    <td class="num ${L.chg_1d>0?'up':L.chg_1d<0?'down':''}">${L.chg_1d==null?'—':(L.chg_1d>0?'+':'')+fmt(L.chg_1d,2)+'%'}</td>
-    <td class="num ${L.flow>0?'up':L.flow<0?'down':''}">${sgn(L.flow)}</td>
-    <td class="num ${sumN(r.flow.filter(x=>x!=null),5)>0?'up':'down'}">${sgn(sumN(r.flow.filter(x=>x!=null),5))}</td>
-    <td class="num ${sumN(r.flow.filter(x=>x!=null),20)>0?'up':'down'}">${sgn(sumN(r.flow.filter(x=>x!=null),20))}</td>
-    <td class="num">${fmt(L.price,3)}</td>
-    <td class="num">${i?fmt(i.inst_pct)+'%':'—'}</td>
-  </tr>`;
-}).join('') + (D.thin||[]).map(t=>{
-  const i=t.inst.latest, L=t.latest;
-  return `<tr style="background:#FAFAF9">
-    <td><span class="cd">${t.code}</span></td>
-    <td>${t.name} <span class="tag t-mid" style="margin-left:4px">深市</span></td>
-    <td class="mut">${t.index}</td>
-    <td class="num">${fmt(L.shares)}</td>
-    <td class="num mut" title="${t.note||''}">—</td>
-    <td class="num mut" title="${t.note||''}">—</td>
-    <td class="num mut">—</td><td class="num mut">—</td>
-    <td class="num">${fmt(L.price,3)}</td>
-    <td class="num">${i?fmt(i.inst_pct)+'%':'—'}</td>
-  </tr>`;
-}).join('');
+// ---------- 快照表已删除（2026-11-23，OO 要求） ----------
+// 删的是「最新快照」整块（表 + 表头 + 这一段渲染）。
+// ⚠ 注意它和上面的「监控组合」图有重复：份额、当日变动、净流入在图上
+//   悬停都能看到，这张表只是把最后一列数字摊平。多出来的只有
+//   「近5日 / 近20日 / 机构占比」三列，而机构占比在
+//   「国家队持仓基准」页有完整版（含报告期、较上期变化、申购赎回）。
+// 数据（D.rows）仍在 demo.json 里，单只页和组合图都用它，删的只是这张表。
+// 以后若想恢复：把上面的 <table id="tSnap"> 骨架和这段 of 渲染一起贴回来。
 
 // ---------- 两块面板已删除（2026-11-12，评审意见：看不懂，删掉） ----------
 // ① 买卖拆分：数据是对的（净流入 1459.7 + 浮盈 2479.7 = 规模增加 3939.4），

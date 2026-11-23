@@ -68,6 +68,7 @@ OUT = os.path.join(DATA, 'gold_survey.json')
 
 sys.path.insert(0, os.path.join(BASE, 'scripts'))
 import _net       # noqa: E402
+import _fh        # noqa: E402  数据源健康上报
 
 UA = {
     'User-Agent': ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
@@ -408,6 +409,53 @@ def main():
         json.dump(payload, f, ensure_ascii=False, separators=(',', ':'))
     print(f'\n写入 {OUT}（{os.path.getsize(OUT)/1024:.0f} KB）')
     print(f'{len(out_rows)} 条周度调查，{payload["from"]} ~ {payload["to"]}')
+
+    # ── 体检上报（2026-11-23 加）──────────────────────────────
+    #
+    # ⚠⚠ 这一段之前是缺的，而且是真出事才发现的：
+    #   最后一条 Kitco 调查停在 2026-11-15，到 11-23 已 8 天没有新的
+    #   （周频源，正常每周一条，11-22 左右就该有），
+    #   但体检栏一片正常 —— 因为这个模块从来没上报过自己。
+    #   页面上的「黄金 4 个调查日」看起来像「记录才刚开始」，
+    #   实际是源已经一周多没更新。**沉默的错误比报错更贵。**
+    #
+    # ⚠ 判据不能简单用「今天有没有新数据」：
+    #   周频源一周只有 1 天有数据，其余 6 天「无新数据」是常态。
+    #   所以按「距最后一条调查过了几天」判：
+    #     ≤ 9 天  → ok      （一周 + 2 天缓冲，容忍源晚发）
+    #     10~13 天 → partial（晚了一周，可能源出问题）
+    #     ≥ 14 天 → fail    （连两周没有，基本可以确定停更）
+    last_d = days[-1] if days else None
+    lag = None
+    if last_d:
+        try:
+            from datetime import date as _date
+            y, m, dd = [int(x) for x in last_d.split('-')]
+            lag = (_date.today() - _date(y, m, dd)).days
+        except Exception:
+            lag = None
+
+    if fails:
+        _fh.report('gold_survey', '黄金共识调查（Kitco 周频）', 'fail',
+                   last=last_d, got=len(out_rows), want=None,
+                   note=f'抓取失败：{", ".join(fails)}')
+    elif lag is None:
+        _fh.report('gold_survey', '黄金共识调查（Kitco 周频）', 'ok',
+                   last=last_d, got=len(out_rows), want=None, note='')
+    elif lag >= 14:
+        _fh.report('gold_survey', '黄金共识调查（Kitco 周频）', 'stale',
+                   last=last_d, got=len(out_rows), want=None,
+                   note=f'最后一次调查在 {last_d}，已 {lag} 天没有新的'
+                        f'（周频源连续两周为空，源站可能改版或停更）')
+    elif lag >= 10:
+        _fh.report('gold_survey', '黄金共识调查（Kitco 周频）', 'partial',
+                   last=last_d, got=len(out_rows), want=None,
+                   note=f'最后一次调查在 {last_d}，已 {lag} 天（周频源晚了一周）')
+    else:
+        _fh.report('gold_survey', '黄金共识调查（Kitco 周频）', 'ok',
+                   last=last_d, got=len(out_rows), want=None,
+                   note='周频源，无新调查是常态' if lag > 1 else '')
+
     if fails:
         print(f'⚠ 失败：{", ".join(fails)}')
         return 1

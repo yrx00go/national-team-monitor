@@ -199,20 +199,67 @@ def main():
         print(json.dumps(pt, ensure_ascii=False, indent=2))
         return 0
 
+    # ── 补「按调查自己发布日期」的黄金点（2026-11-23 加）──────────
+    #
+    # ⚠⚠ 这是一个会永久丢数据的洞，11-23 才发现：
+    #   gold_survey_point 按「日期严格相等」匹配，所以一条 Kitco 调查
+    #   只有恰好在它发布日期当天跑快照脚本才能入库。
+    #   而 Kitco 是**周末发布**（11-22 是周日），CI 的 cron 只在
+    #   工作日 18:00 / 21:30 / 23:30 和周二至周六 08:10 跑 ——
+    #   **周日那天根本没有任何一次运行**，于是 11-22 的调查永远进不了存档。
+    #   表现：gold_survey.json 里明明有这条，页面上却看不到，
+    #   「黄金 4 个调查日」一直不变。用户说「市场共识最近没更新了」，就是这个。
+    #
+    # 修法不是「把周日的数搬到今天」（那是插值/伪造日期），
+    # 而是**按调查自己带的那一天补记录** —— 那个数字本来就属于那天。
+    # 只在还没有该日期记录时补，不覆盖已有快照。
+    gold_filled = []
+    if not backfill:
+        survey_now = _load('gold_survey.json') or {}
+        for r in survey_now.get('rows') or []:
+            d = r.get('date')
+            if not d or d in rows:
+                continue                      # 已有这天的快照 → 不动
+            gpt = gold_survey_point(survey_now, d)
+            if not gpt:
+                continue
+            # 只补黄金这一层，A股两层留 None —— 那天我们确实没有 A股 快照，
+            # 拿今天的 A股 数据填进去就是编造。
+            rows[d] = {
+                'date': d,
+                'gold_survey': gpt,
+                'a_inst': None,
+                'a_retail': None,
+                'at': time.strftime('%Y-%m-%d %H:%M'),
+                'note': '按调查发布日期补录（当天未运行快照脚本）',
+            }
+            gold_filled.append(d)
+        if gold_filled:
+            print(f'补录 {len(gold_filled)} 条黄金调查（按发布日期）：'
+                  f'{", ".join(sorted(gold_filled))}')
+
     has_any = any(pt.get(k) for k in ('gold_survey', 'a_inst', 'a_retail'))
     if not has_any and not backfill:
         # ⚠ 今天什么都没抓到，**不写空壳**。
         #   写空壳会让「今天有快照」这件事本身变成假的，
         #   以后看统计会以为记录了 90 天，其实有 30 天是空行。
-        print(f'{day} 三路数据都没有 → 不写快照（不写空壳）')
-        return 0
-
-    prev = rows.get(day)
-    rows[day] = pt
-    if prev:
-        print(f'{day} 覆盖旧快照（原来 at={prev.get("at")}）')
+        #
+        # ⚠ 注意这里【不能】因为「刚刚补录了黄金」就放行：
+        #   补录的那些已经是独立的行了，今天该不该写，只看今天有没有数据。
+        #   11-23 踩过一次 —— 条件写成 `and not gold_filled` 之后，
+        #   当天补了 11-22 的黄金，就把 11-23 的空壳一起写进去了。
+        print(f'{day} 三路数据都没有 → 不写快照（不写空壳）'
+              + (f'；但已按发布日期补录 {len(gold_filled)} 条' if gold_filled else ''))
+        if not gold_filled:
+            return 0
+        # 有补录 → 只存补录的行，今天的空壳仍然不写
     else:
-        print(f'{day} 新增快照')
+        prev = rows.get(day)
+        rows[day] = pt
+        if prev:
+            print(f'{day} 覆盖旧快照（原来 at={prev.get("at")}）')
+        else:
+            print(f'{day} 新增快照')
 
     out_rows = [rows[k] for k in sorted(rows)]
     payload = {
