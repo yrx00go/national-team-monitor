@@ -404,7 +404,7 @@ tr.grp span{font-weight:400;color:#64748B}
   <button data-pane="single">单只 ETF</button>
   <button data-pane="inst">国家队持仓基准</button>
   <button data-pane="divi">股息率监控</button>
-  <button data-pane="bond">股债交汇</button>
+  <button data-pane="bond">股债比价</button>
   <button data-pane="consensus">市场共识</button>
 </nav>
 
@@ -633,6 +633,18 @@ tr.grp span{font-weight:400;color:#64748B}
 <div class="pane" id="pane-bond">
   <div class="kpis k3" id="kpisBond"></div>
 
+  <div class="warn" style="margin-bottom:16px">
+    <div>
+      <b>先说一件会让人困惑的事：这张图上你找不到「交汇」，这是正常的。</b>
+      2004 年至今，股票线真正跌到债券线下方的只有 <b id="bondCrossWarnN">282</b> 个交易日，
+      全部挤在 <b id="bondCrossWarnRange">2005-01-04 ~ 2006-04-14</b> 之间 ——
+      那一段只占整张图宽度的 5.8%，在左侧边缘，肉眼几乎看不出来。<b>2006 年之后一次都没交叉过。</b><br>
+      所以「6 次交汇」这个说法，只在<b>每次把起点重新设为 1.0</b> 的画法下才成立：
+      起点当天两线必然相等，那不是市场现象，是基准定义的恒等式。<br>
+      <b>这一页真正的用法是看下面那个分位数，不是找交点。</b>
+    </div>
+  </div>
+
   <div class="panel">
     <div class="ph">
       <div class="pt">股债比价：R = 沪深300全收益 ÷ 中证全债</div>
@@ -665,6 +677,10 @@ tr.grp span{font-weight:400;color:#64748B}
     <div class="ph">
       <div class="pt">拆解原图的 6 轮「交汇」：它们其实是同一个位置吗？</div>
       <div class="ps" id="bondHisNote">—</div>
+      <div class="ps" style="margin-top:6px;color:#B45309">
+        <b>这 6 轮全部「没有真交叉」</b>，倍数差最小的一轮也有 1.23×。
+        下表要看的是<b>最右两列</b>：他标的时间点，在我们判据下便宜程度差了一倍多。
+      </div>
     </div>
     <div class="tblwrap">
       <table id="tBondHis">
@@ -1448,6 +1464,11 @@ renderKpis(kpisLev,  document.getElementById('kpisLev'));
   //      让人自己看出差在哪。只给我们的数、不给他的数，等于不让人判断。
   (function(){
     const his=BE.his||[], cross=BE.cross||{};
+    // 顶部警示条：把 cross 的事实填进去，别在 HTML 里写死
+    const _cn=document.getElementById('bondCrossWarnN');
+    const _cr=document.getElementById('bondCrossWarnRange');
+    if(_cn) _cn.textContent = cross.n || 0;
+    if(_cr) _cr.textContent = cross.from && cross.to ? (cross.from+' ~ '+cross.to) : '—';
     const note=document.getElementById('bondHisNote');
     if(note){
       note.innerHTML = cross.n
@@ -1485,8 +1506,10 @@ renderKpis(kpisLev,  document.getElementById('kpisLev'));
            倍数 1.00× 才是真正重合（长期收益相等），六轮里没有一轮到过 1.00×。
            最近的一轮是 ${his[his.length-1].gap.toFixed(2)}× —— 还差
            <b>${((1-1/his[his.length-1].gap)*100).toFixed(0)}%</b> 的股票跌幅才等于二级债。<br>
-        ② 但原图<b>看起来</b>它们都贴在债券线上，因为纵轴是对数轴、跨度拉到 0.8~20，
-           1.2~1.7 倍的差距只占图高的 7%~17%，肉眼就是「贴着」。<br>
+        ② 但原图<b>看起来</b>它们都贴在债券线上。原因是<b>纵轴跨度</b>拉到 0.8~20（25 倍），
+           1.2~1.7 倍的差距只占图高的 6%~17%，所以肉眼就是「贴着」。
+           <span class="mut">（注意：这里起作用的是跨度，不是对数刻度本身 ——
+           对数轴在 1 倍附近反而比线性轴更灵敏，同一条线会被放大 5 倍。）</span><br>
         ③ 更要紧的是：按滚动 5 年分位，六轮里只有 <b>${cheap.length}</b> 轮真的算「便宜」（&lt;20%），
            有 <b>${mid.length}</b> 轮落在「中性」以上（≥40%）。
            ${mid.length?`分别是 ${mid.map(h=>`<b>${h.tag}${h.year}（${h.pct_mix.toFixed(1)}%）</b>`).join('、')}。`:''}<br>
@@ -1503,6 +1526,12 @@ renderKpis(kpisLev,  document.getElementById('kpisLev'));
   //   它写的是「这个东西哪里会骗你」。少了它，页面上那些数字会被当成结论用。
   const cv=document.getElementById('bondCaveat');
   if(cv){
+    // 2008 / 2016 的分位从数据里取，不写死 —— 写死过 48%/50%，实测是 47.3%/43.6%，
+    // 而且这两个数每次重算都会随窗口微动，硬编码必然过期。
+    const _h2008=(BE.his||[]).find(h=>h.year===2008);
+    const _h2016=(BE.his||[]).find(h=>h.year===2016);
+    const _pm2008=(_h2008&&_h2008.pct_mix!=null)?_h2008.pct_mix.toFixed(1):'—';
+    const _pm2016=(_h2016&&_h2016.pct_mix!=null)?_h2016.pct_mix.toFixed(1):'—';
     cv.innerHTML=`
       <b>1. 股票端用「沪深300全收益（H00300）」不是 000300。</b>
       价格指数把分红剔掉，而分红是 A 股年化 2–3% 的真实回报，十年差 30%。
@@ -1521,11 +1550,18 @@ renderKpis(kpisLev,  document.getElementById('kpisLev'));
 
       <b>3. 为什么不用「两条线交叉」当判据（原图的做法）</b><br>
       实测：2004-01-01 两者归一化都 =1.0，到 2026-11-19 沪深300全收益 = 6.00 倍、
-      中证全债 = 2.67 倍。<b>股票线永远在上方，2006 年后只可能交叉一次</b>，
-      画不出 6 次。原图能画 6 次，是因为它每段重新设了基准 —— 起点一换结论就换。<br><br>
+      中证全债 = 2.67 倍。<b>股票线永远在上方</b> —— 全历史跌到债券线<b>下方</b>的
+      只有 282 个交易日，全部在 2005-01-04 ~ 2006-04-14。2006 年之后一次都没有。<br>
+      所以「6 次交汇」不可能来自单次归一化。<b>它只能来自重设 6 次基准</b>：
+      以那 6 个日期为分段起点，每段重新设 1.0，则每个起点当天两线必然 = 1.000×。
+      这不是市场规律，是基准定义的恒等式。（用任意 6 个随机日期做同样操作，
+      也能得到 6 次「交汇」。）<br>
+      另外：他标的 6 个点最差一个是 1.65×，而全历史有 <b>605 个交易日</b>都在 1.65× 以内 ——
+      平均每 101 天就有一天达到他标的水平。<b>从 605 天里挑 6 天，不需要「交汇」发生。</b><br><br>
 
       <b>4. 已知盲区：两轮牛市之后，分位会被前期高点压低。</b>
-      实测 2008-11-04 和 2016-01-28 这两个历史大底，滚动 5 年分位分别是 48% 和 50%，
+      实测 2008-11-04 和 2016-01-28 这两个历史大底，滚动 5 年分位分别是
+      <b>${_pm2008}%</b> 和 <b>${_pm2016}%</b>，
       <b>在我们这套判据下它们不算「便宜」</b> —— 因为那两年往前数 5 年正是大牛市，
       R 的绝对值已经被推得很高。所以这个指标对「熊市底部」的识别比「牛市顶部」弱。<br><br>
 
