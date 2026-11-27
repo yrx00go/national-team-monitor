@@ -406,6 +406,8 @@ tr.grp span{font-weight:400;color:#64748B}
   <button data-pane="divi">股息率监控</button>
   <button data-pane="bond">股债比价</button>
   <button data-pane="consensus">市场共识</button>
+  <button data-pane="overlay">历史叠加</button>
+  <button data-pane="thesis">满仓猜想</button>
 </nav>
 
 <!-- ========== 组合 ========== -->
@@ -725,6 +727,171 @@ tr.grp span{font-weight:400;color:#64748B}
   <div id="consBody"></div>
 </div>
 
+<!-- ========== 历史叠加（2026-11-25 新增） ==========
+     两类内容必须分开读：
+       图一 = 「纳指当前行情像不像 90 年代互联网」，2026-06 后样本外已经走样；
+       图二 = 「9·24 像不像 5·19」，双轴把一倍涨幅差压成视觉重合。
+     都是历史类比，不是预测，也不是买卖依据。 -->
+<div class="pane" id="pane-overlay">
+  <div class="cov" style="border-left:3px solid #B45309">
+    <b>先读这个：</b>两页都是「把当前行情和某段历史各自归一化后叠在一起」，
+    再把历史后续平移到今天之后。而<strong>归一化 + 双轴/对数轴会制造完美重合的错觉</strong>。
+    图一补到 2026-11-19 后，样本外相关系数从 0.975 掉到 −0.111；
+    图二放同一根纵轴上，1999 峰值 102.2% vs 2024 峰值 48.2%，日收益相关只有 −0.030。
+    <b>这是形态类比，不是因果，不是预测。</b>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">图一 · 纳指：2022-10-12 起 vs 1994-10-03 起（+28 年映射）</div>
+      <div class="ps">纵轴对数 · 蓝实线=已发生（止于 <span id="ovBlueEnd">—</span>）· 橙虚线=历史匹配窗及其后续</div>
+    </div>
+    <div class="chartbox" style="height:430px"><canvas id="cOvNas"></canvas></div>
+    <div class="ps" style="margin-top:7px">
+      匹配窗 <b id="ovN">—</b> 个交易日；样本内相关系数 <b id="ovCorr">—</b>、标准化距离 <b id="ovZ">—</b>。
+      图上「2026H2 最后一跌 / 2028 冲顶」是把 1998–2001 的路径平移过来的示意，不是预测。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">图一样本外检验：原匹配窗结束后，两条线还像吗？</div>
+      <div class="ps">两线都以 2026-06-03 / 1998-05-13 为 0</div>
+    </div>
+    <div class="chartbox" style="height:330px"><canvas id="cOvNasOos"></canvas></div>
+    <div class="ps" style="margin-top:7px;color:#B45309">
+      样本外 <b id="ovOosN">—</b> 日：相关系数 <b id="ovOosCorr">—</b>、距离 <b id="ovOosZ">—</b>；
+      纳指回撤 <b id="ovBlueDd">—</b>% vs 历史同位置 <b id="ovOrangeDd">—</b>%。
+      终点倍率接近（<span id="ovBRatio">—</span> vs <span id="ovORatio">—</span>）只是殊途同归，路径已经分叉。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">图二 · 5·19 / 9·24 事件时间轴叠加（同尺度，单一纵轴）</div>
+      <div class="ps">公开代理：上证指数 sh000001 · 蓝=1999-05-19 起 · 红=2024-09-24 起（至 <span id="ovALast">—</span>）</div>
+    </div>
+    <div class="chartbox" style="height:380px"><canvas id="cOvASame"></canvas></div>
+    <div class="ps" style="margin-top:7px">
+      共同窗 <b id="ovAN">—</b> 日；路径相关 <b id="ovACorr">—</b>，但平均绝对差 <b id="ovAMae">—</b> 个百分点，
+      <b style="color:#B45309">日收益相关只有 <span id="ovARet">—</span></b>。同尺度下蓝线明显强于红线。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">图二 · 同一组数据，复刻原图的双轴画法</div>
+      <div class="ps">蓝用左轴 0–110% · 红用右轴 0–55% → 视觉上「贴在一起」</div>
+    </div>
+    <div class="chartbox" style="height:360px"><canvas id="cOvADual"></canvas></div>
+    <div class="ps" style="margin-top:7px;color:#B45309">
+      两张图对照就是结论：<b>换坐标轴，同一组数据会讲出完全不同的故事。</b>
+      原图用万得全 A（Wind 终端，非公开接口），这里是上证指数代理，数值不可混用，只对齐方法。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph"><div class="pt">图二关键节点（上证代理，累计涨幅）</div></div>
+    <div class="tblwrap"><table>
+      <thead><tr><th>交易日</th><th>1999 蓝</th><th>2024 红</th><th>差</th></tr></thead>
+      <tbody id="ovATable"></tbody>
+    </table></div>
+    <div class="ps" style="margin-top:7px">数据：FRED NASDAQCOM（最新 <span id="ovLastFred">—</span>）· AkShare/新浪 上证指数（取数 <span id="ovFetch">—</span>，最近完整收盘 <span id="ovALast2">—</span>）。均为非实时收盘数据。</div>
+  </div>
+</div>
+
+<div class="pane" id="pane-thesis">
+  <div class="cov" style="border-left:3px solid #B45309">
+    <b>先读这个：</b>下面是公众号文章《牛市启动前，国家队是满仓吗？》的思路整理。
+    作者自己反复强调这是<strong>猜想</strong>，不是结论，更不是买卖依据。
+    本站只把可核验的份额事实摆出来，<b>不把任何水位模型当预测</b>。
+    <a href="https://mp.weixin.qq.com/s/awqsxJmxj3mfqBbzkzspBw" target="_blank" rel="noopener">读原文 ↗</a>
+  </div>
+
+  <div class="panel">
+    <div class="ph"><div class="pt">一句话说清作者在干什么</div></div>
+    <div class="ps" style="font-size:13px;line-height:1.75">
+      作者想回答一个问题：<b>现在国家队的仓位，离「牛市启动前」那个位置还有多远？</b><br>
+      做法是找两个极端日子当尺子——<b>2024-09-23</b>（牛市启动前）和 <b>2025-12-31</b>（作者认定的熊市启动前），
+      看这两个日子的 ETF 份额是不是差不多。如果差不多，就认为这个标的的份额变化主要跟着汇金走，值得盯；
+      再拿今天的位置去比，看还差多少。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">底层逻辑：四步推演</div>
+      <div class="ps">把作者的推理链拆开，去掉术语就是这样</div>
+    </div>
+    <div class="ps" style="font-size:13px;line-height:1.85">
+      <b>① 先承认问题从哪来：</b>读者想知道牛市启动前的汇金水位，是想给「现在」找一个时间参照。<br>
+      <b>② 但一个点不够：</b>只知道牛市前那一刻的仓位，不能证明「仓位到这里就会涨」。所以必须再找第二个点做交叉验证。<br>
+      <b>③ 找第二个极端点：</b>牛市启动前 vs 熊市启动前。若两端份额几乎相等（比值≈100%），作者认为该标的受汇金意志影响强、追踪价值高。<br>
+      <b>④ 算距离：</b>用这个比值减去「当前水位」，得到「还差多少」。越接近 0，越像作者定义的「满仓」；离 0 越远，不确定性越大。<br>
+      <b>补一句为什么用份额不用钱：</b>钱会随净值、通胀、成本、盈利变化；份额是数量本身，作者认为它才是更稳的锚。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph"><div class="pt">原表七列，逐个说人话</div></div>
+    <div class="tblwrap"><table>
+      <thead><tr><th>列</th><th>名字</th><th>怎么算</th><th>作者想表达什么</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>ETF 名称</td><td>汇金第一股东的宽基 ETF</td><td>先看是哪一个篮子</td></tr>
+        <tr><td>2</td><td>牛前份额</td><td>2024-09-23 的份额</td><td>牛市启动那一天的仓位快照</td></tr>
+        <tr><td>3</td><td>熊前份额</td><td>2025-12-31 的份额</td><td>作者认为汇金离场、熊市开启前的快照</td></tr>
+        <tr><td>4</td><td>牛熊比</td><td>牛前 ÷ 熊前 × 100%</td><td>越接近 100%，两个极端点越像，作者认为汇金意志越强</td></tr>
+        <tr><td>5</td><td>还差多少</td><td>牛熊比 − 当前水位</td><td>离 0 越近越像「满仓」；越远越不确定</td></tr>
+        <tr><td>6</td><td>公示持仓占比</td><td>2025 年末披露的汇金占比</td><td>证明熊市前汇金确实是主力（文中取 86% 国家队 / 14% 其他人）</td></tr>
+        <tr><td>7</td><td>当前水位</td><td>作者每天估算的百分比</td><td>今天的位置，用来算第 5 列</td></tr>
+      </tbody>
+    </table></div>
+    <div class="ps" style="margin-top:7px">
+      注意第 7 列是<b>作者自估</b>，算法没有公开；这也是本站不能直接照搬「还差多少」的原因。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <div class="pt">本站复算：牛熊锚点比（透明份额口径）</div>
+      <div class="ps">锚点 <span id="thBull">—</span> / <span id="thBear">—</span> · 最新份额 <span id="thLatest">—</span></div>
+    </div>
+    <div class="tblwrap"><table>
+      <thead><tr>
+        <th>标的</th><th>牛前<br>亿份</th><th>熊前<br>亿份</th><th>最新<br>亿份</th>
+        <th>本站<br>牛熊比</th><th>原文<br>牛熊比</th><th>本站当前<br>水位</th>
+      </tr></thead>
+      <tbody id="thTable"></tbody>
+    </table></div>
+    <div class="ps" style="margin-top:7px;color:#B45309">
+      本站口径：<code>牛熊比 = 牛前份额 ÷ 熊前份额</code>，<code>当前水位 = 最新份额 ÷ 熊前份额</code>。
+      这与作者的「水位模型」不是一回事，<b>只比较方向和量级，不比较数值</b>。
+      深市两只（159919 / 159915）本站只有 2026-11-09 起的快照，无法回算两端锚点。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph"><div class="pt">怎么读「还差多少」（按作者定义，不是本站评级）</div></div>
+    <div class="ps" style="font-size:13px;line-height:1.85">
+      · <b>绿色数字越大</b> → 离作者定义的满仓越远 → 作者说「风险越大」。<br>
+      · <b>红色数字越接近 0%</b> → 越接近满水位 → 作者说「风险越小」。<br>
+      · <b>超过 0% 也不是纯利好</b>：作者列了三种可能——已经满上了 / 其他人套住了 / 两者并存。可能性越多，他认为风险越多。<br>
+      · 这个表只能判断<b>某一个固定时间点</b>离满水位多远，不能给出「哪天会涨」。
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph"><div class="pt">作者自己的三条补充，以及我们该保留的怀疑</div></div>
+    <div class="ps" style="font-size:13px;line-height:1.85">
+      <b>1. 为什么份额比钱准：</b>2024 年的 1 块钱和 2026 年的 1 块钱购买力不同，但一份 ETF 还是一份。<br>
+      <b>2. 上一轮建仓多久：</b>作者看 2023-11 到 2024-06 的资金流，认为汇金建仓持续 6 个月以上。<br>
+      <b>3. 美联储优先级高于汇金：</b>作者说这是他们用真金白银亏出来的教训；汇金仓位会反映美联储预期，但不是最高优先级。<br>
+      <b>4. 作者的实盘结果：</b>5/23 离场躲过 6–7 月暴跌，7 月入场最高 +6%，9 月开始回吐，到 11 月最终落地只有 +1000 元。<br>
+      <b>本站态度：</b>把这些当<b>观察框架</b>，不当交易信号。作者原话：「以怀疑的目光去相信」。
+    </div>
+  </div>
+</div>
+
 <div class="src">
   <b>数据来源</b>　上海证券交易所 ETF 份额公示（逐日，可回溯）· 深圳证券交易所 ETF 列表（仅当前快照）·
   腾讯行情前复权日线 · 东方财富基金档案（持有人结构、规模变动）· 东方财富 datacenter（十大流通股东）。
@@ -744,13 +911,37 @@ tr.grp span{font-weight:400;color:#64748B}
 
 <script id="DEMO" type="application/json">__DEMO__</script>
 <script id="DIVI" type="application/json">__DIVI__</script>
+<script id="OVERLAY" type="application/json">__OVERLAY__</script>
+<script id="ARTICLE" type="application/json">__ARTICLE__</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const D = JSON.parse(document.getElementById('DEMO').textContent);
 const V = JSON.parse(document.getElementById('DIVI').textContent);
+const OV = JSON.parse(document.getElementById('OVERLAY').textContent);
+const ART = JSON.parse(document.getElementById('ARTICLE').textContent);
 const C_UP='#DC2626', C_DOWN='#16A34A', C_LINE='#1D4ED8', C_GRAY='#A8A29E', C_AMBER='#B45309';
 const fmt=(v,d=1)=>v==null?'—':Number(v).toFixed(d);
 const sgn=(v,d=1)=>v==null?'—':(v>0?'+':'')+Number(v).toFixed(d);
+
+// 「满仓猜想」页：纯表格，不依赖 Chart.js，也不需要等容器可见。
+(function(){
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('thBull',ART.bullDate); set('thBear',ART.bearDate); set('thLatest',ART.latestDate);
+  const tb=document.getElementById('thTable');
+  if(!tb) return;
+  tb.innerHTML=ART.rows.map(r=>{
+    const name=r.name+' <span style="color:#A8A29E">'+r.code+'</span>';
+    if(!r.hasAnchor){
+      return '<tr><td>'+name+'</td><td colspan="3" style="color:#A8A29E">本站无历史锚点（深市快照）</td>'
+        +'<td>'+fmt(r.articlePct,2)+'%</td><td>—</td><td>'+fmt(r.current,2)+' 亿份</td></tr>';
+    }
+    const near=Math.abs(r.bullBearPct-100)<=2;
+    const bb='<b style="color:'+(near?'#15803D':'#B45309')+'">'+fmt(r.bullBearPct,2)+'%</b>';
+    return '<tr><td>'+name+'</td><td>'+fmt(r.bull,2)+'</td><td>'+fmt(r.bear,2)+'</td><td>'+fmt(r.current,2)+'</td>'
+      +'<td>'+bb+'</td><td style="color:#A8A29E">'+fmt(r.articlePct,2)+'%</td>'
+      +'<td>'+fmt(r.currentPct,2)+'%</td></tr>';
+  }).join('');
+})();
 // charts 必须在这里声明：组合图在文件前部就创建，声明放到后面会踩 let 的暂时性死区
 const charts={};
 // 暴露到 window，供无头浏览器校验（const 声明在全局词法作用域里，跨文档读不到）
@@ -3070,10 +3261,23 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   let sel=0, dc=null, dp=null;
   const dSubs=[];   // 股息率两张图对 DVIEW 的订阅（换标的时要解绑）
   const rows=V.rows;
-  // 观察仓分组：把同一组的标的排在一起，其余保持原有顺序（JS 稳定排序）。
+  // 分组（2026-11-26 OO：银行放一起展示）。
   // ⚠ 只改显示顺序，data-i 仍指向 rows 的原始下标，drawDivi(i) 不会串位。
-  const ordered=rows.map((r,i)=>({r,i})).sort((a,b)=>(a.r.group?0:1)-(b.r.group?0:1));
-  const watchN=ordered.filter(x=>x.r.group).length;
+  //   排序分两层：上面是【有买卖线的交易池】（银行 + 未分组），
+  //   下面是【只观察、不下单的观察仓】（险企、三桶油）。
+  const GORDER=['银行','',  '险企观察仓','三桶油观察'];
+  const gkey=r=>(r.group||'');
+  const grank=g=>{const k=GORDER.indexOf(g);return k<0?GORDER.length-1:k;};
+  const ordered=rows.map((r,i)=>({r,i})).sort((a,b)=>grank(gkey(a.r))-grank(gkey(b.r))||a.i-b.i);
+  // ⚠ 2026-11-26：分组说明不能写死。原来这里硬编码「新华、太保未设买卖线，平安原有买卖线保留」，
+  //   加第二组（三桶油观察）后那句话会挂到三桶油头上，等于说错话。改成按组取说明。
+  //   watch=1 的组才在行尾挂「观察仓」标签 —— 银行组有买卖线，不是观察仓，不能挂。
+  const GM={
+    '银行':{note:'5 家银行同组对照；买卖线是原有策略配置，照旧生效，不是观察仓'},
+    '险企观察仓':{note:'只观察，不含买入建议；平安买卖线 5.0/2.0 保留，新华未设线',watch:1},
+    '三桶油观察':{note:'只观察，不含买入建议；三只均未设买卖线（你给数字我再加）',watch:1},
+    '':{note:'未分组；茅台、顺丰未设买卖线，金租、白药、长电保留原有的线'},
+  };
   const kpi=[
     {k:'监控标的',v:rows.length,u:'只'},
     {k:'已达买入线',v:rows.filter(r=>r.latest.state==='已达买入线').length,u:'只'},
@@ -3085,18 +3289,35 @@ D.rows.concat(D.thin||[]).forEach(r=>{
     <div class="v">${x.v}<small>${x.u}</small></div></div>`).join('')}</div>
 
   <div class="panel">
+    <div class="ph"><div class="pt" id="dTitle">—</div>
+      <div class="ps" id="dPair">—</div></div>
+    <div class="legend">
+      <span><i class="ln" style="background:#DC2626"></i>收阳（收 ≥ 开）</span>
+      <span><i class="ln" style="background:#16A34A"></i>收阴（收 &lt; 开）</span>
+      <span class="mut">不复权日线　上＝股价（元）　下＝股息率（%，含买卖线）　拖下方滑条缩放</span>
+    </div>
+    <div class="chartbox" style="height:212px"><canvas id="dPriceChart"></canvas></div>
+    <div style="height:8px"></div>
+    <div class="chartbox" style="height:168px"><canvas id="dChart"></canvas></div>
+    <div id="tsDivi"></div>
+    <div class="ps" style="margin-top:10px;line-height:1.75" id="dNote"></div>
+  </div>
+
+  <div class="panel">
     <div class="ph"><div class="pt">股息率与买卖线</div>
-      <div class="ps">分位 = 当前股息率在过去两年分布中的位置，越低越便宜（股息率越高）</div></div>
+      <div class="ps">分位 = 当前股息率在过去两年分布中的位置，越低越便宜（股息率越高）　<b>点任意一行切换上面的图</b></div></div>
     <div class="tblwrap"><table><thead><tr>
       <th>名称</th><th>代码</th><th class="num">股息率</th><th class="num">买入线</th>
       <th class="num">卖出线</th><th class="num">距买入线</th><th class="num">两年分位</th>
       <th class="num">两年区间</th><th>状态</th>
     </tr></thead><tbody>
     ${ordered.map(({r,i},k)=>{const L=r.latest;
-      const grp=(r.group && (k===0 || !ordered[k-1].r.group))
-        ? `<tr class="grp"><td colspan="9">${r.group} · ${watchN} 只　<span>只观察，不含买入建议；新华、太保未设买卖线，平安原有买卖线保留</span></td></tr>` : '';
-      return grp+`<tr class="${r.group?'watch':''}" style="cursor:pointer" data-i="${i}">
-        <td>${r.name}${r.group?' <span class="tag t-watch">观察仓</span>':''}</td><td class="cd">${r.code}</td>
+      const gk=gkey(r); const meta=GM[gk]||{note:'只观察，不含买入建议'};
+      const gN=ordered.filter(x=>gkey(x.r)===gk).length;
+      const grp=(k===0 || gkey(ordered[k-1].r)!==gk)
+        ? `<tr class="grp"><td colspan="9">${r.group||'其他'} · ${gN} 只　<span>${meta.note}</span></td></tr>` : '';
+      return grp+`<tr class="${meta.watch?'watch':''}" style="cursor:pointer" data-i="${i}">
+        <td>${r.name}${meta.watch?' <span class="tag t-watch">观察仓</span>':''}</td><td class="cd">${r.code}</td>
         <td class="num"><b>${fmt(L.dy,2)}%</b></td>
         <td class="num mut">${r.buy==null?'—':fmt(r.buy,1)}</td>
         <td class="num mut">${r.sell==null?'—':fmt(r.sell,1)}</td>
@@ -3108,16 +3329,6 @@ D.rows.concat(D.thin||[]).forEach(r=>{
     </tbody></table></div>
   </div>
 
-  <div class="panel">
-    <div class="ph"><div class="pt" id="dTitle">—</div>
-      <div class="ps" id="dPair">—</div></div>
-    <div class="chartbox" style="height:186px"><canvas id="dChart"></canvas></div>
-    <div style="height:6px"></div>
-    <div class="chartbox" style="height:120px"><canvas id="dPriceChart"></canvas></div>
-    <div id="tsDivi"></div>
-    <div class="ps" style="margin-top:10px;line-height:1.75" id="dNote"></div>
-  </div>
-
   <div class="panel"><div class="ph"><div class="pt">口径（这段很重要，别跳过）</div></div>
   <p style="font-size:12.5px;line-height:1.9;color:var(--tx2)">
   <b>股息率 = 年化每股分红 ÷ 股价</b>，其中年化每股分红 = 最近一个完整财年的两次派息之和，<b>按报告期配对</b>。<br><br>
@@ -3125,8 +3336,17 @@ D.rows.concat(D.thin||[]).forEach(r=>{
   实测工商银行按除权日求和得 0.4614 元 → 5.37%，按报告期配对是 0.1689 + 0.1511 = 0.3200 元 → 3.73%。后者才是年化。<br><br>
   <b>历史曲线没有未来函数：</b>不是拿今天的分红回填 2024 年，而是对每个历史日期，只用那天已经除权的分红重新配对。
   所以曲线上的每一次跳变，都对应一次真实的除权事件。<br><br>
+  <b>K 线是不复权日线</b>：股息率的分母也是不复权价，两者同一把尺。除权日的缺口会如实出现，
+  不折算是故意的 —— 折算过的价格会让「股息率 = 分红 ÷ 股价」这条式子对不上图上读数。<br><br>
   本站原有 11 只标的的当前股息率与你本地 <code>alert_my_dividend</code> 的缓存一致，最大偏差 0.05 个百分点（价差来自盘中/收盘价不同）。<br><br>
-  <b>2026-11-13 新增</b>新华保险、中国太保到「险企观察仓」。这两只尚无本地缓存对照，读数按同一口径计算；<b>观察仓是分组标记，不是交易信号</b> —— 新加入的两只不设买卖线，平安原有的买卖线保持不变。
+  <b>2026-11-26 调整：</b>险企从 4 只减到 2 只 —— <b>留中国平安 + 新华保险</b>，撤掉中国人寿和中国太保。
+  平安是唯一有买卖线的险企（5.0/2.0），且与新华的股息率序列相关只有 0.18，信息不重复；
+  人寿股息率 2.79% 是四只里最低（两年均值 1.70%），太保 4.91% 与平安 5.00% 几乎重合（相关 0.82）。
+  <b>分组是展示顺序，不是交易信号</b>：银行组 5 家保留各自原有的买卖线，险企和观察仓不设线。
+  <b>三桶油</b>（中国石油 / 中国石化 / 中国海油）与 <b>顺丰控股（002352，深市）</b>已加入，
+  这四只都是纯观察、<b>未设买卖线</b> —— 要设线给出数字再加。<br><br>
+  <b>读分位时注意绝对值</b>：顺丰两年分位 93%，意思是「比它自己过去两年大部分时候便宜」，
+  但它股息率绝对值只有 2.84%，低于银行组全部标的。<b>分位是跟自己的历史比，不是跨标的比价</b>。
   </p></div>`;
   function drawDivi(i){
     sel=i; const r=rows[i], L=r.latest;
@@ -3137,7 +3357,8 @@ D.rows.concat(D.thin||[]).forEach(r=>{
     // 股息率（约 3–6%）与股价（10–100 元）曾叠在一张双轴图上。
     // 最要命的不是读数对不上，是「买入线 / 卖出线」这两条决策线 ——
     // 它们属于左边的股息率刻度，一旦右轴也画着股价，会让人误以为买卖点和股价是同一件事。
-    // 拆成两张：上＝股息率与决策线（同一把尺），下＝股价（另一把尺，单独读）。
+    // 拆成两张：上＝股价 K 线（另一把尺，单独读），下＝股息率与决策线（同一把尺）。
+    // ⚠ 2026-11-26 OO 要求调换上下顺序：先看股价怎么走，再看股息率踩没踩线。
     const sets=[{type:'line',label:'股息率（%）',data:r.dy,
       borderColor:'#B45309',backgroundColor:'rgba(180,83,9,.07)',borderWidth:1.8,
       pointRadius:0,fill:true,tension:.1}];
@@ -3156,21 +3377,49 @@ D.rows.concat(D.thin||[]).forEach(r=>{
              title:{display:true,text:'股息率 %',font:{size:10},color:'#B45309'},
              ticks:{font:{size:10},color:C_GRAY,callback:v=>v+'%'},grid:{color:'#F5F5F4'}}}}
     });
+    // 2026-11-26 OO：股价图改成真 K 线（原来只有收盘价，只能画折线），
+    //   并把整块图表移到「股息率与买卖线」表格上方。
+    //   蜡烛插件复用本文件顶部那份 candlePlugin（组合页也在用），绑定方式同组合图：
+    //   _h/_l 两条隐形线撑开 y 轴范围 + chart._kl 交给插件逐根画。
+    //   ⚠ 只喂 close 的话，最高最低的影线会被裁到绘图区外。
+    const OH=r.ohlc||[];
+    const krows=OH.map((x,j)=>x?{d:r.dates[j],o:x[0],h:x[1],l:x[2],c:x[3]}:null);
     dp=new Chart(document.getElementById('dPriceChart'),{
       type:'line',
-      data:{labels:r.dates,datasets:[{label:'股价',data:r.price,
-        borderColor:'#1D4ED8',backgroundColor:'rgba(29,78,216,.05)',borderWidth:1.3,
-        pointRadius:0,fill:true,tension:.1}]},
+      // ⚠ 插件必须在构造时给；事后改 config.plugins 不会重新注册（组合页踩过）
+      plugins:[candlePlugin],
+      data:{labels:r.dates,datasets:[
+        {label:'_h',data:OH.map(x=>x?x[1]:null),borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0},
+        {label:'_l',data:OH.map(x=>x?x[2]:null),borderWidth:0,pointRadius:0,pointHitRadius:0,fill:false,tension:0}]},
       options:{responsive:true,maintainAspectRatio:false,animation:false,
         interaction:{mode:'index',intersect:false},
         plugins:{legend:{display:false},
-          tooltip:{callbacks:{label:c=>'股价：'+fmt(c.parsed.y,2)+' 元'}}},
+          tooltip:{
+            // ⚠ 不能把 _h/_l 都 filter 掉 —— 那样一项都不剩，tooltip 直接不弹。
+            //   留一条当载体（显示收盘），其余塞进 afterBody。
+            callbacks:{
+              label:it=>{
+                if(it.dataset.label!=='_h') return null;
+                const k=krows[it.dataIndex];
+                return k?('收 '+fmt(k.c,2)+' 元'):null;
+              },
+              afterBody:c=>{
+                const k=krows[c[0]&&c[0].dataIndex];
+                if(!k) return '';
+                const chg=(k.c/k.o-1)*100;
+                return [`开 ${fmt(k.o,2)}　高 ${fmt(k.h,2)}`,
+                        `低 ${fmt(k.l,2)}`,
+                        `当日 ${sgn(chg,2)}%（${k.c>=k.o?'收阳':'收阴'}）`].join('\n');
+              }}}},
         scales:{x:yearAxis(r.dates),
           y:{position:'left',afterFit:s=>{s.width=54},
              title:{display:true,text:'股价 元',font:{size:10},color:'#1D4ED8'},
              ticks:{font:{size:10},color:C_GRAY,callback:v=>Number(v).toFixed(1)},
              grid:{color:'#F5F5F4'}}}}
     });
+    dp._kl={rows:krows};
+    dp._klSolid=true;      // 实体（密集时空心会糊）
+    dp.update('none');
     document.getElementById('dNote').innerHTML=
       `两年区间 ${fmt(L.dy_min,2)}% ~ ${fmt(L.dy_max,2)}%，当前 ${fmt(L.dy,2)}% 处于第 <b>${fmt(L.dy_pct_rank,0)}</b> 百分位。`+
       (L.gap_to_buy>0?`距买入线还差 <b>${fmt(L.gap_to_buy,2)}</b> 个百分点（约需股价再跌 ${fmt((1-(L.gap_to_buy+L.dy)/L.dy)*100,1).replace('-','')}% 或分红提升）。`:'');
@@ -3181,6 +3430,13 @@ D.rows.concat(D.thin||[]).forEach(r=>{
     DVIEW.a=0; DVIEW.b=r.dates.length-1; DVIEW.n=r.dates.length;
     dSubs.push(bindZoom(dc,r.dates,DVIEW), bindZoom(dp,r.dates,DVIEW));
     buildTimeSlider(document.getElementById('tsDivi'),r.dates,null,DVIEW);
+    // 默认窗给「近 1 年」。⚠ 2026-11-26：全量 723 个交易日在 ~1350px 里每根只有
+    //   1.9px，蜡烛插件会退化成「一字线 + 收盘点」（阈值 2.2px），看着就不像 K 线；
+    //   244 根 → 每根约 5px，才是真蜡烛。
+    //   这里点预设按钮而不是直接改 DVIEW —— 让按钮高亮和实际窗口保持一致。
+    //   要看两年全貌点「全部」，两张图会一起缩放。
+    const ts1y=document.querySelector('#tsDivi .ts-btn[data-p="1y"]');
+    if(ts1y) ts1y.click();
   }
   document.getElementById('diviBody').addEventListener('click',e=>{
     const tr=e.target.closest('tr[data-i]');
@@ -3879,6 +4135,106 @@ D.rows.concat(D.thin||[]).forEach(r=>{
 })();
 
 
+// ── 历史叠加页（2026-11-25 新增）────────────────────────────
+// ⚠ 同样必须懒建：pane-overlay 默认 display:none，隐藏容器里 new Chart
+//   会拿到 clientWidth=0，图挤在左上角，切过去不会自己修好。
+let ovBuilt=false;
+function ovVLine(idx,color,label){
+  return {id:'ovVLine_'+idx+'_'+label, afterDatasetsDraw(chart){
+    const x=chart.scales.x.getPixelForValue(idx);
+    if(!isFinite(x)) return;
+    const a=chart.chartArea, ctx=chart.ctx;
+    ctx.save();
+    ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(x,a.top);ctx.lineTo(x,a.bottom);ctx.stroke();
+    ctx.setLineDash([]);ctx.fillStyle=color;ctx.font='10px -apple-system,sans-serif';
+    ctx.textAlign='left';ctx.fillText(label,x+4,a.top+12);
+    ctx.restore();
+  }};
+}
+window.__initOverlayCharts=function(){
+  if(ovBuilt) return;
+  const ids=['cOvNas','cOvNasOos','cOvASame','cOvADual'];
+  const els=ids.map(id=>document.getElementById(id));
+  if(els.some(e=>!e||!e.clientWidth)) return;   // 还没可见 → 下次再说
+  ovBuilt=true;
+  const nm=OV.nasdaq.metrics, am=OV.ashare.metrics;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('ovBlueEnd',nm.blueEnd);set('ovN',nm.n);set('ovCorr',nm.corr);set('ovZ',nm.zdist);
+  set('ovOosN',nm.oosN);set('ovOosCorr',nm.oosCorr);set('ovOosZ',nm.oosZdist);
+  set('ovBlueDd',nm.blueDd);set('ovOrangeDd',nm.orangeDd);
+  set('ovBRatio',nm.blueRatio);set('ovORatio',nm.orangeRatio);
+  set('ovLastFred',nm.lastFred);set('ovFetch',OV.fetchDate);
+  set('ovALast',am.lastDate);set('ovALast2',am.lastDate);
+  set('ovAN',am.n);set('ovACorr',am.corr);set('ovAMae',am.mae);set('ovARet',am.retCorr);
+  const rows=[[200,'T+200'],[400,'T+400'],[523,'T+523（今日）']];
+  document.getElementById('ovATable').innerHTML=rows.map(([t,lab])=>{
+    const v=am['at'+t];
+    return `<tr><td>${lab}</td><td>${v[0]}%</td><td>${v[1]}%</td><td>${(v[0]-v[1]).toFixed(1)} pp</td></tr>`;
+  }).join('');
+  const noNull=it=>it.parsed.y==null?'':it.parsed.y.toFixed(2);
+
+  charts.cOvNas=new Chart(els[0],{
+    type:'line',
+    data:{labels:OV.nasdaq.bottom,datasets:[
+      {label:'纳指 2022-10-12 起（实线）',data:OV.nasdaq.blue,borderColor:'#2563eb',
+       borderWidth:2,pointRadius:0,tension:0,fill:false,spanGaps:false},
+      {label:'纳指 1994-10-03 起 +28 年',data:OV.nasdaq.orange,borderColor:'#ea580c',
+       borderWidth:1.7,borderDash:[6,4],pointRadius:0,tension:0,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{title:it=>'历史 '+OV.nasdaq.bottom[it[0].dataIndex]+' / 映射 '+OV.nasdaq.top[it[0].dataIndex],
+          label:it=>it.dataset.label+' '+noNull(it)+'x'}}},
+      scales:{x:{ticks:{autoSkip:true,maxTicksLimit:8,font:{size:10}}},
+        y:{type:'logarithmic',min:0.7,max:8,ticks:{callback:v=>v+'x'}}}},
+    plugins:[ovVLine(OV.nasdaq.split,'#2563eb','实线止于 '+nm.blueEnd)]
+  });
+
+  charts.cOvNasOos=new Chart(els[1],{
+    type:'line',
+    data:{labels:OV.nasdaq.oos.i.map(String),datasets:[
+      {label:'纳指样本外',data:OV.nasdaq.oos.blue,borderColor:'#2563eb',borderWidth:2,pointRadius:0,tension:0,fill:false},
+      {label:'历史同位置',data:OV.nasdaq.oos.orange,borderColor:'#ea580c',borderWidth:1.7,borderDash:[6,4],pointRadius:0,tension:0,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:it=>it.dataset.label+' '+noNull(it)+'%'}}},
+      scales:{x:{ticks:{autoSkip:true,maxTicksLimit:10,font:{size:10}}},
+        y:{min:-14,max:6,ticks:{callback:v=>v+'%'}}}}
+  });
+
+  const aOpts={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
+      tooltip:{callbacks:{title:it=>'T'+(Number(it[0].label)>=0?'+':'')+it[0].label,
+        label:it=>it.dataset.label+' '+noNull(it)+'%'}}}};
+  const aData=datasets=>({labels:OV.ashare.t99.map(String),datasets:datasets});
+
+  charts.cOvASame=new Chart(els[2],{
+    type:'line',
+    data:aData([
+      {label:'1999-05-19 起（蓝）',data:OV.ashare.r99,borderColor:'#2563eb',borderWidth:2,pointRadius:0,tension:0,fill:false},
+      {label:'2024-09-24 起（红，至 '+am.lastDate+'）',data:OV.ashare.r24,borderColor:'#dc2626',borderWidth:2,pointRadius:0,tension:0,fill:false}
+    ]),
+    options:Object.assign({},aOpts,{scales:{x:{ticks:{autoSkip:true,maxTicksLimit:10,font:{size:10}}},
+      y:{min:-10,max:110,ticks:{callback:v=>v+'%'}}}}),
+    plugins:[ovVLine(280,'#6b7280','T=0')]
+  });
+
+  charts.cOvADual=new Chart(els[3],{
+    type:'line',
+    data:aData([
+      {label:'1999 蓝（左轴）',data:OV.ashare.r99,borderColor:'#2563eb',borderWidth:2,pointRadius:0,tension:0,fill:false,yAxisID:'y99'},
+      {label:'2024 红（右轴）',data:OV.ashare.r24,borderColor:'#dc2626',borderWidth:2,pointRadius:0,tension:0,fill:false,yAxisID:'y24'}
+    ]),
+    options:Object.assign({},aOpts,{scales:{
+      x:{ticks:{autoSkip:true,maxTicksLimit:10,font:{size:10}}},
+      y99:{type:'linear',position:'left',min:-10,max:110,ticks:{callback:v=>v+'%',color:'#2563eb'}},
+      y24:{type:'linear',position:'right',min:-6,max:55,grid:{drawOnChartArea:false},ticks:{callback:v=>v+'%',color:'#dc2626'}}
+    }})
+  });
+};
+
 // ---------- tab ----------
 function showPane(name){
   const b=[...document.querySelectorAll('nav button')].find(x=>x.dataset.pane===name);
@@ -3894,6 +4250,7 @@ function showPane(name){
   // 股债页同理：pane 隐藏时建图会拿到 0 宽。这里单独一个钩子，
   // 因为它的图不依赖「共识层」的数据，没必要跟 __initCvCharts 绑在一起。
   if(name==='bond' && typeof window.__initBondCharts==='function') window.__initBondCharts();
+  if(name==='overlay' && typeof window.__initOverlayCharts==='function') window.__initOverlayCharts();
   Object.values(charts).forEach(c=>c.resize&&c.resize());
 }
 document.querySelectorAll('nav button').forEach(b=>{

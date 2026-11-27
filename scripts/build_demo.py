@@ -26,6 +26,10 @@ demo = json.load(open(os.path.join(DATA, 'demo.json'), encoding='utf-8'))
 #   留着 read + replace 的话，文件不在了就直接 FileNotFoundError，
 #   而页面里根本没有地方用它。
 divi = json.load(open(os.path.join(DATA, 'dividend.json'), encoding='utf-8'))
+# 2026-11-25 新增：历史叠加页的静态数据（图一纳指 / 图二 5·19 vs 9·24）
+overlay = json.load(open(os.path.join(DATA, 'overlay.json'), encoding='utf-8'))
+# 2026-11-25 新增：「满仓猜想」页的文章逻辑与本站复算份额
+article = json.load(open(os.path.join(DATA, 'article_logic.json'), encoding='utf-8'))
 
 # 压体积
 for r in demo['rows']:
@@ -34,7 +38,9 @@ for r in divi['rows']:
     r['price'] = [None if p is None else round(p, 3) for p in r['price']]
     r['dps'] = [None if p is None else round(p, 4) for p in r['dps']]
 html = (tpl.replace('__DEMO__', json.dumps(demo, ensure_ascii=False, separators=(',', ':')))
-           .replace('__DIVI__', json.dumps(divi, ensure_ascii=False, separators=(',', ':'))))
+           .replace('__DIVI__', json.dumps(divi, ensure_ascii=False, separators=(',', ':')))
+           .replace('__OVERLAY__', json.dumps(overlay, ensure_ascii=False, separators=(',', ':')))
+           .replace('__ARTICLE__', json.dumps(article, ensure_ascii=False, separators=(',', ':'))))
 
 
 def local_chartjs():
@@ -66,6 +72,6 @@ open(out, 'w', encoding='utf-8').write(html)
 print(f'写入 {out}  ({len(html)/1024:.0f} KB){"  [离线版]" if OFFLINE else "  [CDN 版]"}')
 # ⚠ 这里别再把 '__STOCK__' 加回来 —— 模板里已经没有这个占位符了，
 #   assert 会一直通过（因为本来就不存在），等于给自己一个假的安心。
-for k in ('__DEMO__', '__DIVI__'):
+for k in ('__DEMO__', '__DIVI__', '__OVERLAY__', '__ARTICLE__'):
     assert k not in html, f'{k} 未替换'
 print('占位符已全部替换')

@@ -1,0 +1,96 @@
+{
+ "url": "https://mp.weixin.qq.com/s/awqsxJmxj3mfqBbzkzspBw",
+ "source": "梦想超过余额宝（公众号）",
+ "published": "2026-11-25",
+ "fetchDate": "2026-11-25 16:32",
+ "bullDate": "2024-09-23",
+ "bearDate": "2025-12-31",
+ "latestDate": "2026-11-24",
+ "rows": [
+  {
+   "code": "510050",
+   "name": "上证50ETF华夏",
+   "bull": 554.33,
+   "bear": 566.65,
+   "current": 241.43,
+   "hasAnchor": true,
+   "bullBearPct": 97.83,
+   "currentPct": 42.61,
+   "gapPct": 55.22,
+   "articlePct": 97.87
+  },
+  {
+   "code": "510300",
+   "name": "沪深300ETF华泰柏瑞",
+   "bull": 887.71,
+   "bear": 888.3,
+   "current": 548.1,
+   "hasAnchor": true,
+   "bullBearPct": 99.93,
+   "currentPct": 61.7,
+   "gapPct": 38.23,
+   "articlePct": 99.88
+  },
+  {
+   "code": "159919",
+   "name": "沪深300ETF嘉实",
+   "bull": null,
+   "bear": null,
+   "current": 213.33,
+   "hasAnchor": false,
+   "bullBearPct": null,
+   "currentPct": null,
+   "gapPct": null,
+   "articlePct": 92.15
+  },
+  {
+   "code": "510500",
+   "name": "中证500ETF南方",
+   "bull": 186.17,
+   "bear": 190.65,
+   "current": 125.08,
+   "hasAnchor": true,
+   "bullBearPct": 97.65,
+   "currentPct": 65.61,
+   "gapPct": 32.04,
+   "articlePct": 97.65
+  },
+  {
+   "code": "512100",
+   "name": "中证1000ETF南方",
+   "bull": 217.69,
+   "bear": 256.51,
+   "current": 255.67,
+   "hasAnchor": true,
+   "bullBearPct": 84.87,
+   "currentPct": 99.67,
+   "gapPct": -14.8,
+   "articlePct": 84.66
+  },
+  {
+   "code": "159915",
+   "name": "创业板ETF易方达",
+   "bull": null,
+   "bear": null,
+   "current": 534.63,
+   "hasAnchor": false,
+   "bullBearPct": null,
+   "currentPct": null,
+   "gapPct": null,
+   "articlePct": 130.12
+  },
+  {
+   "code": "588080",
+   "name": "科创50ETF易方达",
+   "bull": 591.14,
+   "bear": 515.12,
+   "current": 466.94,
+   "hasAnchor": true,
+   "bullBearPct": 114.76,
+   "currentPct": 90.65,
+   "gapPct": 24.11,
+   "articlePct": 114.0
+  }
+ ],
+ "note": "本站口径≠作者口径。作者「还差多少」用的是未公开的当前水位模型；本站用「最新份额/熊市锚点份额」作透明代理，只比方向不比数值。"
+}

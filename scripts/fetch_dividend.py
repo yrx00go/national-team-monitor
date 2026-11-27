@@ -44,10 +44,30 @@ STOCKS = [
     ('工商银行', '601398', 'sh', 6.0, 3.0, 'half'),
     ('建设银行', '601939', 'sh', 6.0, 3.0, 'half'),
     ('中国平安', '601318', 'sh', 5.0, 2.0, 'all'),
-    ('中国人寿', '601628', 'sh', None, None, None),
+    # 2026-11-26 OO 定：险企只留 2 只，留平安 + 新华，砍人寿 + 太保。
+    #   理由写在这里，免得以后又加回来：
+    #   · 平安必留 —— 唯一有买卖线（5.0/2.0）的险企，今天 5.00% 正好踩在买入线上，
+    #     这是她会据此下单的标的，删掉等于删掉信号。
+    #   · 新华留 —— 股息率 5.42%（四只最高）、两年分位 99.6%，且与平安的股息率序列
+    #     相关只有 0.18，信息几乎不重复。
+    #   · 人寿砍 —— 股息率 2.79%，四只最低，两年均值只有 1.70%，本质不是高股息标的；
+    #     它分位 98.2% 是「自己历史更低」造出来的假便宜，绝对水平并不便宜。
+    #   · 太保砍 —— 4.91% 与平安 5.00% 几乎重合，股息率序列相关 0.822，等于同一信号看两遍。
+    #   原代码：('中国人寿','601628'), ('中国太保','601601') 均 (None,None,None)
     ('新华保险', '601336', 'sh', None, None, None),
-    ('中国太保', '601601', 'sh', None, None, None),
     ('长江电力', '600900', 'sh', 5.0, None, 'hold'),
+    # 2026-11-26 OO 指定：把「三桶油」加入股息率观察。
+    # ⚠ buy/sell 一律 None —— 她说的原话是「加入观察」，不是「给买卖线」。
+    #   擅自配一条 6% 买入线，等于我替她定投资政策，这属于改口径不是加数据。
+    #   要设线她给数字，我改这一行就行。
+    ('中国石油', '601857', 'sh', None, None, None),
+    ('中国石化', '600028', 'sh', None, None, None),
+    ('中国海油', '600938', 'sh', None, None, None),
+    # 2026-11-26 OO 指定：加入顺丰控股。深市 002352（不是沪市，market 必须 'sz'）。
+    # ⚠ buy/sell 一律 None —— 同三桶油，她只说「加进来」，没说给线。
+    # ⚠ 分组：不分组（进「其他」）。她是单独点名加的，凑一个只有一只的「物流组」
+    #   只是给表格加一行噪音；要成组她再说，改 WATCH_GROUP 一行就行。
+    ('顺丰控股', '002352', 'sz', None, None, None),
 ]
 START = '2023-12-01'   # 与 ETF 模块对齐：2023 年 12 月至今
 
@@ -57,9 +77,21 @@ START = '2023-12-01'   # 与 ETF 模块对齐：2023 年 12 月至今
 # ⚠ 新加入的新华 601336、太保 601601 的 buy/sell 一律 None —— 观察仓是「只看，不下单」，
 #    给它们配买卖线会把观察仓读成交易信号。
 WATCH_GROUP = {
+    # 2026-11-26 OO 定：险企只留 2 只（平安 + 新华），见 STOCKS 上方注释。
     '601336': '险企观察仓',
     '601318': '险企观察仓',   # 原本就在池里，不重复添加数据
-    '601601': '险企观察仓',
+    # 2026-11-26 OO 定：5 家银行并成一组展示。
+    # ⚠ 与「观察仓」性质不同：这 5 家都有买卖线（她自己那套策略的配置），
+    #   所以表格里不挂「观察仓」标签、组说明也写明「买卖线照旧生效」。
+    '600036': '银行',
+    '601988': '银行',
+    '601288': '银行',
+    '601398': '银行',
+    '601939': '银行',
+    # 2026-11-26 新增：三桶油一起看。三只全无买卖线（纯观察）。
+    '601857': '三桶油观察',
+    '600028': '三桶油观察',
+    '600938': '三桶油观察',
 }
 EM_URL = 'https://datacenter-web.eastmoney.com/api/data/v1/get'
 
@@ -122,14 +154,62 @@ def fetch_bonus(codes):
     return out
 
 
-def fetch_price(code, market, bars=900):
+def _px_tx(code, market, bars=900):
     sym = market + code
     url = (f'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?'
            f'param={sym},day,,,{bars},bfq')
     js = json.loads(_get(url, 'https://gu.qq.com/').decode('utf-8', 'ignore'))
     node = (js.get('data') or {}).get(sym) or {}
     k = node.get('day') or node.get('bfqkline') or []
-    return [(row[0], float(row[2])) for row in k if len(row) >= 3]
+    # 腾讯行序：[日期, 开, 收, 高, 低, 量]  ← 注意是「开收高低」，不是「开高低收」
+    return [(r[0], float(r[1]), float(r[3]), float(r[4]), float(r[2]))
+            for r in k if len(r) >= 6]
+
+
+def _px_sina(code, market, n=1000):
+    """新浪日线（不复权）。走直连，不经 requests/代理 —— 这台机器上 akshare
+    的 requests 链路被代理挡住（ProxyError），urllib 是通的。"""
+    sym = market + code
+    url = (f'https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/'
+           f'CN_MarketData.getKLineData?symbol={sym}&scale=240&ma=no&datalen={n}')
+    h = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://finance.sina.com.cn/'}
+    raw = urllib.request.urlopen(urllib.request.Request(url, headers=h),
+                                 timeout=30).read().decode('utf-8', 'ignore')
+    return [(r['day'][:10], float(r['open']), float(r['high']),
+             float(r['low']), float(r['close'])) for r in json.loads(raw)]
+
+
+def _px_em(code, market, n=None):
+    import akshare as ak
+    df = ak.stock_zh_a_hist_em(symbol=code, period='daily',
+                               start_date=START.replace('-', ''),
+                               end_date=datetime.now().strftime('%Y%m%d'),
+                               adjust='')
+    return [(str(a)[:10], float(o), float(h), float(l), float(c))
+            for a, o, h, l, c in zip(df['日期'], df['开盘'], df['最高'],
+                                     df['最低'], df['收盘'])]
+
+
+def fetch_price(code, market, bars=900):
+    """不复权日线，三源逐级回退：腾讯 → 新浪 → 东财。
+
+    ⚠ 2026-11-26 加的回退链。原来只有腾讯一条路，当天 fqkline 开始返 HTTP 501，
+       整个股息率模块直接崩在第二只标的上（22 次请求里最脆弱的一环）。
+       - 新浪：直连可用，不复权收盘与腾讯比对一致（600936 抽查 4 点全同；
+         最后一日的 0.2% 级差异来自各家自己的复权/校对节奏，不影响两位小数的股息率）
+       - 东财：当日实测被 push2 限流（akshare 会抛 Push2RateLimitError），
+         所以排在最后，仅作兜底；触发后不要连续重试，会延长限流。
+       返回 (序列, 源标记)，源标记会写进 dividend.json 的 price_src，
+       换源不会静默发生，页面上能看出数据是哪来的。
+    """
+    for fn, tag in ((_px_tx, 'tx'), (_px_sina, 'sina'), (_px_em, 'em')):
+        try:
+            out = fn(code, market, bars) if fn is _px_tx else fn(code, market)
+            if out:
+                return out, tag
+        except Exception as e:
+            print(f'  {tag} 取价失败（{type(e).__name__}: {str(e)[:60]}）')
+    raise RuntimeError(f'{code} 三个价格源全部失败')
 
 
 def annual_dps(records_upto_t):
@@ -190,15 +270,21 @@ def main():
         print(f'  {c}  {len(bonus[c])} 条')
 
     rows, days_ref = [], None
+    src_count = {}
     for name, code, mk, buy, sell, mode in STOCKS:
         print(f'拉价格 {code} {name}…')
-        px = [(d, p) for d, p in fetch_price(code, mk) if d >= START]
+        raw, src = fetch_price(code, mk)
+        src_count[src] = src_count.get(src, 0) + 1
+        px = [t for t in raw if t[0] >= START]
         if not px:
             print(f'  跳过 {code}：无价格')
             continue
         recs = bonus[code]
-        dates = [d for d, _ in px]
-        prices = [p for _, p in px]
+        dates = [t[0] for t in px]
+        prices = [round(t[4], 2) for t in px]
+        # 2026-11-26：同时存 OHLC，页面用真蜡烛图画股价（原来只存收盘价，只能画折线）
+        ohlc = [[round(t[1], 2), round(t[2], 2), round(t[3], 2), round(t[4], 2)]
+                for t in px]
 
         # 每个交易日：只用当天已除权的分红算 DPS（无未来函数）
         dps_series, pair_series, dy_series = [], [], []
@@ -234,6 +320,7 @@ def main():
             'buy': buy, 'sell': sell, 'mode': mode,
             'dates': dates,
             'price': prices,
+            'ohlc': ohlc,
             'dps': dps_series,
             'dy': dy_series,
             'pair': pair_series,
@@ -248,7 +335,7 @@ def main():
         })
 
     out = {'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
-           'first_date': START, 'rows': rows}
+           'first_date': START, 'price_src': src_count, 'rows': rows}
     fp = os.path.join(DATA, 'dividend.json')
     json.dump(out, open(fp, 'w', encoding='utf-8'), ensure_ascii=False)
 
