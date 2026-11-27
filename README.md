@@ -4674,3 +4674,26 @@ OO 给了一篇公众号文章（《牛市启动前，国家队是满仓吗？�
 
 **验证**：无头 Chrome 点 `#divi` + 模拟点击 `tr[data-i="14"]`，确认 K 线与股息率图都正常渲染
 （顺丰 723 个交易日 OHLC 与 dates 等长、无一条 h/l 越界）。体检记录自动变 `15/15`、最新 2026-11-26。
+
+## 十九、上线记录：2026-11-27 推送到 GitHub Pages
+
+**本地 `main` 落后远端 15 个 CI 提交**（远端数据已到 11-26，本地停在 11-24）。合并方式：
+1. 本地改动先提交（feat 一笔）；
+2. `git merge origin/main -X ours` —— 冲突全部取本地，保证新增页面与脚本不被 CI 版本覆盖；
+3. **但 `-X ours` 会把单行 JSON 的整行都判成本地赢**，所以合并后必须显式
+   `git checkout origin/main -- data/{shares,prices,prices_bfq,index_sh,kline,margin,sentiment,gold_survey,bond_equity,consensus_history,demo,meta,fetch_status}.json`
+   把 CI 刷过的原始数据取回来。**只保留 `dividend.json` 用本地**（CI 那边的脚本还是旧版 13 只、无 `ohlc`）；
+4. 本地重跑 `fetch_dividend.py`（15 只，本次腾讯恢复可用）→ `compute_demo.py` → `build_demo.py --offline`；
+5. push `f67ce76`，CI 触发全流程，**并由 deploy job 重新 compute + build + 上传 artifact**。
+
+**⚠ 部署不是 push 就生效**：Pages 走 `actions/deploy-pages`，站点由 workflow 里
+`重算派生数据并重建页面` → `准备站点`（`cp demo_site.html _site/index.html`）→ `upload-pages-artifact` → `deploy-pages` 完成。
+所以线上更新要等整条 CI 跑完，实测**从 push 到线上可访问约 16 分钟**。
+验证线上别只看 git：直接抓 `https://yrx00go.github.io/national-team-monitor/` 搜标记字符串（如「顺丰控股」）。
+
+**线上核对（2026-11-27 15:59 部署完成）**：4.0 MB；`latest_date` 2026-11-26；8 个页签齐全；
+股息率 15 只、含顺丰（11-27 收 32.68 / 2.82%）；`overlay` 与 `article` JSON 都在。
+
+**已知小瑕疵（未改）**：CI runner 是 UTC，`build_demo.py` 用 `datetime.now()` 写 `updated_at`，
+页面右上角「生成于」显示的是 UTC（今天显示 `2026-11-27 07:59`，实际北京时间 15:59）。
+本地构建则显示北京时间，所以本地/线上这个字段会差 8 小时。要修就统一成 UTC+8 再 `astimezone`。
