@@ -12,11 +12,14 @@ https://mp.weixin.qq.com/s/awqsxJmxj3mfqBbzkzspBw
     距锚点 = 牛熊锚点比 - 当前水位
 单位统一为「亿份」（shares.json 原始单位是万份）。
 """
-import json, os
+import json, os, sys
 from datetime import datetime
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _td          # 全站唯一时间口径（北京时钟），别再自己写 datetime.now()
 
 BULL = '2024-09-23'   # 作者定义的「牛市启动前」
 BEAR = '2025-12-31'   # 作者定义的「熊市启动前 / 汇金离场前」
@@ -72,7 +75,7 @@ def main():
         'url': URL,
         'source': '梦想超过余额宝（公众号）',
         'published': '2026-11-25',
-        'fetchDate': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'fetchDate': _td.bj_stamp(),
         'bullDate': BULL,
         'bearDate': BEAR,
         'latestDate': latest,

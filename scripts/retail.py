@@ -65,6 +65,9 @@ from datetime import datetime, timedelta
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
 
+sys.path.insert(0, os.path.join(BASE, 'scripts'))
+import _td          # 全站唯一时间口径（北京时钟），别再自己写 datetime.now()
+
 UA = {
     'User-Agent': ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
                    'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -232,7 +235,9 @@ def crawl_bar(bar, label, pages=PAGES):
 
 
 def main():
-    today = datetime.now().date()
+    # ⚠ 2026-11-27：date.today() 在 CI 上是 UTC 日期（北京早上 08:00 前会早一天），
+    #   而这个 today 同时决定了抓取的窗口和写进数据里的 date。用北京日期。
+    today = _td.bj_today()
     since = today - timedelta(days=WINDOW_DAYS - 1)
 
     all_posts, notes = [], []
@@ -332,7 +337,7 @@ def main():
                for p in chat[:12] if 4 <= len(p['title']) <= 60]
 
     out = {
-        'at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'at': _td.bj_stamp(),
         'date': today.isoformat(),
         'source': '新浪股吧（上证指数 / 深证成指 / 创业板指 / 中证500 / 上证50）',
         'window_days': WINDOW_DAYS,

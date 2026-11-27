@@ -40,12 +40,31 @@
 """
 import json, os
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 try:
     import _td        # 全站唯一时间口径（北京时钟 + 交易日历 + 定稿判定）
 except Exception:     # 单独 import 本模块做实验时可能拿不到，别把体检拖挂
     _td = None
+
+_BJ = timezone(timedelta(hours=8))
+
+
+def _bjnow():
+    """北京时钟。优先 _td，_td 拿不到时自己算。
+
+    ⚠ 2026-11-27 加：体检记录里的 `at` 原来写的是 `datetime.now()` ——
+      CI runner 是 UTC，于是「北京 18:00 跑的那次」被记成 10:00。
+      这一栏的用途是「这条记录是今天几点报的」，时间错 8 小时会让
+      「数据是不是今晚拿到的」这个判断彻底失效。
+
+    ⚠ 退化路径也不许回 UTC：这条路径存在的意义是「_td 没导进来时还要能记一笔」，
+      如果它记的是 UTC，那它省下的那点健壮性又原样赔回去了。
+    """
+    if _td is not None:
+        return _td.bj_now()
+    return datetime.now(timezone.utc).astimezone(_BJ)
+
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FP = os.path.join(BASE, 'data', 'fetch_status.json')
@@ -164,7 +183,7 @@ def report(key, name, state, last=None, got=None, want=None, note=''):
         db = _load()
         hist = db.get(key) or []
         rec = {
-            'at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'at': _bjnow().strftime('%Y-%m-%d %H:%M'),
             'state': state,          # ok / partial / fail / stale
             'got': got,
             'want': want,
@@ -179,7 +198,10 @@ def report(key, name, state, last=None, got=None, want=None, note=''):
         hist.sort(key=lambda h: h.get('at') or '')
 
         # 只留最近 KEEP_DAYS 天
-        cut = (datetime.now() - timedelta(days=KEEP_DAYS)).strftime('%Y-%m-%d')
+        # ⚠ 2026-11-27：保留窗口的「今天」也必须是北京日期。
+        #   用 UTC 日期在 UTC 16:00 之后（= 北京次日 00:00 后）会少算一天，
+        #   虽然只是「多留一天/少留一天」的边界，但它和上面的 at 必须是同一个时钟。
+        cut = (_bjnow() - timedelta(days=KEEP_DAYS)).strftime('%Y-%m-%d')
         hist = [h for h in hist if (h.get('at') or '')[:10] >= cut]
 
         db[key] = hist
@@ -241,11 +263,11 @@ def summarize(today=None, asof=None):
       「今天未收盘」和「今天已收盘」直接决定基准日是哪天，这个判断
       全站只在 _td.expect_asof() 里做一次，别处不许自己算。
     """
-    today = today or (datetime.now().strftime('%Y-%m-%d'))
+    today = today or _bjnow().strftime('%Y-%m-%d')
     try:
         d_today = datetime.strptime(today[:10], '%Y-%m-%d')
     except Exception:
-        d_today = datetime.now()
+        d_today = _bjnow()
 
     # ── 基准日：lag 的尺子 ──────────────────────────────────────────
     # ⚠ 没传就自动推。自动推的逻辑在 _td.expect_asof()，那里有完整推导：

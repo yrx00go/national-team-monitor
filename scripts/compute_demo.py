@@ -1625,7 +1625,9 @@ def main():
     mg = calc_margin(mg_raw, days, turn_map)
 
     out = {
-        'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        # ⚠ 2026-11-27：不能用 datetime.now() —— CI runner 是 UTC，
+        #   北京 15:59 会写成 07:59，页头「生成于」长期早 8 小时。
+        'updated_at': _td.bj_stamp(),
         'latest_date': days[-1],
         'first_date': days[0],
         'days': days,

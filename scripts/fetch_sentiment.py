@@ -57,6 +57,7 @@ from datetime import datetime, date
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报
 import _net         # 请求节流 + 账单
+import _td          # 北京时钟（全站唯一时间口径）
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -1080,8 +1081,10 @@ def percentile_of(hist, key, value):
 # ─────────────────── 主流程 ───────────────────
 
 def main():
-    today = date.today().isoformat()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+    # ⚠ 2026-11-27：date.today() 在 CI runner 上是 UTC，北京早上 8 点前会比北京日期早一天；
+    #   而这个 today 会写进数据里当「哪一天的情绪」。改用北京日期。
+    today = _td.bj_today_str()
+    now = _td.bj_stamp()
     print(f'▶ 抓取市场共识　{today}')
 
     # 1. 估值分位

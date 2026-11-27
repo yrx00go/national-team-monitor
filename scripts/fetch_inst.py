@@ -22,6 +22,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _td          # 北京时钟（全站唯一时间口径）
 import _universe    # 全站唯一的标的清单，见 _universe.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -93,7 +94,7 @@ def scale(code):
 
 
 def main():
-    data = {'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M'), 'rows': []}
+    data = {'updated_at': _td.bj_stamp(), 'rows': []}
     for idx, code, name in WATCH:
         try:
             h = holders(code)

@@ -68,6 +68,18 @@ permissions:
   pages: write                 # 发布 Pages 需要
   id-token: write
 
+# ⚠⚠ 2026-11-27 加：runner 默认是 UTC，页头「生成于」一直比北京时间早 8 小时
+#   （北京 15:59 跑出来写 07:59，只在下午看得出来，藏了两周）。
+#
+#   两道设防，故意重复：
+#     ① 代码里所有时间戳改走 _td.bj_stamp()（显式 +8，不依赖环境）
+#     ② 这里设 TZ —— 让日志时间、`date` 命令、以及将来任何没走 _td 的写法
+#        也跟着对齐。TZ 是"环境兜底"，_td 是"代码兜底"，任一失效都不会退回 UTC。
+#   ⚠ 只设 TZ 不设 _td 是不够的：本地跑（macOS 本来就是东八区）永远看不出问题，
+#     "本机对、线上错"正是最难自查的那一类。
+env:
+  TZ: Asia/Shanghai
+
 concurrency:
   group: etf-daily
   cancel-in-progress: false    # 不取消正在跑的，避免数据半截

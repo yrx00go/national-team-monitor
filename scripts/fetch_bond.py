@@ -70,6 +70,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh
 import _td
 import _net
+import _td
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -191,7 +192,7 @@ def main():
     if len(got) == len(SERIES):
         out = {k: got[k] for k in ('hs300tr', 'bond')}
         out['meta'] = {
-            'updated': time.strftime('%Y-%m-%d %H:%M'),
+            'updated': _td.bj_stamp(),
             'src': 'csindex.com.cn',
             'note': '沪深300全收益(H00300) + 中证全债(H11001)',
         }

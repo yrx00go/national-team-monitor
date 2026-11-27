@@ -69,6 +69,7 @@ OUT = os.path.join(DATA, 'gold_survey.json')
 sys.path.insert(0, os.path.join(BASE, 'scripts'))
 import _net       # noqa: E402
 import _fh        # noqa: E402  数据源健康上报
+import _td        # noqa: E402  北京时钟（全站唯一时间口径）
 
 UA = {
     'User-Agent': ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
@@ -392,7 +393,7 @@ def main():
         return 1
 
     payload = {
-        'at': time.strftime('%Y-%m-%d %H:%M'),
+        'at': _td.bj_stamp(),
         'source': '中金网「金市直播」转载 Kitco News 黄金周度调查',
         'cat': CAT,
         'freq': 'weekly',

@@ -49,6 +49,7 @@ OUT = os.path.join(DATA, 'kline.json')
 
 sys.path.insert(0, os.path.join(BASE, 'scripts'))
 import _net       # noqa: E402
+import _td        # noqa: E402  北京时钟（全站唯一时间口径）
 
 UA = {
     'User-Agent': ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
@@ -211,7 +212,7 @@ def main():
     all_days = sorted({r['d'] for v in res.values()
                        for r in (v.get('rows') or [])})
     payload = {
-        'at': time.strftime('%Y-%m-%d %H:%M'),
+        'at': _td.bj_stamp(),
         'fq': 'bfq',
         'errors': fails,
         'days': len(all_days),

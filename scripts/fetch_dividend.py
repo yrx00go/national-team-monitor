@@ -28,6 +28,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _td          # 北京时钟（全站唯一时间口径）
 import _net         # 请求节流 + 账单，见 _net.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -183,7 +184,7 @@ def _px_em(code, market, n=None):
     import akshare as ak
     df = ak.stock_zh_a_hist_em(symbol=code, period='daily',
                                start_date=START.replace('-', ''),
-                               end_date=datetime.now().strftime('%Y%m%d'),
+                               end_date=_td.bj_today().strftime('%Y%m%d'),
                                adjust='')
     return [(str(a)[:10], float(o), float(h), float(l), float(c))
             for a, o, h, l, c in zip(df['日期'], df['开盘'], df['最高'],
@@ -232,6 +233,31 @@ def annual_dps(records_upto_t):
     ⇒ 采用原口径（与那套 dividend_notify.py 一致）：
         最新一期是年度（12-31）→ 配同一财年的中期
         最新一期是中期（非 12-31）→ 配上一财年的年度
+
+    ⚠⚠⚠ 2026-11-27 修的一个真 bug：上一条「中期 → 配上一财年年度」，
+       只在【上一财年本身就是「中期 + 年度」结构】时成立。因为那种情况下
+       12-31 那一笔是【尾款】（全年总额 − 已派中期），拿它 + 本期中期才是 12 个月。
+
+       但一家公司【第一次】改成年内两次派息时，上一财年的 12-31 是【一整年的钱】，
+       再叠加本期中期就重复计算了。招行 600036 就是这么虚高起来的：
+
+           2024-12-31 每 10 股派 20.00 元 → 2.00 元/股   ← 全年一次，不是尾款
+           2025-06-30 每 10 股派 10.13 元 → 1.013 元/股  ← 第一次中期
+           旧逻辑：1.013 + 2.00 = 3.013 → 3.013/38.72 = 7.78%
+           真值应是 2.00（上年全年）→ 2.00/38.72 = 5.17%
+
+       于是 2026-01-16 ~ 2026-07-09 整整 114 个交易日，招行的股息率曲线上
+       凭空多出一个 7.8~8.4% 的台子，把「两年分位」和「区间上沿」全带偏了。
+       这也是它看起来「比真实便宜」的原因 —— 一个假信号，不是一次错标。
+
+       判据：上一财年有没有中期那一笔。
+         有 → 12-31 是尾款 → 照旧叠加（银行常态，工行/建行等不受影响）
+         没有 → 12-31 是全年 → 只用它，不叠加
+       ⚠ 注意这个判据用的是「上一财年自己的结构」，不是猜这家公司以后怎么派息，
+         所以它对未来依然是不知情的（无未来函数）。
+
+    ⚠ 2026-11-27 同时改：最新是年度时，同一财年的中期【全部】加进来（原来是取最近一期）。
+       对季度派息的公司，只取一期会漏掉前几期 —— 和上面的 bug 是同一类错（漏算/重算）。
     """
     if not records_upto_t:
         return 0.0, ''
@@ -244,12 +270,27 @@ def annual_dps(records_upto_t):
     latest = periods[-1]
     y, m = int(latest[:4]), int(latest[5:7])
     if m == 12:
-        # 最新是年度分红 → 配同一财年的中期
-        partners = [p for p in periods[:-1] if int(p[:4]) == y and p != latest]
+        # 最新是年度分红 → 同一财年的中期全算（含特别分红那一期）
+        partners = [p for p in periods[:-1] if int(p[:4]) == y]
+        chosen = partners + [latest]
     else:
-        # 最新是中期分红 → 配上一财年的年度
-        partners = [p for p in periods[:-1] if int(p[:4]) == y - 1]
-    chosen = [latest] + partners[-1:]
+        # 最新是中期分红 → 需要上一财年的年度那一笔
+        prev_all = [p for p in periods if int(p[:4]) == y - 1]
+        prev_final = [p for p in prev_all if int(p[5:7]) == 12]
+        prev_interim = [p for p in prev_all if int(p[5:7]) != 12]
+        if prev_final and prev_interim:
+            # 上一财年本来就是「中期 + 年度」→ 12-31 是尾款，叠加本期中期 = 12 个月节奏
+            chosen = [prev_final[-1], latest]
+        elif prev_final:
+            # 上一财年只有年度一笔 = 那是一整年的钱，叠加就重复计算（招行那个 bug）
+            chosen = [prev_final[-1]]
+        elif prev_all:
+            # 上一财年没有年度（数据缺失）→ 退一步用上一财年最后一期
+            chosen = [prev_all[-1], latest]
+        else:
+            # 完全没有上一财年 → 只能拿本期；宁可偏低，也不给一个凭空造出来的高股息率
+            chosen = [latest]
+    chosen = sorted(set(chosen))
     return (round(sum(by_period[p] for p in chosen), 4),
             ' + '.join(chosen))
 
@@ -334,7 +375,7 @@ def main():
             },
         })
 
-    out = {'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+    out = {'updated_at': _td.bj_stamp(),
            'first_date': START, 'price_src': src_count, 'rows': rows}
     fp = os.path.join(DATA, 'dividend.json')
     json.dump(out, open(fp, 'w', encoding='utf-8'), ensure_ascii=False)

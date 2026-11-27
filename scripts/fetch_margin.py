@@ -46,6 +46,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _fh          # 数据源健康上报，见 _fh.py 开头的说明
+import _td          # 北京时钟（全站唯一时间口径）
 import _net         # 请求节流 + 账单，见 _net.py 开头的说明
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -179,7 +180,7 @@ def main():
                    note=f"量级异常 {days[last]['rzrqye']:,.0f} 亿，疑似单位错误")
         return 1
 
-    out = {'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+    out = {'updated_at': _td.bj_stamp(),
            'days': dict(sorted(days.items()))}
     fp = os.path.join(DATA, 'margin.json')
     json.dump(out, open(fp, 'w', encoding='utf-8'), ensure_ascii=False)

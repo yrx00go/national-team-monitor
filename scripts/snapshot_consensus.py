@@ -51,6 +51,7 @@ DATA = os.path.join(BASE, 'data')
 OUT = os.path.join(DATA, 'consensus_history.json')
 
 sys.path.insert(0, os.path.join(BASE, 'scripts'))
+import _td          # 北京时钟（全站唯一时间口径）
 
 
 def _load(name):
@@ -152,7 +153,7 @@ def build_point(day):
         'gold_survey': gold_survey_point(survey, day),
         'a_inst': a_share_institution_point(sentiment, day),
         'a_retail': a_share_retail_point(sentiment, day),
-        'at': time.strftime('%Y-%m-%d %H:%M'),
+        'at': _td.bj_stamp(),
     }
 
 
@@ -230,7 +231,7 @@ def main():
                 'gold_survey': gpt,
                 'a_inst': None,
                 'a_retail': None,
-                'at': time.strftime('%Y-%m-%d %H:%M'),
+                'at': _td.bj_stamp(),
                 'note': '按调查发布日期补录（当天未运行快照脚本）',
             }
             gold_filled.append(d)
@@ -263,7 +264,7 @@ def main():
 
     out_rows = [rows[k] for k in sorted(rows)]
     payload = {
-        'at': time.strftime('%Y-%m-%d %H:%M'),
+        'at': _td.bj_stamp(),
         'n': len(out_rows),
         'from': out_rows[0]['date'] if out_rows else None,
         'to': out_rows[-1]['date'] if out_rows else None,

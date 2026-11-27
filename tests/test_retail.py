@@ -389,8 +389,13 @@ bd_code = re.sub(r'#.*$', '', bd_code, flags=re.M)
 chk_true('① 不再读 holders.json（剥 docstring+注释后）', 'holders.json' not in bd_code)
 chk_true('② 不再 replace __STOCK__（剥 docstring+注释后）', '__STOCK__' not in bd_code)
 chk_true('③ 也不再遍历 hold', "hold['holders']" not in bd_code)
-chk_true('④ 占位符自检只查 DEMO 和 DIVI',
-         "('__DEMO__', '__DIVI__')" in bd_code)
+# ⚠ 2026-11-27：这条原来写死了 "('__DEMO__', '__DIVI__')" 这个字符串，
+#   于是新增 __OVERLAY__ / __ARTICLE__ 两个占位符之后它就红了 —— 而代码是对的。
+#   **测试钉住的是「实现的写法」而不是「自检覆盖了哪些占位符」**，属于假失败。
+#   改成按占位符本身判断：既然是自检，新加的占位符也必须被它管到。
+chk_true('④ 占位符自检覆盖全部注入项',
+         all(f"'{k}'" in bd_code for k in
+             ('__DEMO__', '__DIVI__', '__OVERLAY__', '__ARTICLE__')))
 
 # 模板里确实没有这个占位符了（双重确认）
 chk('⑤ 模板里确实无 __STOCK__', html.count('__STOCK__'), 0)

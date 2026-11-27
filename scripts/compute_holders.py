@@ -11,11 +11,14 @@
    所以只呈现数量变化，不呈现"总市值"这类会被口径误导的指标。
 3. 汇金投资 / 汇金资管 / 证金公司 是三个不同主体，绝不能合并成一个"国家队"数字。
 """
-import json, os
+import json, os, sys
 from datetime import datetime
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _td          # 全站唯一时间口径（北京时钟），别再自己写 datetime.now()
 
 
 def main():
@@ -89,7 +92,7 @@ def main():
                         key=lambda x: -len(x['holders']))
 
     out = {
-        'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'updated_at': _td.bj_stamp(),
         'newest': holders[0]['compare'][0] if holders else periods[0],
         'prev': holders[0]['compare'][1] if holders else (periods[1] if len(periods) > 1 else None),
         'periods': periods,
